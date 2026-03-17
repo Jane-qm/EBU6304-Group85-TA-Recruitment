@@ -27,15 +27,12 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 * **Final Delivery:** 24th May 2026 (Final Product \& Video).
 
 ## 👥 The Agile Team
+- **Member 1 :** Zhixuan Guo \[GitHub Username:Jane-qm ; QMID:231224413]
+- **Member 2:** Can Chen
+- **Member 3:** Yanwen Chen \[GitHub Username:cherrycoups0323 ; QMID:231224321]
+- **Member 4:** Jiaza Wang
+- **Member 5:** Yiping Zheng \[GitHub Username:YiPZ66 ; QMID:231224631]
+- **Member 6:** Jiayi Lou
 
-* **Member 1 :** Zhixuan Guo
-* **Member 2:** Can Chen
-* **Member 3:** Yanwen Chen \[GitHub Username:cherrycoups0323 ; QMID:231224321]
-* **Member 4:** Jiaza Wang
-* **Member 5:** Yiping Zheng
-* **Member 6:** Jiayi Lou
-
-## 🛠 Setup \& Installation
-
-\[Provide instructions here on how to compile and run your Java application]
-
+## 🛠 Setup & Installation
+[Provide instructions here on how to compile and run your Java application]
