@@ -26,7 +26,7 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 - **Member 2:** Can Chen
 - **Member 3:** Yanwen Chen
 - **Member 4:** Jiaza Wang
-- **Member 5:** Yiping Zheng
+- **Member 5:** Yiping Zheng[GitHub Username:YiPZ66 ; QMID:231224631]
 - **Member 6:** Jiayi Lou
 
 ## 🛠 Setup & Installation
