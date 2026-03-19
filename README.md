@@ -32,7 +32,7 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 - **Member 3:** Yanwen Chen \[GitHub Username:cherrycoups0323 ; QMID:231224321]
 - **Member 4:** Jiaza Wang
 - **Member 5:** Yiping Zheng \[GitHub Username:YiPZ66 ; QMID:231224631]
-- **Member 6:** Jiayi Lou
+- **Member 6:** Jiayi Lou \[GitHub Username:lou20050802; QMID:231225063]
 
 ## 🛠 Setup & Installation
 [Provide instructions here on how to compile and run your Java application]
