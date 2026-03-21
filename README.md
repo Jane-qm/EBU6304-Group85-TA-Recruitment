@@ -31,7 +31,7 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 * **Member 1 :** Zhixuan Guo \[GitHub Username:Jane-qm ; QMID:231224413]
 * **Member 2:** Can Chen\[GitHub Username:TUN-can ; QMID:231224309]
 * **Member 3:** Yanwen Chen \[GitHub Username:cherrycoups0323 ; QMID:231224321]
-* **Member 4:** Jiaze Wang
+* **Member 4:** Jiaze Wang \[GitHub Username:esme025 ; QMID:231225041]
 * **Member 5:** Yiping Zheng \[GitHub Username:YiPZ66 ; QMID:231224631]
 * **Member 6:** Jiayi Lou \[GitHub Username:lou20050802 ; QMID:231225063]
 
