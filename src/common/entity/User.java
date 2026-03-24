@@ -5,6 +5,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 
+/**
+ * 用户抽象类
+ * 所有用户类型（TA、MO、Admin）的基类
+ * 
+ * @author Can Chen
+ * @version 2.0
+ */
 public abstract class User {
     private Long userId;
     private final String email;
@@ -28,16 +35,50 @@ public abstract class User {
         this.email = email.trim();
         this.passwordHash = hash(password);
         this.role = role;
-        this.status = AccountStatus.PENDING;
+        // MO 需要管理员激活，TA 和 ADMIN 直接激活
+        this.status = (role == UserRole.MO) ? AccountStatus.PENDING : AccountStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
+        this.lastLogin = null;
     }
 
+    /**
+     * 验证密码是否正确
+     */
     public boolean checkPassword(String password) {
         if (password == null) {
             return false;
         }
         return this.passwordHash.equals(hash(password));
     }
+
+    /**
+     * 设置新密码
+     */
+    public void setPassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Password must not be blank.");
+        }
+        this.passwordHash = hash(password);
+    }
+
+    /**
+     * SHA-256 加密
+     */
+    private static String hash(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+            for (byte b : hashBytes) {
+                builder.append(String.format("%02x", b));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm is not available.", e);
+        }
+    }
+
+    // ==================== Getters and Setters ====================
 
     public Long getUserId() {
         return userId;
@@ -57,13 +98,6 @@ public abstract class User {
 
     public String getPasswordHash() {
         return passwordHash;
-    }
-
-    public void setPassword(String password) {
-        if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Password must not be blank.");
-        }
-        this.passwordHash = hash(password);
     }
 
     public AccountStatus getStatus() {
@@ -87,19 +121,5 @@ public abstract class User {
 
     public void setLastLogin(LocalDateTime lastLogin) {
         this.lastLogin = lastLogin;
-    }
-
-    private static String hash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte b : hashBytes) {
-                builder.append(String.format("%02x", b));
-            }
-            return builder.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 algorithm is not available.", e);
-        }
     }
 }

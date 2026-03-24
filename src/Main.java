@@ -1,7 +1,5 @@
-package main;
 
 import auth.RegisterFrame;
-
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
