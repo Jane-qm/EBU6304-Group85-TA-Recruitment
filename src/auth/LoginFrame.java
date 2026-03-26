@@ -1,8 +1,9 @@
 package auth;
 
 import common.entity.User;
-import common.entity.AccountStatus;
 import javax.swing.*;
+import javax.swing.border.AbstractBorder;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -10,7 +11,7 @@ import java.awt.event.ActionListener;
 /**
  * 登录窗口
  * Swing 实现，处理用户登录交互
- * 
+ *
  * @author Can Chen
  * @version 1.0
  *
@@ -19,195 +20,267 @@ import java.awt.event.ActionListener;
  * @update 添加背景图片
  * “Remember Me”（记住我） 的多选框勾选逻辑。
  * “Password Recovery”（找回密码） 的邮件验证和密码重置流程。
+ *
+ * @author Yiping Zheng
+ * @version 3.0
+ * @update
+ * 修改UI界面
+ */
+
+/**
+ * 登录窗口
+ * 只处理 LoginFrame 的界面和登录按钮事件
  */
 public class LoginFrame extends JFrame {
-    
+
     private JTextField emailField;
     private JPasswordField passwordField;
+    private JCheckBox rememberMeBox;
     private AuthService authService;
 
-    // Remember Me，记住我 勾选框
-    private JCheckBox rememberMeBox;
+    private static final int CONTENT_WIDTH = 360;
+    private static final int FIELD_HEIGHT = 56;
 
-    /**
-     * 构造函数
-     * 初始化窗口和认证服务
-     */
     public LoginFrame() {
         this.authService = new AuthService();
         initUI();
     }
-    
+
     /**
-     * 初始化用户界面
+     * 初始化界面
      */
     private void initUI() {
         setTitle("TA Recruitment System - Login");
-        setSize(600, 500);
+        setSize(760, 820);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);  // 居中显示
+        setLocationRelativeTo(null);
         setResizable(false);
-        
-        // 主面板
-        //JPanel mainPanel = new JPanel();
 
-        // 使用自定义的 JPanel 来绘制背景图片
-        JPanel mainPanel = new JPanel() {
-            // 加载图片 (注意路径要和你的实际路径一致)
-            private ImageIcon icon = new ImageIcon("src/images/Background_1.jpg");
-            private Image bgImage = icon.getImage();
+        // 外层背景
+        JPanel rootPanel = new JPanel(new GridBagLayout());
+        rootPanel.setBackground(new Color(245, 247, 251));
+        rootPanel.setBorder(new EmptyBorder(24, 24, 24, 24));
 
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                // 核心：把图片按窗口大小拉伸并画出来
-                if (bgImage != null) {
-                    g.drawImage(bgImage, 0, 0, this.getWidth(), this.getHeight(), this);
-                }
-            }
-        };
+        // 中间白色卡片
+        RoundedPanel cardPanel = new RoundedPanel(28, Color.WHITE);
+        cardPanel.setPreferredSize(new Dimension(620, 700));
+        cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
+        cardPanel.setBorder(new EmptyBorder(36, 36, 36, 36));
 
-        mainPanel.setLayout(new GridBagLayout());
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(40, 40, 40, 40));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(15, 10, 15, 10);
-        
         // 标题
-        JLabel titleLabel = new JLabel("TA Recruitment System");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 30)); // Larger, modern font
-        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        mainPanel.add(titleLabel, gbc);
-        
-        // 邮箱标签
-        JLabel emailLabel = new JLabel("Email:");
-        emailLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.gridwidth = 1;
-        mainPanel.add(emailLabel, gbc);
-        
-        // 邮箱输入框
-        emailField = new JTextField(20);
-        emailField.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        mainPanel.add(emailField, gbc);
-        
-        // 密码标签
-        JLabel passwordLabel = new JLabel("Password:");
-        passwordLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        mainPanel.add(passwordLabel, gbc);
-        
-        // 密码输入框
-        passwordField = new JPasswordField(20);
-        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        gbc.gridx = 1;
-        gbc.gridy = 2;
-        mainPanel.add(passwordField, gbc);
+        JLabel titleLabel = new JLabel("Welcome Back");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        titleLabel.setForeground(new Color(17, 24, 39));
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        //选项面板：放置 "记住我" 和 "忘记密码"
+        JLabel subtitleLabel = new JLabel("Sign in to your account to continue");
+        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        subtitleLabel.setForeground(new Color(107, 114, 128));
+        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        cardPanel.add(titleLabel);
+        cardPanel.add(Box.createVerticalStrut(12));
+        cardPanel.add(subtitleLabel);
+        cardPanel.add(Box.createVerticalStrut(26));
+
+        // 顶部角色切换栏（纯 UI，不接业务）
+        JPanel rolePanel = new RoundedPanel(18, new Color(243, 246, 251));
+        rolePanel.setLayout(new GridLayout(1, 3, 10, 0));
+        rolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 62));
+        rolePanel.setPreferredSize(new Dimension(CONTENT_WIDTH, 62));
+        rolePanel.setMinimumSize(new Dimension(CONTENT_WIDTH, 62));
+        rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
+        rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JToggleButton applicantTab = createRoleTab("Applicant", true);
+        JToggleButton staffTab = createRoleTab("Staff", false);
+        JToggleButton adminTab = createRoleTab("Admin", false);
+
+        ButtonGroup roleGroup = new ButtonGroup();
+        roleGroup.add(applicantTab);
+        roleGroup.add(staffTab);
+        roleGroup.add(adminTab);
+
+        rolePanel.add(applicantTab);
+        rolePanel.add(staffTab);
+        rolePanel.add(adminTab);
+
+        cardPanel.add(rolePanel);
+        cardPanel.add(Box.createVerticalStrut(34));
+
+        // 邮箱
+        JLabel emailLabel = new JLabel("University Email");
+        emailLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        emailLabel.setForeground(new Color(17, 24, 39));
+        emailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        emailField = new JTextField();
+        emailField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        emailField.setBorder(new EmptyBorder(0, 0, 0, 0));
+
+        cardPanel.add(emailLabel);
+        cardPanel.add(Box.createVerticalStrut(12));
+        cardPanel.add(wrapField(emailField));
+        cardPanel.add(Box.createVerticalStrut(28));
+
+        // 密码
+        JLabel passwordLabel = new JLabel("Password");
+        passwordLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        passwordLabel.setForeground(new Color(17, 24, 39));
+        passwordLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        passwordField = new JPasswordField();
+        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        passwordField.setBorder(new EmptyBorder(0, 0, 0, 0));
+
+        cardPanel.add(passwordLabel);
+        cardPanel.add(Box.createVerticalStrut(12));
+        cardPanel.add(wrapPasswordField(passwordField));
+        cardPanel.add(Box.createVerticalStrut(24));
+
+        // Remember Me + Forgot Password
         JPanel optionsPanel = new JPanel(new BorderLayout());
-        optionsPanel.setOpaque(false); // 保持背景透明
+        optionsPanel.setOpaque(false);
+        optionsPanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 36));
+        optionsPanel.setPreferredSize(new Dimension(CONTENT_WIDTH, 36));
+        optionsPanel.setMinimumSize(new Dimension(CONTENT_WIDTH, 36));
+        optionsPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         rememberMeBox = new JCheckBox("Remember Me");
         rememberMeBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        rememberMeBox.setOpaque(false); // 透明背景以显示底层大背景
+        rememberMeBox.setForeground(new Color(55, 65, 81));
+        rememberMeBox.setOpaque(false);
+        rememberMeBox.setFocusPainted(false);
+        rememberMeBox.setMargin(new Insets(0, 0, 0, 0));
 
         JButton forgotPwdButton = new JButton("Forgot Password?");
-        forgotPwdButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        forgotPwdButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        forgotPwdButton.setForeground(new Color(37, 99, 235));
         forgotPwdButton.setContentAreaFilled(false);
         forgotPwdButton.setBorderPainted(false);
-        forgotPwdButton.setForeground(Color.BLUE);
+        forgotPwdButton.setFocusPainted(false);
         forgotPwdButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        forgotPwdButton.addActionListener(e -> handlePasswordRecovery()); // 绑定找回密码逻辑
 
         optionsPanel.add(rememberMeBox, BorderLayout.WEST);
         optionsPanel.add(forgotPwdButton, BorderLayout.EAST);
 
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
-        mainPanel.add(optionsPanel, gbc);
+        cardPanel.add(optionsPanel);
+        cardPanel.add(Box.createVerticalStrut(28));
 
-        // 按钮面板
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 30, 20));
-        //让按钮的容器变成透明的，露出底部的拉风背景
-        buttonPanel.setOpaque(false);
+        // 登录按钮
+        JButton loginButton = new JButton("Sign In");
+        loginButton.setFont(new Font("SansSerif", Font.BOLD, 22));
+        loginButton.setForeground(new Color(37, 99, 235));
 
-        JButton loginButton = new JButton("Login");
-        loginButton.setFont(new Font("SansSerif", Font.BOLD, 16));
-        loginButton.setPreferredSize(new Dimension(120, 40));
+        loginButton.setBackground(new Color(37, 99, 235));
+        loginButton.setFocusPainted(false);
+        loginButton.setBorderPainted(false);
+        loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         loginButton.addActionListener(new LoginAction());
-        
-        JButton registerButton = new JButton("Register");
-        registerButton.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        registerButton.setPreferredSize(new Dimension(120, 40));
+
+        RoundedPanel loginButtonPanel = new RoundedPanel(16, new Color(37, 99, 235));
+        loginButtonPanel.setLayout(new BorderLayout());
+        loginButtonPanel.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        loginButtonPanel.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        loginButtonPanel.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        loginButtonPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        loginButtonPanel.add(loginButton, BorderLayout.CENTER);
+
+        cardPanel.add(loginButtonPanel);
+        cardPanel.add(Box.createVerticalStrut(34));
+
+        // 底部注册
+        JPanel registerPanel = new JPanel();
+        registerPanel.setOpaque(false);
+        registerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel noAccountLabel = new JLabel("Don't have an account? ");
+        noAccountLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        noAccountLabel.setForeground(new Color(107, 114, 128));
+
+        JButton registerButton = new JButton("Register here");
+        registerButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        registerButton.setForeground(new Color(37, 99, 235));
+        registerButton.setContentAreaFilled(false);
+        registerButton.setBorderPainted(false);
+        registerButton.setFocusPainted(false);
+        registerButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         registerButton.addActionListener(e -> {
             new RegisterFrame().setVisible(true);
             dispose();
         });
-        
-        buttonPanel.add(loginButton);
-        buttonPanel.add(registerButton);
-        
-        gbc.gridx = 0;
-        gbc.gridy = 4;
-        gbc.gridwidth = 2;
-        mainPanel.add(buttonPanel, gbc);
-        
-        // 添加主面板
-        add(mainPanel);
-        
-        // 按回车键触发登录
+
+        registerPanel.add(noAccountLabel);
+        registerPanel.add(registerButton);
+
+        cardPanel.add(registerPanel);
+
+        rootPanel.add(cardPanel);
+        add(rootPanel);
+
         getRootPane().setDefaultButton(loginButton);
     }
 
     /**
-    * 处理密码找回 (Password Recovery via email) 逻辑
-    */
-    private void handlePasswordRecovery() {
-        // 1. 验证邮箱
-        String email = JOptionPane.showInputDialog(this, "Enter your registered email:", "Password Recovery", JOptionPane.QUESTION_MESSAGE);
-        if (email == null || email.trim().isEmpty()) {
-            return;
+     * 创建角色按钮
+     */
+    private JToggleButton createRoleTab(String text, boolean selected) {
+        JToggleButton button = new JToggleButton(text, selected);
+        button.setFont(new Font("SansSerif", Font.BOLD, 15));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setBorder(new RoundedBorder(14, new Color(220, 224, 230), 1));
+        button.setPreferredSize(new Dimension(100, 44));
+
+        if (selected) {
+            button.setBackground(Color.WHITE);
+            button.setForeground(new Color(17, 24, 39));
+        } else {
+            button.setBackground(new Color(243, 246, 251));
+            button.setForeground(new Color(107, 114, 128));
         }
 
-        // 此处可以调用 authService.checkEmailExists(email) 验证邮箱
-        // 模拟发送邮件验证码
-        JOptionPane.showMessageDialog(this, "A verification code has been sent to " + email, "Email Sent", JOptionPane.INFORMATION_MESSAGE);
-
-        // 2. 输入验证码
-        String code = JOptionPane.showInputDialog(this, "Enter the verification code:", "Verification", JOptionPane.QUESTION_MESSAGE);
-        if (code == null || code.trim().isEmpty()) {
-            return;
-        }
-
-        // 3. 重置密码
-        JPasswordField newPasswordField = new JPasswordField();
-        Object[] message = {"Enter your new password:", newPasswordField};
-        int option = JOptionPane.showConfirmDialog(this, message, "Reset Password", JOptionPane.OK_CANCEL_OPTION);
-
-        if (option == JOptionPane.OK_OPTION) {
-            String newPassword = new String(newPasswordField.getPassword());
-            if (newPassword.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Password cannot be empty!", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            // 此处应调用 authService.resetPassword(email, newPassword)
-            JOptionPane.showMessageDialog(this, "Password has been reset successfully! Please log in with your new password.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }
+        return button;
     }
 
     /**
-     * 登录按钮事件处理
+     * 普通输入框外层
+     */
+    private JPanel wrapField(JTextField field) {
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Color.WHITE);
+        wrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wrapper.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(16, new Color(220, 224, 230), 1),
+                new EmptyBorder(0, 16, 0, 16)
+        ));
+        wrapper.add(field, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    /**
+     * 密码输入框外层
+     */
+    private JPanel wrapPasswordField(JPasswordField field) {
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Color.WHITE);
+        wrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wrapper.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(16, new Color(220, 224, 230), 1),
+                new EmptyBorder(0, 16, 0, 16)
+        ));
+        wrapper.add(field, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    /**
+     * 登录按钮事件
      */
     private class LoginAction implements ActionListener {
         @Override
@@ -215,61 +288,107 @@ public class LoginFrame extends JFrame {
             String email = emailField.getText().trim();
             String password = new String(passwordField.getPassword());
 
-            // 获取勾选状态，记住我 状态获取
-            boolean isRememberMe = rememberMeBox.isSelected();
-
-            // 输入校验
             if (email.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(LoginFrame.this, 
-                    "Please enter both email and password", "Input Required", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(
+                        LoginFrame.this,
+                        "Please enter both email and password",
+                        "Input Required",
+                        JOptionPane.WARNING_MESSAGE
+                );
                 return;
             }
-            
+
             try {
                 User user = authService.login(email, password);
-                
+
                 if (user != null) {
-                    // 额外校验账号状态
-                    if (!authService.isAccountValid(user)) {
-                        JOptionPane.showMessageDialog(LoginFrame.this,
-                            authService.getAccountStatusMessage(user),
-                            "Account Notice", JOptionPane.WARNING_MESSAGE);
-                        return;
-                    }
-                    
-                    // 登录成功
-                    JOptionPane.showMessageDialog(LoginFrame.this,
-                        "Login Successful! Welcome " + user.getEmail() + "\nRole: " + user.getRole(),
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                    
-                    // Sprint 1: 显示欢迎信息后回到登录界面
-                    showWelcomeInfo(user);
-                    
+                    JOptionPane.showMessageDialog(
+                            LoginFrame.this,
+                            "Login Successful! Welcome " + user.getEmail(),
+                            "Success",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
                 } else {
-                    JOptionPane.showMessageDialog(LoginFrame.this,
-                        "Invalid email or password", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(
+                            LoginFrame.this,
+                            "Invalid email or password",
+                            "Login Failed",
+                            JOptionPane.ERROR_MESSAGE
+                    );
                 }
-            } catch (IllegalArgumentException ex) {
-                JOptionPane.showMessageDialog(LoginFrame.this,
-                    ex.getMessage(), "Input Error", JOptionPane.WARNING_MESSAGE);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(LoginFrame.this,
-                    "System Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(
+                        LoginFrame.this,
+                        "System Error: " + ex.getMessage(),
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         }
-        
-        private void showWelcomeInfo(User user) {
-            JOptionPane.showMessageDialog(LoginFrame.this,
-                "Sprint 1: Registration and Login functionalities completed.\n\n" +
-                "Current User: " + user.getEmail() + "\n" +
-                "Role:" + user.getRole() + "\n" +
-                "Status:" + user.getStatus() + "\n\n" +
-                "More features will be implemented in upcoming sprints",
-                "Welcome", JOptionPane.INFORMATION_MESSAGE);
-            
-            // 清空输入框，准备下一次登录
-            emailField.setText("");
-            passwordField.setText("");
+    }
+
+    /**
+     * 圆角面板
+     */
+    static class RoundedPanel extends JPanel {
+        private final int radius;
+        private final Color backgroundColor;
+
+        public RoundedPanel(int radius, Color backgroundColor) {
+            this.radius = radius;
+            this.backgroundColor = backgroundColor;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(backgroundColor);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    /**
+     * 圆角边框
+     */
+    static class RoundedBorder extends AbstractBorder {
+        private final int radius;
+        private final Color color;
+        private final int thickness;
+
+        public RoundedBorder(int radius, Color color, int thickness) {
+            this.radius = radius;
+            this.color = color;
+            this.thickness = thickness;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(color);
+            if (thickness > 0) {
+                g2.setStroke(new BasicStroke(thickness));
+                g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
+            }
+            g2.dispose();
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c) {
+            return new Insets(10, 10, 10, 10);
+        }
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets insets) {
+            insets.left = 10;
+            insets.right = 10;
+            insets.top = 10;
+            insets.bottom = 10;
+            return insets;
         }
     }
 }
