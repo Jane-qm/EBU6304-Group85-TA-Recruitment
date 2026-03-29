@@ -1,8 +1,7 @@
 package common.entity;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import common.service.PasswordService;
+
 import java.time.LocalDateTime;
 
 /**
@@ -18,7 +17,7 @@ public abstract class User {
     private String passwordHash;
     private final UserRole role;
     private AccountStatus status;
-    private final LocalDateTime createdAt;
+    private LocalDateTime createdAt;
     private LocalDateTime lastLogin;
 
     protected User(String email, String password, UserRole role) {
@@ -33,7 +32,7 @@ public abstract class User {
         }
 
         this.email = email.trim();
-        this.passwordHash = hash(password);
+        this.passwordHash = PasswordService.hash(password);
         this.role = role;
         // MO 需要管理员激活，TA 和 ADMIN 直接激活
         this.status = (role == UserRole.MO) ? AccountStatus.PENDING : AccountStatus.ACTIVE;
@@ -48,7 +47,7 @@ public abstract class User {
         if (password == null) {
             return false;
         }
-        return this.passwordHash.equals(hash(password));
+        return PasswordService.verify(password, this.passwordHash);
     }
 
     /**
@@ -58,24 +57,7 @@ public abstract class User {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Password must not be blank.");
         }
-        this.passwordHash = hash(password);
-    }
-
-    /**
-     * SHA-256 加密
-     */
-    private static String hash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte b : hashBytes) {
-                builder.append(String.format("%02x", b));
-            }
-            return builder.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 algorithm is not available.", e);
-        }
+        this.passwordHash = PasswordService.hash(password);
     }
 
     // ==================== Getters and Setters ====================
@@ -100,6 +82,16 @@ public abstract class User {
         return passwordHash;
     }
 
+    /**
+     * 仅用于从持久化数据恢复哈希值，不应在业务层直接调用。
+     */
+    public void setPasswordHash(String passwordHash) {
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("Password hash must not be blank.");
+        }
+        this.passwordHash = passwordHash;
+    }
+
     public AccountStatus getStatus() {
         return status;
     }
@@ -113,6 +105,13 @@ public abstract class User {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        if (createdAt == null) {
+            throw new IllegalArgumentException("Created time must not be null.");
+        }
+        this.createdAt = createdAt;
     }
 
     public LocalDateTime getLastLogin() {

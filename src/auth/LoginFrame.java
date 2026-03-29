@@ -37,6 +37,7 @@ public class LoginFrame extends JFrame {
     private JPasswordField passwordField;
     private JCheckBox rememberMeBox;
     private AuthService authService;
+    private common.entity.UserRole selectedRole = common.entity.UserRole.TA;
 
     private static final int CONTENT_WIDTH = 360;
     private static final int FIELD_HEIGHT = 56;
@@ -92,17 +93,30 @@ public class LoginFrame extends JFrame {
         rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
         rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JToggleButton applicantTab = createRoleTab("Applicant", true);
-        JToggleButton staffTab = createRoleTab("Staff", false);
-        JToggleButton adminTab = createRoleTab("Admin", false);
+        JToggleButton taTab = createRoleTab("TA", true);
+        JToggleButton moTab = createRoleTab("MO", false);
+        JToggleButton adminTab = createRoleTab("ADMIN", false);
 
         ButtonGroup roleGroup = new ButtonGroup();
-        roleGroup.add(applicantTab);
-        roleGroup.add(staffTab);
+        roleGroup.add(taTab);
+        roleGroup.add(moTab);
         roleGroup.add(adminTab);
 
-        rolePanel.add(applicantTab);
-        rolePanel.add(staffTab);
+        taTab.addActionListener(e -> {
+            selectedRole = common.entity.UserRole.TA;
+            updateRoleTabStyles(taTab, moTab, adminTab);
+        });
+        moTab.addActionListener(e -> {
+            selectedRole = common.entity.UserRole.MO;
+            updateRoleTabStyles(taTab, moTab, adminTab);
+        });
+        adminTab.addActionListener(e -> {
+            selectedRole = common.entity.UserRole.ADMIN;
+            updateRoleTabStyles(taTab, moTab, adminTab);
+        });
+
+        rolePanel.add(taTab);
+        rolePanel.add(moTab);
         rolePanel.add(adminTab);
 
         cardPanel.add(rolePanel);
@@ -160,6 +174,7 @@ public class LoginFrame extends JFrame {
         forgotPwdButton.setBorderPainted(false);
         forgotPwdButton.setFocusPainted(false);
         forgotPwdButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        forgotPwdButton.addActionListener(e -> handlePasswordRecovery());
 
         optionsPanel.add(rememberMeBox, BorderLayout.WEST);
         optionsPanel.add(forgotPwdButton, BorderLayout.EAST);
@@ -170,7 +185,7 @@ public class LoginFrame extends JFrame {
         // 登录按钮
         JButton loginButton = new JButton("Sign In");
         loginButton.setFont(new Font("SansSerif", Font.BOLD, 22));
-        loginButton.setForeground(new Color(37, 99, 235));
+        loginButton.setForeground(Color.WHITE);
 
         loginButton.setBackground(new Color(37, 99, 235));
         loginButton.setFocusPainted(false);
@@ -229,12 +244,13 @@ public class LoginFrame extends JFrame {
         button.setFont(new Font("SansSerif", Font.BOLD, 15));
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(new RoundedBorder(14, new Color(220, 224, 230), 1));
+        button.setBorder(new RoundedBorder(14, new Color(37, 99, 235), 1));
         button.setPreferredSize(new Dimension(100, 44));
+        button.setOpaque(true);
 
         if (selected) {
-            button.setBackground(Color.WHITE);
-            button.setForeground(new Color(17, 24, 39));
+            button.setBackground(new Color(37, 99, 235));
+            button.setForeground(Color.WHITE);
         } else {
             button.setBackground(new Color(243, 246, 251));
             button.setForeground(new Color(107, 114, 128));
@@ -302,6 +318,25 @@ public class LoginFrame extends JFrame {
                 User user = authService.login(email, password);
 
                 if (user != null) {
+                    if (user.getRole() != selectedRole) {
+                        JOptionPane.showMessageDialog(
+                                LoginFrame.this,
+                                "Selected role does not match this account.\nAccount Role: " + user.getRole(),
+                                "Role Mismatch",
+                                JOptionPane.WARNING_MESSAGE
+                        );
+                        return;
+                    }
+                    if (!authService.isAccountValid(user)) {
+                        JOptionPane.showMessageDialog(
+                                LoginFrame.this,
+                                authService.getAccountStatusMessage(user),
+                                "Account Notice",
+                                JOptionPane.WARNING_MESSAGE
+                        );
+                        return;
+                    }
+
                     JOptionPane.showMessageDialog(
                             LoginFrame.this,
                             "Login Successful! Welcome " + user.getEmail(),
@@ -324,6 +359,72 @@ public class LoginFrame extends JFrame {
                         JOptionPane.ERROR_MESSAGE
                 );
             }
+        }
+    }
+
+    private void updateRoleTabStyles(JToggleButton taTab, JToggleButton moTab, JToggleButton adminTab) {
+        applyRoleTabStyle(taTab, taTab.isSelected());
+        applyRoleTabStyle(moTab, moTab.isSelected());
+        applyRoleTabStyle(adminTab, adminTab.isSelected());
+    }
+
+    private void applyRoleTabStyle(JToggleButton button, boolean selected) {
+        if (selected) {
+            button.setBackground(new Color(37, 99, 235));
+            button.setForeground(Color.WHITE);
+        } else {
+            button.setBackground(new Color(243, 246, 251));
+            button.setForeground(new Color(107, 114, 128));
+        }
+    }
+
+    /**
+     * Password recovery with backend update.
+     */
+    private void handlePasswordRecovery() {
+        String email = JOptionPane.showInputDialog(
+                this,
+                "Enter your registered email:",
+                "Password Recovery",
+                JOptionPane.QUESTION_MESSAGE
+        );
+        if (email == null || email.trim().isEmpty()) {
+            return;
+        }
+
+        try {
+            if (!authService.checkEmailExists(email.trim())) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Email is not registered.",
+                        "Recovery Failed",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            JPasswordField newPasswordField = new JPasswordField();
+            int option = JOptionPane.showConfirmDialog(
+                    this,
+                    new Object[]{"Enter your new password:", newPasswordField},
+                    "Reset Password",
+                    JOptionPane.OK_CANCEL_OPTION
+            );
+            if (option != JOptionPane.OK_OPTION) {
+                return;
+            }
+
+            authService.resetPassword(email.trim(), new String(newPasswordField.getPassword()));
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Password has been reset successfully.",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Input Error", JOptionPane.WARNING_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "System Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

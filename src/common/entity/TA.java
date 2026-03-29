@@ -107,6 +107,14 @@ public class TA extends User {
         this.profileLastUpdated = LocalDateTime.now();
     }
 
+    /**
+     * 仅用于持久化恢复。
+     */
+    public void restoreProfileState(boolean profileSaved, LocalDateTime profileLastUpdated) {
+        this.profileSaved = profileSaved;
+        this.profileLastUpdated = profileLastUpdated;
+    }
+
     private void markEdited() {
         this.profileSaved = false;
         this.profileLastUpdated = LocalDateTime.now();

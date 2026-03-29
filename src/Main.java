@@ -1,5 +1,4 @@
-
-import auth.RegisterFrame;
+import auth.LoginFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -13,8 +12,8 @@ public class Main {
 
         // 2. 在事件分发线程中启动 UI
         SwingUtilities.invokeLater(() -> {
-            RegisterFrame registerFrame = new RegisterFrame();
-            registerFrame.setVisible(true);
+            LoginFrame loginFrame = new LoginFrame();
+            loginFrame.setVisible(true);
         });
     }
 
