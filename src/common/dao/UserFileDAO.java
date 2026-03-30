@@ -47,8 +47,14 @@ public class UserFileDAO {
     private void ensureDataDirectoryExists() {
         File dataDir = new File("data");
         if (!dataDir.exists()) {
-            dataDir.mkdir();
+            boolean created = dataDir.mkdir();
+            if (!created) {
+                throw new RuntimeException("无法创建 data 目录");
+            }
         }
+        /*if (!dataDir.exists()) {
+            dataDir.mkdir();
+        }*/
     }
 
     /**
