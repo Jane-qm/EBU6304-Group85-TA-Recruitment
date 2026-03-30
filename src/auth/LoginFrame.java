@@ -281,8 +281,6 @@ public class LoginFrame extends JFrame {
             dispose();
         });
 
-        
-
         registerPanel.add(noAccountLabel);
         registerPanel.add(registerButton);
 
@@ -391,6 +389,7 @@ public class LoginFrame extends JFrame {
                         JOptionPane.showMessageDialog(LoginFrame.this,
                                 "Your account is pending approval.\\nPlease wait.",
                                 "Pending", JOptionPane.INFORMATION_MESSAGE);
+
                         // TODO:跳转至 Pending 提示页（需要有对应的 PendingFrame 实现）
                         // new PendingFrame(user).setVisible(true);
                         // dispose();

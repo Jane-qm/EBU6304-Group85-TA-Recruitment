@@ -45,6 +45,7 @@ public class AuthService {
     /**
      * 状态提示
      */
+
     public String getAccountStatusMessage(User user) {
         if (user == null) {
             return "User not found.";
@@ -52,8 +53,9 @@ public class AuthService {
 
         return switch (user.getStatus()) {
             case ACTIVE -> "Account is active.";
-            case PENDING -> "待审批 (Pending Approval)";
-            case DISABLED -> "Account is disabled.";
+            case PENDING -> "Account is pending approval. Please wait for admin review.";
+            case DISABLED -> "Account is disabled. Please contact administrator.";
+
         };
     }
 
@@ -72,7 +74,9 @@ public class AuthService {
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("Email must not be empty.");
         }
-        if (!email.contains("@")) {
+
+        String normalized = email.trim();
+        if (!normalized.contains("@") || normalized.startsWith("@") || normalized.endsWith("@")) {
             throw new IllegalArgumentException("Invalid email format.");
         }
     }
