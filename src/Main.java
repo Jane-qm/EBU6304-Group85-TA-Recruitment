@@ -1,6 +1,7 @@
-import auth.LoginFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+
+import auth.LoginFrame;
 
 /**
  * 程序入口类
@@ -14,6 +15,11 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             LoginFrame loginFrame = new LoginFrame();
             loginFrame.setVisible(true);
+            
+            // 可选：启动时最大化窗口（使用 Swing 原生方法）
+            // loginFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
+            // 或使用 BaseFrame 提供的方法
+            // loginFrame.maximizeWindow();
         });
     }
 

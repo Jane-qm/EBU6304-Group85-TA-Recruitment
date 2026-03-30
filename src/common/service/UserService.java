@@ -1,18 +1,18 @@
 package common.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import common.dao.UserFileDAO;
 import common.entity.AccountStatus;
 import common.entity.Admin;
 import common.entity.MO;
 import common.entity.TA;
 import common.entity.User;
 import common.entity.UserRole;
-import common.dao.UserFileDAO;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 用户业务服务
@@ -173,4 +173,27 @@ public class UserService {
         admin.setStatus(AccountStatus.ACTIVE);
         usersByEmail.put(admin.getEmail(), admin);
     }
+
+    /**
+ * 根据 ID 查找用户
+ */
+public User findById(Long userId) {
+    for (User user : usersByEmail.values()) {
+        if (user.getUserId() != null && user.getUserId().equals(userId)) {
+            return user;
+        }
+    }
+    return null;
+}
+
+/**
+ * 更新用户信息
+ */
+public void updateUser(User user) {
+    if (user == null || user.getEmail() == null) {
+        return;
+    }
+    usersByEmail.put(user.getEmail(), user);
+    saveToFile();
+}
 }
