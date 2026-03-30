@@ -1,6 +1,7 @@
 package auth;
 
 import common.entity.User;
+import common.service.PermissionService;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
@@ -25,6 +26,11 @@ import java.awt.event.ActionListener;
  * @version 3.0
  * @update
  * 修改UI界面
+ *
+ * @version 3.0
+ * @update
+ * 修改原有只弹窗拦截的逻辑，接入根据账户状态（ACTIVE/PENDING）
+ * 及 PermissionService 跳转首页的功能。
  */
 
 /**
@@ -64,7 +70,15 @@ public class LoginFrame extends JFrame {
 
         // 中间白色卡片
         RoundedPanel cardPanel = new RoundedPanel(28, Color.WHITE);
-        cardPanel.setPreferredSize(new Dimension(620, 700));
+
+        // --- 新增以下3行，强制锁定卡片大小，与注册页完全一致 ---
+        Dimension cardSize = new Dimension(620, 760);
+        cardPanel.setPreferredSize(cardSize);
+        cardPanel.setMinimumSize(cardSize);
+        cardPanel.setMaximumSize(cardSize);
+        // -------------------------------------------
+
+        //cardPanel.setPreferredSize(new Dimension(620, 760));
         cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
         cardPanel.setBorder(new EmptyBorder(36, 36, 36, 36));
 
@@ -304,60 +318,63 @@ public class LoginFrame extends JFrame {
             String email = emailField.getText().trim();
             String password = new String(passwordField.getPassword());
 
+            // 1. 基础非空校验
             if (email.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(
-                        LoginFrame.this,
-                        "Please enter both email and password",
-                        "Input Required",
-                        JOptionPane.WARNING_MESSAGE
-                );
+                JOptionPane.showMessageDialog(LoginFrame.this, "Please enter both email and password", "Input Required", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             try {
+                // 2. 尝试登录获取用户数据
                 User user = authService.login(email, password);
 
                 if (user != null) {
+                    // 3. 校验所选角色与账户实际角色是否匹配
                     if (user.getRole() != selectedRole) {
-                        JOptionPane.showMessageDialog(
-                                LoginFrame.this,
-                                "Selected role does not match this account.\nAccount Role: " + user.getRole(),
-                                "Role Mismatch",
-                                JOptionPane.WARNING_MESSAGE
-                        );
-                        return;
-                    }
-                    if (!authService.isAccountValid(user)) {
-                        JOptionPane.showMessageDialog(
-                                LoginFrame.this,
-                                authService.getAccountStatusMessage(user),
-                                "Account Notice",
-                                JOptionPane.WARNING_MESSAGE
-                        );
+                        JOptionPane.showMessageDialog(LoginFrame.this, "Role mismatch.\nAccount Role: " + user.getRole(), "Warning", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
 
-                    JOptionPane.showMessageDialog(
-                            LoginFrame.this,
-                            "Login Successful! Welcome " + user.getEmail(),
-                            "Success",
-                            JOptionPane.INFORMATION_MESSAGE
-                    );
+                    // 4. 处理被禁用 (DISABLED) 的账户
+                    if (user.getStatus() == common.entity.AccountStatus.DISABLED) {
+                        JOptionPane.showMessageDialog(LoginFrame.this, authService.getAccountStatusMessage(user), "Account Disabled", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+
+                    //5. 处理待审批 (PENDING) 的账户(提示页)
+                    if (user.getStatus() == common.entity.AccountStatus.PENDING) {
+                        JOptionPane.showMessageDialog(LoginFrame.this,
+                                "Login successful, but account is pending approval.\nRedirecting to pending status page...",
+                                "Notice", JOptionPane.INFORMATION_MESSAGE);
+                        // TODO:跳转至 Pending 提示页（需要有对应的 PendingFrame 实现）
+                        // new PendingFrame(user).setVisible(true);
+                        // dispose();
+                        return;
+                    }
+
+                    // 6. 正常 ACTIVE 状态账户：结合 PermissionService 校验并跳转对应首页
+                    if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.ADMIN)) {
+                        // Admin 权限最高，跳转 Admin 首页
+                        // new AdminHomeFrame(user).setVisible(true);
+                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.MO)) {
+                        // 仅 MO 跳转 MO 首页
+                        // new MOHomeFrame(user).setVisible(true);
+                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.TA)) {
+                        // 仅 TA 跳转 TA 首页
+                        // new TAHomeFrame(user).setVisible(true);
+                    }
+
+                    // TODO: 等到各个 HomeFrame 界面开发完成后
+                    // 仅作展示，实际对接后解除上方的注释，并删除本行弹窗
+                    JOptionPane.showMessageDialog(LoginFrame.this, "Routing to " + user.getRole() + " Dashboard...", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    dispose(); // 关闭登录框
+
                 } else {
-                    JOptionPane.showMessageDialog(
-                            LoginFrame.this,
-                            "Invalid email or password",
-                            "Login Failed",
-                            JOptionPane.ERROR_MESSAGE
-                    );
+                    JOptionPane.showMessageDialog(LoginFrame.this, "Invalid email or password", "Login Failed", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(
-                        LoginFrame.this,
-                        "System Error: " + ex.getMessage(),
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                // 捕获系统层面的异常并提示
+                JOptionPane.showMessageDialog(LoginFrame.this, "System Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }

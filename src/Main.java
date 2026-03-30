@@ -19,6 +19,9 @@ public class Main {
 
     private static void setupSystemLookAndFeel() {
         try {
+            // 启用抗锯齿字体，解决文字渲染发虚问题
+            System.setProperty("awt.useSystemAAFontSettings", "on");
+            System.setProperty("swing.aatext", "true");
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
             e.printStackTrace();
