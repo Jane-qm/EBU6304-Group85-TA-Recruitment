@@ -73,7 +73,36 @@ public class LoginFrame extends JFrame {
 
         JButton loginBtn = new JButton("Login");
         JButton registerBtn = new JButton("No account? Register");
-        JButton forgotPwdBtn = new JButton("Forgot Password?"); // TA-008
+        JButton forgotPwdBtn = new JButton("Forgot Password?"); 
+        // 绑定登录事件
+        loginBtn.addActionListener(e -> handleLogin());
+        
+        // 绑定注册跳转
+        registerBtn.addActionListener(e -> {
+            new RegisterFrame().setVisible(true);
+            this.dispose();
+        });
+
+        // 绑定忘记密码事件
+        forgotPwdBtn.addActionListener(e -> handleForgotPassword());
+
+        mainPanel.add(new JLabel("Email:"));
+        mainPanel.add(emailField);
+        mainPanel.add(new JLabel("Password:"));
+        mainPanel.add(passwordField);
+        mainPanel.add(rememberMeBox);
+        mainPanel.add(loginBtn);
+
+        add(mainPanel, BorderLayout.CENTER);
+        add(forgotPwdBtn, BorderLayout.SOUTH);
+    }
+
+    /**
+     * 核心逻辑：处理登录 (对应 TA-001, TA-003, TA-006, TA-007)
+     */
+    private void handleLogin() {
+        String email = emailField.getText().trim();
+        String password = new String(passwordField.getPassword());
 
         // 外层背景
         JPanel rootPanel = new JPanel(new GridBagLayout());
@@ -430,12 +459,14 @@ public class LoginFrame extends JFrame {
                         JOptionPane.showMessageDialog(LoginFrame.this, authService.getAccountStatusMessage(user), "Account Disabled", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
-
+                    
+                    //【新】
                     //5. 处理待审批 (PENDING) 的账户(提示页)
                     if (user.getStatus() == common.entity.AccountStatus.PENDING) {
                         JOptionPane.showMessageDialog(LoginFrame.this,
-                                "Login successful, but account is pending approval.\nRedirecting to pending status page...",
-                                "Notice", JOptionPane.INFORMATION_MESSAGE);
+                                "Your account is pending approval.\\nPlease wait.",
+                                "Pending", JOptionPane.INFORMATION_MESSAGE);
+
                         // TODO:跳转至 Pending 提示页（需要有对应的 PendingFrame 实现）
                         // new PendingFrame(user).setVisible(true);
                         // dispose();
@@ -445,13 +476,14 @@ public class LoginFrame extends JFrame {
                     // 6. 正常 ACTIVE 状态账户：结合 PermissionService 校验并跳转对应首页
                     if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.ADMIN)) {
                         // Admin 权限最高，跳转 Admin 首页
-                        // new AdminHomeFrame(user).setVisible(true);
+                        new AdminHomeFrame(user).setVisible(true);
                     } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.MO)) {
                         // 仅 MO 跳转 MO 首页
                         // new MOHomeFrame(user).setVisible(true);
+                        new MOHomeFrame(user).setVisible(true);
                     } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.TA)) {
                         // 仅 TA 跳转 TA 首页
-                        // new TAHomeFrame(user).setVisible(true);
+                        new TAHomeFrame(user).setVisible(true);
                     }
 
                     // TODO: 等到各个 HomeFrame 界面开发完成后
