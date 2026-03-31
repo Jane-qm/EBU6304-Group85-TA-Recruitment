@@ -4,6 +4,8 @@ import common.entity.User;
 import common.entity.UserRole;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import auth.LoginFrame;
+import javax.swing.*;
 
 /**
  * 程序入口类
@@ -16,6 +18,21 @@ public class Main {
 
         // 1. 设置外观风格（Look and Feel）
         setupSystemLookAndFeel();
+
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 在事件调度线程中启动GUI，确保线程安全
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                // 创建并显示登录窗口
+                new LoginFrame().setVisible(true);
+            }
+        });
 
         // 2. 在事件分发线程中启动 UI
         SwingUtilities.invokeLater(() -> {
