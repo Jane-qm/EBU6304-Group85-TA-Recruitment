@@ -1,6 +1,7 @@
 package auth;
 
 import common.entity.User;
+import common.entity.UserRole;
 import common.service.PermissionService;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
@@ -341,33 +342,23 @@ public class LoginFrame extends JFrame {
                         return;
                     }
 
-                    //5. 处理待审批 (PENDING) 的账户(提示页)
+                    // 5. Pending accounts continue directly in demo flow.
                     if (user.getStatus() == common.entity.AccountStatus.PENDING) {
-                        JOptionPane.showMessageDialog(LoginFrame.this,
-                                "Login successful, but account is pending approval.\nRedirecting to pending status page...",
-                                "Notice", JOptionPane.INFORMATION_MESSAGE);
-                        // TODO:跳转至 Pending 提示页（需要有对应的 PendingFrame 实现）
-                        // new PendingFrame(user).setVisible(true);
-                        // dispose();
-                        return;
+                        // No popup; continue to role-based routing directly.
                     }
 
-                    // 6. 正常 ACTIVE 状态账户：结合 PermissionService 校验并跳转对应首页
-                    if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.ADMIN)) {
-                        // Admin 权限最高，跳转 Admin 首页
-                        // new AdminHomeFrame(user).setVisible(true);
-                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.MO)) {
-                        // 仅 MO 跳转 MO 首页
-                        // new MOHomeFrame(user).setVisible(true);
-                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.TA)) {
-                        // 仅 TA 跳转 TA 首页
-                        // new TAHomeFrame(user).setVisible(true);
+                    // 6. ACTIVE 状态账户：按角色跳转对应首页
+                    JFrame homeFrame;
+                    if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
+                        homeFrame = new AdminHomeFrame(user);
+                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
+                        homeFrame = new MOHomeFrame(user);
+                    } else {
+                        homeFrame = new TAHomeFrame(user);
                     }
 
-                    // TODO: 等到各个 HomeFrame 界面开发完成后
-                    // 仅作展示，实际对接后解除上方的注释，并删除本行弹窗
-                    JOptionPane.showMessageDialog(LoginFrame.this, "Routing to " + user.getRole() + " Dashboard...", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    dispose(); // 关闭登录框
+                    homeFrame.setVisible(true);
+                    dispose();
 
                 } else {
                     JOptionPane.showMessageDialog(LoginFrame.this, "Invalid email or password", "Login Failed", JOptionPane.ERROR_MESSAGE);

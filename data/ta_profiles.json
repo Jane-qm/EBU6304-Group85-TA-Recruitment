@@ -1,0 +1,13 @@
+[
+  {
+    "profileId": 1001,
+    "userId": 100001,
+    "name": "Demo TA",
+    "major": "Software Engineering",
+    "grade": "Year 3",
+    "skillTags": [],
+    "availableWorkingHours": 8,
+    "published": false,
+    "updatedAt": "2026-03-31T23:35:33.632966"
+  }
+]

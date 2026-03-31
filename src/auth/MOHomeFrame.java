@@ -1,0 +1,100 @@
+package auth;
+
+import common.entity.MOJob;
+import common.entity.MOOffer;
+import common.entity.TAApplication;
+import common.entity.User;
+import common.service.MOJobService;
+import common.service.MOOfferService;
+import common.service.TAApplicationService;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+public class MOHomeFrame extends JFrame {
+    private final User currentUser;
+    private final MOJobService jobService = new MOJobService();
+    private final MOOfferService offerService = new MOOfferService();
+    private final TAApplicationService applicationService = new TAApplicationService();
+
+    public MOHomeFrame(User user) {
+        this.currentUser = user;
+        setTitle("MO Home");
+        setSize(640, 420);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        initUi();
+    }
+
+    private void initUi() {
+        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        panel.add(new JLabel("Welcome, " + currentUser.getEmail() + " (MO)"));
+
+        JButton logoutBtn = new JButton("Logout");
+        logoutBtn.addActionListener(e -> {
+            new LoginFrame().setVisible(true);
+            dispose();
+        });
+
+
+        JButton jobBtn = new JButton("Create Demo Job");
+        jobBtn.addActionListener(e -> {
+            MOJob job = new MOJob();
+            job.setMoUserId(currentUser.getUserId());
+            job.setModuleCode("EBU6304");
+            job.setTitle("Teaching Assistant");
+            job.setDescription("Support labs and coursework marking.");
+            job.setWeeklyHours(6);
+            job.setStatus("OPEN");
+            jobService.createOrUpdate(job);
+            JOptionPane.showMessageDialog(this, "MO job saved.");
+        });
+
+        JButton offerBtn = new JButton("Create Demo Offer");
+        offerBtn.addActionListener(e -> {
+            List<MOJob> jobs = jobService.listAll();
+            MOOffer offer = new MOOffer();
+            offer.setMoUserId(currentUser.getUserId());
+            offer.setTaUserId(100001L);
+            if (!jobs.isEmpty()) {
+                offer.setModuleCode(jobs.get(0).getModuleCode());
+            } else {
+                offer.setModuleCode("EBU6304");
+            }
+            offer.setOfferedHours(6);
+            offer.setStatus("SENT");
+            offerService.createOrUpdate(offer);
+            JOptionPane.showMessageDialog(this, "MO offer saved.");
+        });
+
+        JButton hireBtn = new JButton("Hire First Submitted TA");
+        hireBtn.addActionListener(e -> {
+            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            if (submitted.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                return;
+            }
+
+            TAApplication target = submitted.get(0);
+            applicationService.markAsHired(target.getApplicationId());
+
+            MOOffer offer = new MOOffer();
+            offer.setMoUserId(currentUser.getUserId());
+            offer.setTaUserId(target.getTaUserId());
+            offer.setApplicationId(target.getApplicationId());
+            offer.setModuleCode("EBU6304");
+            offer.setOfferedHours(6);
+            offer.setStatus("SENT");
+            offerService.createOrUpdate(offer);
+            JOptionPane.showMessageDialog(this, "TA hired and offer sent.\nApplication ID: " + target.getApplicationId());
+        });
+
+        panel.add(jobBtn);
+        panel.add(offerBtn);
+        panel.add(hireBtn);
+        panel.add(logoutBtn);
+        setContentPane(panel);
+    }
+}
