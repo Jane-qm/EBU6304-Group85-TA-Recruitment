@@ -73,8 +73,7 @@ public class LoginFrame extends JFrame {
 
         JButton loginBtn = new JButton("Login");
         JButton registerBtn = new JButton("No account? Register");
-        JButton forgotPwdBtn = new JButton("Forgot Password?"); // TA-008
-
+        JButton forgotPwdBtn = new JButton("Forgot Password?"); 
         // 绑定登录事件
         loginBtn.addActionListener(e -> handleLogin());
         
@@ -290,6 +289,84 @@ public class LoginFrame extends JFrame {
         add(rootPanel);
 
         getRootPane().setDefaultButton(loginButton);
+    }
+
+    //【新】
+    /**
+     * 核心逻辑：处理登录 (对应 TA-001, TA-003, TA-006, TA-007)
+     */
+    private void handleLogin() {
+        String email = emailField.getText().trim();
+        String password = new String(passwordField.getPassword());
+
+        try {
+            // 1. 调用服务层验证 (TA-001)
+            User user = authService.login(email, password);
+            
+            if (user == null) {
+                JOptionPane.showMessageDialog(this, "Invalid email or password.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // 2. 账号状态拦截逻辑 (TA-003)
+            // 如果是 PENDING 状态（如 MO 刚注册未审核），拦截进入
+            if (!authService.isAccountValid(user)) {
+                String msg = authService.getAccountStatusMessage(user);
+                JOptionPane.showMessageDialog(this, msg, "Access Denied", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            // 3. 记住我逻辑 (TA-007)
+            if (rememberMeBox.isSelected()) {
+                // 实际开发中此处应写入本地配置文件或 Preferences API
+                System.out.println("Persistent Login enabled for: " + email);
+            }
+
+            // 4. 权限校验与页面跳转 (TA-006)
+            JOptionPane.showMessageDialog(this, "Login Successful! Role: " + user.getRole());
+            
+            // 根据角色进入不同工作台
+            if (user.getRole() == UserRole.ADMIN) {
+                // new AdminDashboard(user).setVisible(true);
+            } else if (user.getRole() == UserRole.TA) {
+                // new TADashboard(user).setVisible(true);
+            } else if (user.getRole() == UserRole.MO) {
+                // new MODashboard(user).setVisible(true);
+            }
+            
+            this.dispose();
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "System Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    //【新】
+    /**
+     * 密码找回逻辑 (对应 TA-008, TA-009)
+     */
+    private void handleForgotPassword() {
+        String email = JOptionPane.showInputDialog(this, "Please enter your email:");
+        if (email == null || email.isBlank()) return;
+
+        if (authService.checkEmailExists(email)) {
+            // TA-008: 模拟发送验证码
+            String code = JOptionPane.showInputDialog(this, "Verification code sent! Enter the 6-digit code:");
+            
+            // 模拟验证码校验（通常由 AuthService 生成并校验）
+            if ("123456".equals(code)) {
+                // TA-009: 重置密码
+                String newPwd = JOptionPane.showInputDialog(this, "Enter your new password:");
+                if (newPwd != null && !newPwd.isBlank()) {
+                    authService.resetPassword(email, newPwd);
+                    JOptionPane.showMessageDialog(this, "Password reset successful! Please login.");
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "Wrong verification code.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Email not found.");
+        }
     }
 
     /**

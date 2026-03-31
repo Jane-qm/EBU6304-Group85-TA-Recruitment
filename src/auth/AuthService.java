@@ -18,7 +18,10 @@ public class AuthService {
     public User register(String email, String password, UserRole role) {
         validateEmail(email);
         validatePassword(password);
-
+      
+    // TA-003: 检查状态是否为 ACTIVE
+    public User login(String email, String password) {
+        User user = USER_SERVICE.login(email, password);
         // ✅ 强制学校邮箱
         if (!email.endsWith(UNIVERSITY_DOMAIN)) {
             throw new IllegalArgumentException("Only university email is allowed (e.g. " + UNIVERSITY_DOMAIN + ")");
@@ -32,20 +35,14 @@ public class AuthService {
         return user;
     }
 
-    /**
-     * 登录逻辑（MO-002）
-     */
-    public User login(String email, String password) {
-        validateEmail(email);
-        validatePassword(password);
 
-        return USER_SERVICE.login(email, password);
     }
 
     /**
      * 状态提示
      */
 
+    // 获取友好的状态提示
     public String getAccountStatusMessage(User user) {
         if (user == null) {
             return "User not found.";
@@ -59,11 +56,21 @@ public class AuthService {
         };
     }
 
+    /**
+     * TA-008/009: 模拟验证码发送与密码重置
+     */
+    public boolean sendVerificationCode(String email) {
+        if (!USER_SERVICE.emailExists(email)) return false;
+        System.out.println("Verification code sent to: " + email); // 模拟发送
+        return true;
+    }
+
     public boolean checkEmailExists(String email) {
         validateEmail(email);
         return USER_SERVICE.emailExists(email);
     }
 
+    // TA-009: 密码重置
     public void resetPassword(String email, String newPassword) {
         validateEmail(email);
         validatePassword(newPassword);
