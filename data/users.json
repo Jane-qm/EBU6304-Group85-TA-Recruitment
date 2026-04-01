@@ -20,6 +20,23 @@
     "createdAt": "2026-03-29T17:03:03.7471377"
   },
   {
+    "userId": 100005,
+    "email": "ta@.com",
+    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-03-30T20:24:21.9557693",
+    "lastLogin": "2026-03-30T20:50:36.5981948",
+    "name": "1 1",
+    "grade": "一年级",
+    "skillTags": [
+      "11"
+    ],
+    "availableWorkingHours": 0,
+    "profileSaved": false,
+    "profileLastUpdated": "2026-03-30T20:52:14.6755723"
+  },
+  {
     "userId": 100002,
     "email": "mo@test.com",
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",

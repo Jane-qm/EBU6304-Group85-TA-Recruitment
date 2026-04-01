@@ -1,0 +1,17 @@
+[
+  {
+    "cvId": 1,
+    "taId": 100005,
+    "taEmail": "ta@.com",
+    "cvName": "11",
+    "originalFileName": "EBU6304_01_Introduction to Software Engineering.pdf",
+    "savedFileName": "ta_100005_11_20260330_205211.pdf",
+    "filePath": "data/cvs/ta_100005_11_20260330_205211.pdf",
+    "fileType": "PDF",
+    "fileSize": 922806,
+    "description": "",
+    "isDefault": true,
+    "uploadedAt": "2026-03-30T20:52:11.8878803",
+    "updatedAt": "2026-03-30T20:52:11.8878803"
+  }
+]
