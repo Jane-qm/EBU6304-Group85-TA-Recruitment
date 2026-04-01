@@ -7,8 +7,41 @@ import javax.swing.*;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.JToggleButton;
+import javax.swing.border.AbstractBorder;
+import javax.swing.border.EmptyBorder;
+
+import common.entity.User;
+import common.service.PermissionService;
+import common.ui.BaseFrame;
+import ta.ui.TAMainFrame;
 
 /**
  * 登录窗口
@@ -32,13 +65,21 @@ import java.awt.event.ActionListener;
  * @update
  * 修改原有只弹窗拦截的逻辑，接入根据账户状态（ACTIVE/PENDING）
  * 及 PermissionService 跳转首页的功能。
+ *
+ * @author Can Chen
+ * @version 4.0
+ * @update 继承 BaseFrame，支持窗口最大化/还原功能
+ *
+ * @author Can Chen
+ * @version 5.0
+ * @update 添加 TA 登录跳转到 TAMainFrame
  */
 
 /**
  * 登录窗口
  * 只处理 LoginFrame 的界面和登录按钮事件
  */
-public class LoginFrame extends JFrame {
+public class LoginFrame extends BaseFrame {
 
     private JTextField emailField;
     private JPasswordField passwordField;
@@ -50,61 +91,13 @@ public class LoginFrame extends JFrame {
     private static final int FIELD_HEIGHT = 56;
 
     public LoginFrame() {
+        super("TA Recruitment System - Login", 760, 820);
         this.authService = new AuthService();
         initUI();
     }
 
-    /**
-     * 初始化界面
-     */
-    private void initUI() {
-        setTitle("TA Recruitment System - Login");
-        setSize(760, 820);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        setResizable(false);
-
-        //【新】
-        JPanel mainPanel = new JPanel(new GridLayout(6, 1, 10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(30, 50, 30, 50));
-
-        emailField = new JTextField();
-        passwordField = new JPasswordField();
-        rememberMeBox = new JCheckBox("Remember Me"); // TA-007
-
-        JButton loginBtn = new JButton("Login");
-        JButton registerBtn = new JButton("No account? Register");
-        JButton forgotPwdBtn = new JButton("Forgot Password?"); 
-        // 绑定登录事件
-        loginBtn.addActionListener(e -> handleLogin());
-        
-        // 绑定注册跳转
-        registerBtn.addActionListener(e -> {
-            new RegisterFrame().setVisible(true);
-            this.dispose();
-        });
-
-        // 绑定忘记密码事件
-        forgotPwdBtn.addActionListener(e -> handleForgotPassword());
-
-        mainPanel.add(new JLabel("Email:"));
-        mainPanel.add(emailField);
-        mainPanel.add(new JLabel("Password:"));
-        mainPanel.add(passwordField);
-        mainPanel.add(rememberMeBox);
-        mainPanel.add(loginBtn);
-
-        add(mainPanel, BorderLayout.CENTER);
-        add(forgotPwdBtn, BorderLayout.SOUTH);
-    }
-
-    /**
-     * 核心逻辑：处理登录 (对应 TA-001, TA-003, TA-006, TA-007)
-     */
-    private void handleLogin() {
-        String email = emailField.getText().trim();
-        String password = new String(passwordField.getPassword());
-
+    @Override
+    protected void initUI() {
         // 外层背景
         JPanel rootPanel = new JPanel(new GridBagLayout());
         rootPanel.setBackground(new Color(245, 247, 251));
@@ -113,14 +106,12 @@ public class LoginFrame extends JFrame {
         // 中间白色卡片
         RoundedPanel cardPanel = new RoundedPanel(28, Color.WHITE);
 
-        // --- 新增以下3行，强制锁定卡片大小，与注册页完全一致 ---
+        // 强制锁定卡片大小
         Dimension cardSize = new Dimension(620, 760);
         cardPanel.setPreferredSize(cardSize);
         cardPanel.setMinimumSize(cardSize);
         cardPanel.setMaximumSize(cardSize);
-        // -------------------------------------------
 
-        //cardPanel.setPreferredSize(new Dimension(620, 760));
         cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
         cardPanel.setBorder(new EmptyBorder(36, 36, 36, 36));
 
@@ -140,7 +131,7 @@ public class LoginFrame extends JFrame {
         cardPanel.add(subtitleLabel);
         cardPanel.add(Box.createVerticalStrut(26));
 
-        // 顶部角色切换栏（纯 UI，不接业务）
+        // 顶部角色切换栏
         JPanel rolePanel = new RoundedPanel(18, new Color(243, 246, 251));
         rolePanel.setLayout(new GridLayout(1, 3, 10, 0));
         rolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 62));
@@ -242,7 +233,6 @@ public class LoginFrame extends JFrame {
         JButton loginButton = new JButton("Sign In");
         loginButton.setFont(new Font("SansSerif", Font.BOLD, 22));
         loginButton.setForeground(Color.WHITE);
-
         loginButton.setBackground(new Color(37, 99, 235));
         loginButton.setFocusPainted(false);
         loginButton.setBorderPainted(false);
@@ -440,7 +430,7 @@ public class LoginFrame extends JFrame {
 
             // 1. 基础非空校验
             if (email.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(LoginFrame.this, "Please enter both email and password", "Input Required", JOptionPane.WARNING_MESSAGE);
+                showWarning("Please enter both email and password");
                 return;
             }
 
@@ -451,40 +441,50 @@ public class LoginFrame extends JFrame {
                 if (user != null) {
                     // 3. 校验所选角色与账户实际角色是否匹配
                     if (user.getRole() != selectedRole) {
-                        JOptionPane.showMessageDialog(LoginFrame.this, "Role mismatch.\nAccount Role: " + user.getRole(), "Warning", JOptionPane.WARNING_MESSAGE);
+                        showWarning("Role mismatch.\nAccount Role: " + user.getRole());
                         return;
                     }
 
                     // 4. 处理被禁用 (DISABLED) 的账户
                     if (user.getStatus() == common.entity.AccountStatus.DISABLED) {
-                        JOptionPane.showMessageDialog(LoginFrame.this, authService.getAccountStatusMessage(user), "Account Disabled", JOptionPane.ERROR_MESSAGE);
+                        showError(authService.getAccountStatusMessage(user));
+                        return;
+                    }
+                  // 5. Pending accounts continue directly in demo flow.
+                    if (user.getStatus() == common.entity.AccountStatus.PENDING) {
+                  // No popup; continue to role-based routing directly.
+                    }
+
                         return;
                     }
 
-                    // 5. Pending accounts continue directly in demo flow.
-                    if (user.getStatus() == common.entity.AccountStatus.PENDING) {
-                        // No popup; continue to role-based routing directly.
-                    }
-
-                    // 6. ACTIVE 状态账户：按角色跳转对应首页
-                    JFrame homeFrame;
+                    // 6. 正常 ACTIVE 状态账户：结合 PermissionService 校验并跳转对应首页
+                   
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
-                        homeFrame = new AdminHomeFrame(user);
-                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
-                        homeFrame = new MOHomeFrame(user);
+                
+                        // Admin 权限最高，跳转 Admin 首页
+                        // new AdminHomeFrame(user).setVisible(true);
+                        showInfo("Admin dashboard - Coming soon");
+                        dispose();
+                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.MO)) {
+                        // 仅 MO 跳转 MO 首页
+                        // new MOHomeFrame(user).setVisible(true);
+                        showInfo("MO dashboard - Coming soon");
+                        dispose();
+                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.TA)) {
+                        // 仅 TA 跳转 TA 首页
+                        new TAMainFrame(user).setVisible(true);
+                        dispose(); // 关闭登录框
                     } else {
-                        homeFrame = new TAHomeFrame(user);
+                        showInfo("Routing to " + user.getRole() + " Dashboard...");
+                        dispose();
                     }
-
-                    homeFrame.setVisible(true);
-                    dispose();
 
                 } else {
-                    JOptionPane.showMessageDialog(LoginFrame.this, "Invalid email or password", "Login Failed", JOptionPane.ERROR_MESSAGE);
+                    showError("Invalid email or password");
                 }
             } catch (Exception ex) {
-                // 捕获系统层面的异常并提示
-                JOptionPane.showMessageDialog(LoginFrame.this, "System Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                showError("System Error: " + ex.getMessage());
             }
         }
     }
@@ -509,24 +509,14 @@ public class LoginFrame extends JFrame {
      * Password recovery with backend update.
      */
     private void handlePasswordRecovery() {
-        String email = JOptionPane.showInputDialog(
-                this,
-                "Enter your registered email:",
-                "Password Recovery",
-                JOptionPane.QUESTION_MESSAGE
-        );
+        String email = showInput("Enter your registered email:", "Password Recovery");
         if (email == null || email.trim().isEmpty()) {
             return;
         }
 
         try {
             if (!authService.checkEmailExists(email.trim())) {
-                JOptionPane.showMessageDialog(
-                        this,
-                        "Email is not registered.",
-                        "Recovery Failed",
-                        JOptionPane.ERROR_MESSAGE
-                );
+                showError("Email is not registered.");
                 return;
             }
 
@@ -542,16 +532,11 @@ public class LoginFrame extends JFrame {
             }
 
             authService.resetPassword(email.trim(), new String(newPasswordField.getPassword()));
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Password has been reset successfully.",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            showInfo("Password has been reset successfully.");
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Input Error", JOptionPane.WARNING_MESSAGE);
+            showWarning(ex.getMessage());
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "System Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            showError("System Error: " + ex.getMessage());
         }
     }
 
