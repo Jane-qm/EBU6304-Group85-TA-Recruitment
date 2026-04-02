@@ -2,6 +2,7 @@ import auth.LoginFrame;
 import common.dao.JsonPersistenceManager;
 import common.entity.User;
 import common.entity.UserRole;
+
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -13,15 +14,9 @@ public class Main {
 
     public static void main(String[] args) {
         initializeJsonStorage();
-
-        // 1. 设置外观风格（Look and Feel）
         setupSystemLookAndFeel();
 
-        // 2. 在事件分发线程中启动 UI
-        SwingUtilities.invokeLater(() -> {
-            LoginFrame loginFrame = new LoginFrame();
-            loginFrame.setVisible(true);
-        });
+        SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
     }
 
     /**
@@ -49,7 +44,6 @@ public class Main {
 
     private static void setupSystemLookAndFeel() {
         try {
-            // 启用抗锯齿字体，解决文字渲染发虚问题
             System.setProperty("awt.useSystemAAFontSettings", "on");
             System.setProperty("swing.aatext", "true");
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());

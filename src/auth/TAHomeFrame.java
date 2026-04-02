@@ -1,104 +1,57 @@
 package auth;
 
-import common.entity.CVInfo;
-import common.entity.MOOffer;
-import common.entity.TAApplication;
-import common.entity.TAProfile;
 import common.entity.User;
-import common.service.CVInfoService;
-import common.service.MOOfferService;
-import common.service.TAApplicationService;
-import common.service.TAProfileService;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
 public class TAHomeFrame extends JFrame {
-    private final User currentUser;
-    private final TAProfileService profileService = new TAProfileService();
-    private final CVInfoService cvInfoService = new CVInfoService();
-    private final TAApplicationService applicationService = new TAApplicationService();
-    private final MOOfferService offerService = new MOOfferService();
+
+    private final User user;
 
     public TAHomeFrame(User user) {
-        this.currentUser = user;
-        setTitle("TA Home");
-        setSize(640, 420);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        initUi();
+        this.user = user;
+        initUI();
     }
 
-    private void initUi() {
-        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 8));
-        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+    private void initUI() {
+        setTitle("TA Dashboard");
+        setSize(760, 600);
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-        panel.add(new JLabel("Welcome, " + currentUser.getEmail() + " (TA)"));
+        JPanel root = new JPanel();
+        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
+        root.setBorder(new EmptyBorder(40, 40, 40, 40));
+        root.setBackground(new Color(245, 247, 251));
 
-        JButton logoutBtn = new JButton("Logout");
-        logoutBtn.addActionListener(e -> {
-            new LoginFrame().setVisible(true);
-            dispose();
-        });
+        JLabel title = new JLabel("Welcome, TA");
+        title.setFont(new Font("SansSerif", Font.BOLD, 28));
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        root.add(title);
+        root.add(Box.createVerticalStrut(40));
 
-        JButton profileBtn = new JButton("Create Demo TA Profile");
-        profileBtn.addActionListener(e -> {
-            TAProfile profile = new TAProfile();
-            profile.setUserId(currentUser.getUserId());
-            profile.setName("Demo TA");
-            profile.setMajor("Software Engineering");
-            profile.setGrade("Year 3");
-            profile.setAvailableWorkingHours(8);
-            profileService.createOrUpdate(profile);
-            JOptionPane.showMessageDialog(this, "TA profile saved.");
-        });
+        root.add(createButton("📄 View Jobs"));
+        root.add(Box.createVerticalStrut(20));
 
-        JButton cvBtn = new JButton("Create Demo CV");
-        cvBtn.addActionListener(e -> {
-            CVInfo cvInfo = new CVInfo();
-            cvInfo.setUserId(currentUser.getUserId());
-            cvInfo.setEducationSummary("BUPT Undergraduate");
-            cvInfo.setFilePath("cv-demo.pdf");
-            cvInfoService.createOrUpdate(cvInfo);
-            JOptionPane.showMessageDialog(this, "CV info saved.");
-        });
+        root.add(createButton("📝 Apply for Job"));
+        root.add(Box.createVerticalStrut(20));
 
-        JButton applyBtn = new JButton("Create Demo Application");
-        applyBtn.addActionListener(e -> {
-            TAApplication application = new TAApplication();
-            application.setTaUserId(currentUser.getUserId());
-            application.setJobId(2001L);
-            application.setStatement("I am interested in this module.");
-            application.setStatus("SUBMITTED");
-            applicationService.createOrUpdate(application);
-            JOptionPane.showMessageDialog(this, "Application saved.");
-        });
+        root.add(createButton("📬 View Offers"));
 
-        JButton offersBtn = new JButton("View My Offers");
-        offersBtn.addActionListener(e -> {
-            java.util.List<MOOffer> offers = offerService.listByTaUserId(currentUser.getUserId());
-            if (offers.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No offers yet.");
-                return;
-            }
-            MOOffer latest = offers.get(offers.size() - 1);
-            JOptionPane.showMessageDialog(
-                    this,
-                    "Total offers: " + offers.size() +
-                            "\nLatest module: " + latest.getModuleCode() +
-                            "\nHours: " + latest.getOfferedHours() +
-                            "\nStatus: " + latest.getStatus(),
-                    "My Offers",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        });
+        add(root);
+    }
 
-        panel.add(profileBtn);
-        panel.add(cvBtn);
-        panel.add(applyBtn);
-        panel.add(offersBtn);
-        panel.add(logoutBtn);
-        setContentPane(panel);
+    private JButton createButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 18));
+        btn.setMaximumSize(new Dimension(300, 60));
+        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        btn.setBackground(new Color(16, 185, 129));
+        btn.setForeground(Color.WHITE);
+        btn.setFocusPainted(false);
+        return btn;
     }
 }

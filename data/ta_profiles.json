@@ -1,13 +1,24 @@
 [
   {
-    "profileId": 1001,
-    "userId": 100001,
-    "name": "Demo TA",
-    "major": "Software Engineering",
-    "grade": "Year 3",
-    "skillTags": [],
-    "availableWorkingHours": 8,
-    "published": false,
-    "updatedAt": "2026-03-31T23:35:33.632966"
+    "taId": 100005,
+    "email": "ta@.com",
+    "studentId": "1",
+    "surname": "1",
+    "forename": "1",
+    "chineseName": "1",
+    "phone": "11111111111",
+    "gender": "MALE",
+    "school": "1",
+    "supervisor": "1",
+    "studentType": "MASTER",
+    "currentYear": "YEAR_1",
+    "previousExperience": "11",
+    "skillTags": [
+      "11"
+    ],
+    "availableWorkingHours": 0,
+    "profileCompleted": true,
+    "profileLastUpdated": "2026-03-30T20:52:14.6731155",
+    "createdAt": "2026-03-30T20:50:38.0887793"
   }
 ]
