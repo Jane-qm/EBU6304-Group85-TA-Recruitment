@@ -1,25 +1,19 @@
 package common.dao;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import java.lang.reflect.Type;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.TypeAdapter;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
+
 import common.entity.AccountStatus;
 import common.entity.Admin;
 import common.entity.MO;
 import common.entity.TA;
 import common.entity.User;
 import common.entity.UserRole;
-
-import java.io.*;
-import java.lang.reflect.Type;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 用户数据访问对象
@@ -30,31 +24,11 @@ import java.util.Map;
  */
 public class UserFileDAO {
 
-    private static final String DATA_FILE = "data/users.json";
-    private final Gson gson;
+    private final JsonPersistenceManager persistenceManager;
 
     public UserFileDAO() {
-        this.gson = new GsonBuilder()
-                .setPrettyPrinting()
-                .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter())
-                .create();
-        ensureDataDirectoryExists();
-    }
-
-    /**
-     * 确保 data 目录存在
-     */
-    private void ensureDataDirectoryExists() {
-        File dataDir = new File("data");
-        if (!dataDir.exists()) {
-            boolean created = dataDir.mkdir();
-            if (!created) {
-                throw new RuntimeException("无法创建 data 目录");
-            }
-        }
-        /*if (!dataDir.exists()) {
-            dataDir.mkdir();
-        }*/
+        this.persistenceManager = new JsonPersistenceManager();
+        this.persistenceManager.initializeBaseFiles();
     }
 
     /**
@@ -67,16 +41,11 @@ public class UserFileDAO {
             return;
         }
 
-        try (Writer writer = new FileWriter(DATA_FILE)) {
-            List<PersistedUser> userList = new ArrayList<>();
-            for (User user : users.values()) {
-                userList.add(PersistedUser.fromEntity(user));
-            }
-            gson.toJson(userList, writer);
-        } catch (IOException e) {
-            System.err.println("保存用户数据失败: " + e.getMessage());
-            e.printStackTrace();
+        List<PersistedUser> userList = new ArrayList<>();
+        for (User user : users.values()) {
+            userList.add(PersistedUser.fromEntity(user));
         }
+        persistenceManager.writeList(JsonPersistenceManager.USERS_FILE, userList);
     }
 
     /**
@@ -84,53 +53,18 @@ public class UserFileDAO {
      * 
      * @return 用户列表
      */
-    public List<User> loadAll() throws IOException {
-        File file = new File(DATA_FILE);
-        if (!file.exists()) {
-            return new ArrayList<>();
-        }
-
-        try (Reader reader = new FileReader(file)) {
-            Type listType = new TypeToken<List<PersistedUser>>(){}.getType();
-            List<PersistedUser> rows = gson.fromJson(reader, listType);
+    public List<User> loadAll() {
+        try {
+            Type listType = new TypeToken<List<PersistedUser>>() {}.getType();
+            List<PersistedUser> rows = persistenceManager.readList(JsonPersistenceManager.USERS_FILE, listType);
             List<User> users = new ArrayList<>();
-            if (rows == null) {
-                return users;
-            }
-
             for (PersistedUser row : rows) {
                 users.add(row.toEntity());
             }
             return users;
-        }
-    }
-
-    /**
-     * LocalDateTime 自定义适配器
-     */
-    private static class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
-        private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-
-        @Override
-        public void write(JsonWriter out, LocalDateTime value) throws IOException {
-            if (value == null) {
-                out.nullValue();
-            } else {
-                out.value(value.format(FORMATTER));
-            }
-        }
-
-        @Override
-        public LocalDateTime read(JsonReader in) throws IOException {
-            if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
-                in.nextNull();
-                return null;
-            }
-            String dateStr = in.nextString();
-            if (dateStr == null || dateStr.isBlank()) {
-                return null;
-            }
-            return LocalDateTime.parse(dateStr, FORMATTER);
+        } catch (Exception e) {
+            System.err.println("读取用户数据失败: " + e.getMessage());
+            return new ArrayList<>();
         }
     }
 
@@ -154,6 +88,9 @@ public class UserFileDAO {
         private Integer availableWorkingHours;
         private Boolean profileSaved;
         private LocalDateTime profileLastUpdated;
+
+        public PersistedUser() {
+        }
 
         static PersistedUser fromEntity(User user) {
             PersistedUser row = new PersistedUser();

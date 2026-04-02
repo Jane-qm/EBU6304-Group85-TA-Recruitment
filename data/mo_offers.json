@@ -1,0 +1,21 @@
+[
+  {
+    "offerId": 5001,
+    "moUserId": 100002,
+    "taUserId": 100001,
+    "moduleCode": "EBU6304",
+    "offeredHours": 6,
+    "status": "SENT",
+    "offeredAt": "2026-03-31T23:36:00.250157"
+  },
+  {
+    "offerId": 5002,
+    "applicationId": 3001,
+    "moUserId": 100002,
+    "taUserId": 100001,
+    "moduleCode": "EBU6304",
+    "offeredHours": 6,
+    "status": "SENT",
+    "offeredAt": "2026-03-31T23:36:01.185792"
+  }
+]
