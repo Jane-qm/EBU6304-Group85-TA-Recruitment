@@ -1,57 +1,99 @@
 package auth;
 
+import common.entity.MOJob;
+import common.entity.MOOffer;
+import common.entity.TAApplication;
 import common.entity.User;
+import common.service.MOJobService;
+import common.service.MOOfferService;
+import common.service.TAApplicationService;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.util.List;
 
 public class MOHomeFrame extends JFrame {
-
-    private final User user;
+    private final User currentUser;
+    private final MOJobService jobService = new MOJobService();
+    private final MOOfferService offerService = new MOOfferService();
+    private final TAApplicationService applicationService = new TAApplicationService();
 
     public MOHomeFrame(User user) {
-        this.user = user;
-        initUI();
-    }
-
-    private void initUI() {
-        setTitle("MO Dashboard");
-        setSize(760, 600);
+        this.currentUser = user;
+        setTitle("MO Home");
+        setSize(640, 420);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-
-        JPanel root = new JPanel();
-        root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
-        root.setBorder(new EmptyBorder(40, 40, 40, 40));
-        root.setBackground(new Color(245, 247, 251));
-
-        JLabel title = new JLabel("Welcome, MO");
-        title.setFont(new Font("SansSerif", Font.BOLD, 28));
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        root.add(title);
-        root.add(Box.createVerticalStrut(40));
-
-        root.add(createButton("📌 Post Job"));
-        root.add(Box.createVerticalStrut(20));
-
-        root.add(createButton("👀 View Applicants"));
-        root.add(Box.createVerticalStrut(20));
-
-        root.add(createButton("📨 Send Offer"));
-
-        add(root);
+        initUi();
     }
 
-    private JButton createButton(String text) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 18));
-        btn.setMaximumSize(new Dimension(300, 60));
-        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setBackground(new Color(37, 99, 235));
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        return btn;
+    private void initUi() {
+        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        panel.add(new JLabel("Welcome, " + currentUser.getEmail() + " (MO)"));
+
+        JButton logoutBtn = new JButton("Logout");
+        logoutBtn.addActionListener(e -> {
+            new LoginFrame().setVisible(true);
+            dispose();
+        });
+
+        JButton jobBtn = new JButton("Create Demo Job");
+        jobBtn.addActionListener(e -> {
+            MOJob job = new MOJob();
+            job.setMoUserId(currentUser.getUserId());
+            job.setModuleCode("EBU6304");
+            job.setTitle("Teaching Assistant");
+            job.setDescription("Support labs and coursework marking.");
+            job.setWeeklyHours(6);
+            job.setStatus("OPEN");
+            jobService.createOrUpdate(job);
+            JOptionPane.showMessageDialog(this, "MO job saved.");
+        });
+
+        JButton offerBtn = new JButton("Create Demo Offer");
+        offerBtn.addActionListener(e -> {
+            List<MOJob> jobs = jobService.listAll();
+            MOOffer offer = new MOOffer();
+            offer.setMoUserId(currentUser.getUserId());
+            offer.setTaUserId(100001L);
+            if (!jobs.isEmpty()) {
+                offer.setModuleCode(jobs.get(0).getModuleCode());
+            } else {
+                offer.setModuleCode("EBU6304");
+            }
+            offer.setOfferedHours(6);
+            offer.setStatus("SENT");
+            offerService.createOrUpdate(offer);
+            JOptionPane.showMessageDialog(this, "MO offer saved.");
+        });
+
+        JButton hireBtn = new JButton("Hire First Submitted TA");
+        hireBtn.addActionListener(e -> {
+            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            if (submitted.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                return;
+            }
+
+            TAApplication target = submitted.get(0);
+            applicationService.markAsHired(target.getApplicationId());
+
+            MOOffer offer = new MOOffer();
+            offer.setMoUserId(currentUser.getUserId());
+            offer.setTaUserId(target.getTaUserId());
+            offer.setApplicationId(target.getApplicationId());
+            offer.setModuleCode("EBU6304");
+            offer.setOfferedHours(6);
+            offer.setStatus("SENT");
+            offerService.createOrUpdate(offer);
+            JOptionPane.showMessageDialog(this, "TA hired and offer sent.\nApplication ID: " + target.getApplicationId());
+        });
+
+        panel.add(jobBtn);
+        panel.add(offerBtn);
+        panel.add(hireBtn);
+        panel.add(logoutBtn);
+        setContentPane(panel);
     }
 }

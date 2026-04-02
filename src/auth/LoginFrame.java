@@ -1,5 +1,12 @@
 package auth;
 
+import common.entity.User;
+import common.entity.UserRole;
+import common.service.PermissionService;
+import javax.swing.*;
+import javax.swing.border.AbstractBorder;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -31,9 +38,6 @@ import javax.swing.JToggleButton;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
 
-import common.entity.User;
-import common.entity.UserRole;
-import common.service.PermissionService;
 import common.ui.BaseFrame;
 import ta.ui.TAMainFrame;
 
@@ -372,22 +376,16 @@ public class LoginFrame extends BaseFrame {
                         // No popup; continue to role-based routing directly.
                     }
 
-                    // 6. 按角色跳转（Admin/MO 演示为占位提示；TA 进入 TAMainFrame）
+                    // 6. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
-                
-                        // Admin 权限最高，跳转 Admin 首页
-                        // new AdminHomeFrame(user).setVisible(true);
-                        showInfo("Admin dashboard - Coming soon");
+                        new AdminHomeFrame(user).setVisible(true);
                         dispose();
-                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.MO)) {
-                        // 仅 MO 跳转 MO 首页
-                        // new MOHomeFrame(user).setVisible(true);
-                        showInfo("MO dashboard - Coming soon");
+                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
+                        new MOHomeFrame(user).setVisible(true);
                         dispose();
-                    } else if (PermissionService.hasAccess(user.getRole(), common.entity.UserRole.TA)) {
-                        // 仅 TA 跳转 TA 首页
+                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.TA)) {
                         new TAMainFrame(user).setVisible(true);
-                        dispose(); // 关闭登录框
+                        dispose();
                     } else {
                         showInfo("Routing to " + user.getRole() + " Dashboard...");
                         dispose();
