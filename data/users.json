@@ -6,7 +6,7 @@
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-03-29T17:03:47.3523407",
-    "lastLogin": "2026-03-29T17:51:30.5229622",
+    "lastLogin": "2026-04-03T21:41:33.5836257",
     "skillTags": [],
     "availableWorkingHours": 0,
     "profileSaved": false
@@ -43,6 +43,15 @@
     "role": "MO",
     "status": "PENDING",
     "createdAt": "2026-03-29T17:03:03.7461416"
+  },
+  {
+    "userId": 100006,
+    "email": "111@qmul.ac.uk",
+    "passwordHash": "f6e0a1e2ac41945a9aa7ff8a8aaa0cebc12a3bcc981a929ad5cf810a090e11ae",
+    "role": "MO",
+    "status": "PENDING",
+    "createdAt": "2026-04-03T20:51:17.747919",
+    "lastLogin": "2026-04-03T21:41:50.7210954"
   },
   {
     "userId": 100001,

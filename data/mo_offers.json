@@ -17,5 +17,14 @@
     "offeredHours": 6,
     "status": "SENT",
     "offeredAt": "2026-03-31T23:36:01.185792"
+  },
+  {
+    "offerId": 5003,
+    "moUserId": 100006,
+    "taUserId": 100001,
+    "moduleCode": "EBU6304",
+    "offeredHours": 6,
+    "status": "SENT",
+    "offeredAt": "2026-04-03T20:51:37.3143158"
   }
 ]
