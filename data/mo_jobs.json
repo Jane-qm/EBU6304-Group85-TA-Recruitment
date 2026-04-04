@@ -9,5 +9,27 @@
     "weeklyHours": 6,
     "status": "OPEN",
     "createdAt": "2026-03-31T23:35:59.063262"
+  },
+  {
+    "jobId": 2002,
+    "moUserId": 100006,
+    "moduleCode": "EBU6304",
+    "title": "Teaching Assistant",
+    "description": "Support labs and coursework marking.",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "PUBLISHED",
+    "createdAt": "2026-04-03T20:51:35.899274"
+  },
+  {
+    "jobId": 2003,
+    "moUserId": 100006,
+    "moduleCode": "EBU6304",
+    "title": "Teaching Assistant",
+    "description": "Support labs and coursework marking.",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "DRAFT",
+    "createdAt": "2026-04-03T21:27:42.0365261"
   }
 ]
