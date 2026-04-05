@@ -84,9 +84,9 @@ public class MOHomeFrame extends JFrame {
 
         JButton hireBtn = new JButton("Hire First Submitted TA");
         hireBtn.addActionListener(e -> {
-            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
             if (submitted.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
                 return;
             }
 
@@ -105,14 +105,25 @@ public class MOHomeFrame extends JFrame {
 
         JButton rejectBtn = new JButton("Reject First Submitted TA");
         rejectBtn.addActionListener(e -> {
-            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
             if (submitted.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
                 return;
             }
             TAApplication target = submitted.get(0);
             applicationService.rejectApplication(target.getApplicationId());
             JOptionPane.showMessageDialog(this, "Application rejected and TA notified.\nApplication ID: " + target.getApplicationId());
+        });
+
+        JButton waitlistBtn = new JButton("Waitlist first awaiting (demo)");
+        waitlistBtn.addActionListener(e -> {
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
+            if (submitted.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
+                return;
+            }
+            applicationService.markAsWaitlisted(submitted.get(0).getApplicationId());
+            JOptionPane.showMessageDialog(this, "TA waitlisted and notified.");
         });
 
         JButton notificationsBtn = new JButton("View Notifications");
@@ -124,6 +135,7 @@ public class MOHomeFrame extends JFrame {
         panel.add(offerBtn);
         panel.add(hireBtn);
         panel.add(rejectBtn);
+        panel.add(waitlistBtn);
         panel.add(notificationsBtn);
         panel.add(logoutBtn);
         setContentPane(panel);
