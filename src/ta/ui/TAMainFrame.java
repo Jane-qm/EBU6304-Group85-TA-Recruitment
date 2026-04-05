@@ -90,6 +90,9 @@ public class TAMainFrame extends BaseFrame {
             dispose();
         });
 
+        JButton browseJobsBtn = createSidebarButton("Browse jobs (Iter.2)");
+        browseJobsBtn.addActionListener(e -> new TaJobDirectoryFrame(ta).setVisible(true));
+
         JButton notificationsBtn = createSidebarButton("System Notifications");
         notificationsBtn.addActionListener(e ->
                 NotificationPopup.showUnreadNotifications(this, ta, notificationService));
@@ -103,6 +106,8 @@ public class TAMainFrame extends BaseFrame {
         sidebar.add(title);
         sidebar.add(userLabel);
         sidebar.add(profileBtn);
+        sidebar.add(Box.createVerticalStrut(10));
+        sidebar.add(browseJobsBtn);
         sidebar.add(Box.createVerticalStrut(10));
         sidebar.add(notificationsBtn);
         sidebar.add(Box.createVerticalGlue());
@@ -159,6 +164,9 @@ public class TAMainFrame extends BaseFrame {
         JButton applyBtn = new JButton("Apply for First Published Job");
         applyBtn.addActionListener(e -> applyForFirstPublishedJob());
 
+        JButton acceptOfferBtn = new JButton("Accept Latest Offer");
+        acceptOfferBtn.addActionListener(e -> acceptLatestOffer());
+
         JButton rejectOfferBtn = new JButton("Reject Latest Offer");
         rejectOfferBtn.addActionListener(e -> rejectLatestOffer());
 
@@ -169,6 +177,7 @@ public class TAMainFrame extends BaseFrame {
         });
 
         panel.add(applyBtn);
+        panel.add(acceptOfferBtn);
         panel.add(rejectOfferBtn);
         panel.add(refreshBtn);
         return panel;
@@ -289,6 +298,23 @@ public class TAMainFrame extends BaseFrame {
             dispose();
         } catch (Exception ex) {
             showWarning(ex.getMessage());
+        }
+    }
+
+    private void acceptLatestOffer() {
+        try {
+            List<MOOffer> offers = offerService.listByTaUserId(ta.getUserId());
+            if (offers.isEmpty()) {
+                showWarning("No offers available.");
+                return;
+            }
+            MOOffer latest = offers.get(offers.size() - 1);
+            offerService.acceptOffer(latest.getOfferId());
+            showInfo("Offer accepted. The MO has been notified.");
+            new TAMainFrame(ta).setVisible(true);
+            dispose();
+        } catch (Exception ex) {
+            showError(ex.getMessage());
         }
     }
 
