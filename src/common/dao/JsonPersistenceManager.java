@@ -23,6 +23,8 @@ public class JsonPersistenceManager {
     public static final String CV_INFOS_FILE = "cv_infos.json";
     public static final String MO_OFFERS_FILE = "mo_offers.json";
     public static final String NOTIFICATIONS_FILE = "notifications.json";
+    /** CV 元数据列表（与 {@code ta.dao.CVDao} 使用的路径一致，相对 {@code data/}） */
+    public static final String TA_CVS_FILE = "ta_cvs.json";
 
     private static final List<String> ALL_FILES = Arrays.asList(
             USERS_FILE,
@@ -31,7 +33,8 @@ public class JsonPersistenceManager {
             TA_APPLICATIONS_FILE,
             CV_INFOS_FILE,
             MO_OFFERS_FILE,
-            NOTIFICATIONS_FILE
+            NOTIFICATIONS_FILE,
+            TA_CVS_FILE
     );
 
     private final Path dataDirectory;
@@ -47,6 +50,8 @@ public class JsonPersistenceManager {
     public void initializeBaseFiles() {
         try {
             Files.createDirectories(dataDirectory);
+            Path cvsDir = dataDirectory.resolve("cvs");
+            Files.createDirectories(cvsDir);
             for (String file : ALL_FILES) {
                 Path path = dataDirectory.resolve(file);
                 if (!Files.exists(path)) {
