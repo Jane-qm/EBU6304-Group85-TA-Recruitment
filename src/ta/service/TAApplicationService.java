@@ -12,9 +12,22 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import common.entity.MOJob;
+import common.service.MOJobService;
+import common.service.NotificationService;
+import ta.dao.TAApplicationDAO;
+import ta.entity.TAApplication;
+
 public class TAApplicationService {
 
     private final TAApplicationDAO dao = new TAApplicationDAO();
+<<<<<<< HEAD:src/common/service/TAApplicationService.java
+=======
+    private final MOJobService jobService = new MOJobService();
+    private final TAProfileService taProfileService = new TAProfileService();
+    private final CVService cvService = new CVService();
+    private final NotificationService notificationService = new NotificationService();
+>>>>>>> aa2732b48ca9c1f4a7107f3d8b004fc7c57fa014:src/ta/service/TAApplicationService.java
 
     public TAApplication createOrUpdate(TAApplication application) {
         if (application.getAppliedAt() == null) {
@@ -122,13 +135,6 @@ public class TAApplicationService {
         throw new IllegalArgumentException("Application not found.");
     }
 
-    /***
-     * 
-     * The "submitApplication" function and validation logic have been added.
-     *  If the TA's information is incomplete or a CV has not been uploaded, the application will be directly blocked. 
-     * At the same time, positions that have not been published will also be blocked from viewing or applying.
-     */
-
     public TAApplication submitApplication(Long taUserId, Long jobId, String statement) {
         validateApplicationAccess(taUserId, jobId);
 
@@ -167,5 +173,9 @@ public class TAApplicationService {
                 + "\nStatus: " + application.getStatus()
                 + "\nStatement: " + application.getStatement();
     }
+<<<<<<< HEAD:src/common/service/TAApplicationService.java
 
 }
+=======
+}
+>>>>>>> aa2732b48ca9c1f4a7107f3d8b004fc7c57fa014:src/ta/service/TAApplicationService.java
