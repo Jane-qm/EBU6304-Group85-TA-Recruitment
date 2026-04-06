@@ -1,4 +1,10 @@
-package ta.service;
+package common.service;
+
+import common.dao.TAApplicationDAO;
+import common.domain.ApplicationStatus;
+import common.domain.NotificationKind;
+import common.entity.MOJob;
+import common.entity.TAApplication;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -11,6 +17,7 @@ import ta.dao.TAApplicationDAO;
 import ta.entity.TAApplication;
 
 public class TAApplicationService {
+
     private final TAApplicationDAO dao = new TAApplicationDAO();
     private final MOJobService jobService = new MOJobService();
     private final TAProfileService taProfileService = new TAProfileService();
@@ -48,18 +55,50 @@ public class TAApplicationService {
         return result;
     }
 
+    /** MO inbox: {@link ApplicationStatus#PENDING_REVIEW} and legacy {@link ApplicationStatus#SUBMITTED}. */
+    public List<TAApplication> listApplicationsAwaitingReview() {
+        List<TAApplication> result = new ArrayList<>();
+        for (TAApplication application : dao.findAll()) {
+            if (ApplicationStatus.isAwaitingReview(application.getStatus())) {
+                result.add(application);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Iteration 2 hook: MO sets waitlist → TA sees {@link NotificationKind#WAITLISTED}.
+     */
+    public TAApplication markAsWaitlisted(Long applicationId) {
+        for (TAApplication application : dao.findAll()) {
+            if (applicationId != null && applicationId.equals(application.getApplicationId())) {
+                application.setStatus(ApplicationStatus.WAITLISTED);
+                TAApplication saved = dao.save(application);
+                notificationService.notifyUser(
+                        saved.getTaUserId(),
+                        common.entity.UserRole.TA,
+                        "Waitlisted",
+                        "Your application #" + saved.getApplicationId() + " is now waitlisted.",
+                        NotificationKind.WAITLISTED
+                );
+                return saved;
+            }
+        }
+        throw new IllegalArgumentException("Application not found.");
+    }
+
     public TAApplication markAsHired(Long applicationId) {
         List<TAApplication> all = dao.findAll();
         for (TAApplication application : all) {
             if (applicationId != null && applicationId.equals(application.getApplicationId())) {
-                application.setStatus("HIRED");
+                application.setStatus(ApplicationStatus.HIRED);
                 TAApplication saved = dao.save(application);
                 notificationService.notifyUser(
                         saved.getTaUserId(),
                         common.entity.UserRole.TA,
                         "Application Result",
                         "Your application #" + saved.getApplicationId() + " has been approved.",
-                        "APPLICATION_APPROVED"
+                        NotificationKind.RESULT
                 );
                 return saved;
             }
@@ -71,14 +110,14 @@ public class TAApplicationService {
         List<TAApplication> all = dao.findAll();
         for (TAApplication application : all) {
             if (applicationId != null && applicationId.equals(application.getApplicationId())) {
-                application.setStatus("REJECTED");
+                application.setStatus(ApplicationStatus.REJECTED);
                 TAApplication saved = dao.save(application);
                 notificationService.notifyUser(
                         saved.getTaUserId(),
                         common.entity.UserRole.TA,
                         "Application Result",
                         "Your application #" + saved.getApplicationId() + " has been rejected.",
-                        "APPLICATION_REJECTED"
+                        NotificationKind.RESULT
                 );
                 return saved;
             }
@@ -93,7 +132,7 @@ public class TAApplicationService {
         application.setTaUserId(taUserId);
         application.setJobId(jobId);
         application.setStatement(statement);
-        application.setStatus("SUBMITTED");
+        application.setStatus(ApplicationStatus.SUBMITTED);
         return createOrUpdate(application);
     }
 
