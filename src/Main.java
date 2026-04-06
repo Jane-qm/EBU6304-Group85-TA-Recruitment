@@ -22,7 +22,8 @@ public class Main {
     }
 
     /**
-     * Initialize six core JSON files with default empty-array content.
+     * Iteration 2: ensure JSON stores under {@code data/} exist (empty arrays and {@code data/cvs/}).
+     * Filename constants live in {@link JsonPersistenceManager}.
      */
     private static void initializeJsonStorage() {
         JSON_PERSISTENCE_MANAGER.initializeBaseFiles();

@@ -20,6 +20,13 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 * **Data Storage:** Plain text/CSV/JSON/XML (No Databases Allowed per project rules).
 * **Architecture:** Simple, modular, and extensible design.
 
+### JSON persistence (Iteration 2 — Product Backlog: 新增 JSON)
+
+* **Tooling:** Google **Gson** via `common.util.GsonUtils` (shared `LocalDateTime` type adapter, pretty-print, validation helpers).
+* **File access:** `common.dao.JsonPersistenceManager` creates missing `data/*.json` as `[]` on startup and ensures `data/cvs/` exists for uploaded CV files.
+* **Managed list stores** (see constants on `JsonPersistenceManager`): `users.json`, `ta_profiles.json`, `mo_jobs.json`, `ta_applications.json`, `cv_infos.json`, `mo_offers.json`, `notifications.json`, `ta_cvs.json`.
+* **Run from project root** so relative paths `data/` resolve correctly (e.g. `mvn exec:java` after `cd` into the repo).
+
 ## 📅 Key Assessment Dates
 
 * **First Assessment:** 22nd March 2026 (Backlog \& Prototype).
@@ -38,5 +45,10 @@ This is an Agile-developed application designed to streamline the Teaching Assis
 
 ## 🛠 Setup \& Installation
 
-\[Provide instructions here on how to compile and run your Java application]
+```bash
+mvn -q -DskipTests compile
+mvn exec:java
+```
+
+Use JDK 17+. Execute from the repository root so JSON files are read/written under `./data`.
 
