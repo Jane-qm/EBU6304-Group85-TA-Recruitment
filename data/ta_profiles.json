@@ -20,5 +20,25 @@
     "profileCompleted": true,
     "profileLastUpdated": "2026-03-30T20:52:14.6731155",
     "createdAt": "2026-03-30T20:50:38.0887793"
+  },
+  {
+    "taId": 100006,
+    "email": "12345678@qmul.ac.uk",
+    "studentId": "a",
+    "surname": "a",
+    "forename": "a",
+    "chineseName": "a",
+    "phone": "12345678912",
+    "gender": "FEMALE",
+    "school": "a",
+    "supervisor": "a",
+    "studentType": "MASTER",
+    "currentYear": "YEAR_3",
+    "previousExperience": "none",
+    "skillTags": [],
+    "availableWorkingHours": 3,
+    "profileCompleted": true,
+    "profileLastUpdated": "2026-04-02T14:35:56.8365059",
+    "createdAt": "2026-04-02T14:35:15.5005454"
   }
 ]

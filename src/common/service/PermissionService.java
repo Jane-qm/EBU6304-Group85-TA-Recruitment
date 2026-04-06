@@ -30,14 +30,4 @@ public class PermissionService {
         // 其他角色必须与目标页面的角色严格匹配
         return userRole == targetRole;
     }
-
-    public static boolean canTAViewJob(String jobStatus) {
-        return jobStatus != null && (
-                jobStatus.equalsIgnoreCase("OPEN")
-                        || jobStatus.equalsIgnoreCase("PUBLISHED"));
-    }
-
-    public static boolean canTAApply(boolean profileComplete, boolean hasCv) {
-        return profileComplete && hasCv;
-    }
 }

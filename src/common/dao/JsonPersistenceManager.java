@@ -22,7 +22,6 @@ public class JsonPersistenceManager {
     public static final String TA_APPLICATIONS_FILE = "ta_applications.json";
     public static final String CV_INFOS_FILE = "cv_infos.json";
     public static final String MO_OFFERS_FILE = "mo_offers.json";
-    public static final String NOTIFICATIONS_FILE = "notifications.json";
 
     private static final List<String> ALL_FILES = Arrays.asList(
             USERS_FILE,
@@ -30,8 +29,7 @@ public class JsonPersistenceManager {
             MO_JOBS_FILE,
             TA_APPLICATIONS_FILE,
             CV_INFOS_FILE,
-            MO_OFFERS_FILE,
-            NOTIFICATIONS_FILE
+            MO_OFFERS_FILE
     );
 
     private final Path dataDirectory;

@@ -41,6 +41,9 @@ import javax.swing.border.EmptyBorder;
 import common.ui.BaseFrame;
 import ta.ui.TAMainFrame;
 
+import mo.ui.MODashboardFrame;   // 导入 MO 首页
+import common.entity.AccountStatus; // 导入账号状态
+
 /**
  * 登录窗口
  * Swing 实现，处理用户登录交互
@@ -376,12 +379,20 @@ public class LoginFrame extends BaseFrame {
                         // No popup; continue to role-based routing directly.
                     }
 
+                    /*/ --- 修改开始：处理任务 1 (PENDING 状态拦截) ---
+                    if (user.getRole() == common.entity.UserRole.MO && 
+                        user.getStatus() == common.entity.AccountStatus.PENDING) {
+                        showWarning("Your account is under review. Please contact the administrator.");
+                        return; // 拦截，不让登录
+                    }
+                    // --- 修改结束 --- */  
+
                     // 6. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
                         new AdminHomeFrame(user).setVisible(true);
                         dispose();
                     } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
-                        new MOHomeFrame(user).setVisible(true);
+                        new MODashboardFrame(user).setVisible(true);
                         dispose();
                     } else if (PermissionService.hasAccess(user.getRole(), UserRole.TA)) {
                         new TAMainFrame(user).setVisible(true);
