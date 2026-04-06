@@ -2,6 +2,7 @@ package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -30,20 +31,31 @@ import auth.LoginFrame;
 import common.entity.MOJob;
 import common.entity.TA;
 import common.entity.User;
-import common.service.MOJobService;
 import common.service.NotificationService;
 import common.ui.BaseFrame;
 import common.ui.NotificationPopup;
+import ta.controller.TAApplicationController;
+import ta.controller.TAOfferController;
+import ta.controller.TAProfileController;
+import ta.controller.TAAuthController;
 import ta.entity.TAApplication;
-import ta.entity.TAProfile;
-import ta.service.TAApplicationService;
-import ta.service.TAProfileService;           // 修改：改为 ta.entity
 
+/**
+ * TA 主界面 - Dashboard
+ * 继承 BaseFrame，使用统一窗口大小
+ * 
+ * @author Can Chen
+ * @version 3.0
+ */
 public class TAMainFrame extends BaseFrame {
+    
     private final TA ta;
-    private final TAProfileService profileService;
-    private final TAApplicationService applicationService;  // 直接使用，不再重复声明
-    private final MOJobService jobService;
+    
+    // Controllers
+    private final TAProfileController profileController;
+    private final TAApplicationController applicationController;
+    private final TAOfferController offerController;
+    private final TAAuthController authController;
     private final NotificationService notificationService;
 
     // 颜色常量
@@ -52,14 +64,18 @@ public class TAMainFrame extends BaseFrame {
     private static final Color PENDING_COLOR = new Color(234, 179, 8);
     private static final Color REJECTED_COLOR = new Color(239, 68, 68);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
+    private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
 
     public TAMainFrame(User user) {
         super("TA Recruitment System - Dashboard", 1200, 750);
         this.ta = (TA) user;
-        this.profileService = new TAProfileService();
-        this.applicationService = new TAApplicationService();
-        this.jobService = new MOJobService();
+        
+        this.profileController = new TAProfileController();
+        this.applicationController = new TAApplicationController();
+        this.offerController = new TAOfferController();
+        this.authController = new TAAuthController();
         this.notificationService = new NotificationService();
+        
         initUI();
     }
 
@@ -81,7 +97,7 @@ public class TAMainFrame extends BaseFrame {
         sidebar.setPreferredSize(new Dimension(260, getHeight()));
         sidebar.setBorder(new EmptyBorder(24, 20, 24, 20));
 
-        JLabel logoLabel = new JLabel("TA Recruitment");
+        JLabel logoLabel = new JLabel("TA Recruit");
         logoLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         logoLabel.setForeground(Color.WHITE);
         logoLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -103,13 +119,20 @@ public class TAMainFrame extends BaseFrame {
         sidebar.add(new JSeparator());
         sidebar.add(Box.createVerticalStrut(16));
         
-        JLabel userLabel = new JLabel(ta.getEmail());
-        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        String displayName = authController.getDisplayName(ta);
+        JLabel userLabel = new JLabel(displayName);
+        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         userLabel.setForeground(new Color(156, 163, 175));
         userLabel.setAlignmentX(LEFT_ALIGNMENT);
         sidebar.add(userLabel);
         
-        sidebar.add(Box.createVerticalStrut(12));
+        JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
+        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        roleLabel.setForeground(new Color(107, 114, 128));
+        roleLabel.setAlignmentX(LEFT_ALIGNMENT);
+        sidebar.add(roleLabel);
+        
+        sidebar.add(Box.createVerticalStrut(16));
         
         JButton logoutBtn = new JButton("Sign Out");
         logoutBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
@@ -145,20 +168,22 @@ public class TAMainFrame extends BaseFrame {
         }
         
         button.addActionListener(e -> {
-            String cmd = text;
-            switch (cmd) {
+            switch (text) {
                 case "My Profile":
                     new TAProfileFrame(ta).setVisible(true);
                     dispose();
                     break;
-                case "Course Catalog":
-                    showInfo("Course Catalog - Coming Soon");
-                    break;
                 case "My Applications":
-                    refreshApplicationsTable();
+                    new TAApplicationsFrame(ta).setVisible(true);
+                    dispose();
+                    break;
+                case "Course Catalog":
+                    new TACourseCatalogFrame(ta).setVisible(true);
+                    dispose();
                     break;
                 case "Workload Tracking":
-                    showInfo("Workload Tracking - Coming Soon");
+                    new TAWorkloadFrame(ta).setVisible(true);
+                    dispose();
                     break;
                 default:
                     break;
@@ -174,37 +199,31 @@ public class TAMainFrame extends BaseFrame {
         content.setBackground(new Color(248, 250, 252));
         content.setBorder(new EmptyBorder(30, 35, 30, 35));
 
-        TAProfile profile = profileService.getProfileByTaId(ta.getUserId());
-        String displayName = (profile != null && profile.getFullName() != null && !profile.getFullName().isEmpty()) 
-                ? profile.getFullName() 
-                : ta.getEmail();
-
-        content.add(createWelcomeSection(displayName));
+        content.add(createWelcomeSection());
         content.add(Box.createVerticalStrut(25));
         content.add(createStatsCards());
         content.add(Box.createVerticalStrut(25));
         content.add(createApplicationsSection());
-        content.add(Box.createVerticalStrut(25));
-        content.add(createExploreSection());
         content.add(Box.createVerticalStrut(20));
 
         JScrollPane scrollPane = new JScrollPane(content);
         scrollPane.setBorder(null);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setBackground(new Color(248, 250, 252));
         
         return scrollPane;
     }
 
-    private JPanel createWelcomeSection(String displayName) {
+    private JPanel createWelcomeSection() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
 
-        JLabel welcomeLabel = new JLabel("Welcome back, " + displayName + "!");
+        String displayName = authController.getDisplayName(ta);
+        
+        JLabel welcomeLabel = new JLabel("Welcome, " + displayName);
         welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 28));
         welcomeLabel.setForeground(new Color(30, 35, 45));
 
-        JLabel roleLabel = new JLabel("Teaching Assistant");
+        JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
         roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         roleLabel.setForeground(new Color(107, 114, 128));
 
@@ -214,8 +233,9 @@ public class TAMainFrame extends BaseFrame {
         textPanel.add(welcomeLabel);
         textPanel.add(roleLabel);
 
-        JButton notifyBtn = new JButton("🔔");
-        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
+        JButton notifyBtn = new JButton("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
+        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
         notifyBtn.setBackground(new Color(248, 250, 252));
         notifyBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         notifyBtn.setFocusPainted(false);
@@ -238,23 +258,21 @@ public class TAMainFrame extends BaseFrame {
         gbc.weightx = 1.0;
         gbc.insets = new Insets(0, 0, 0, 15);
 
-        List<TAApplication> applications = applicationService.listByTaUserId(ta.getUserId());
-        long acceptedCount = applications.stream().filter(a -> "HIRED".equals(a.getStatus())).count();
-        long pendingCount = applications.stream().filter(a -> "SUBMITTED".equals(a.getStatus())).count();
-        long rejectedCount = applications.stream().filter(a -> "REJECTED".equals(a.getStatus())).count();
+        TAApplicationController.ApplicationStats stats = 
+                applicationController.getApplicationStats(ta.getUserId());
 
         gbc.gridx = 0;
-        panel.add(createStatCard("✅", "Accepted", String.valueOf(acceptedCount), ACCEPTED_COLOR), gbc);
+        panel.add(createStatCard("✅", "Accepted", String.valueOf(stats.accepted), ACCEPTED_COLOR), gbc);
         
         gbc.gridx = 1;
-        panel.add(createStatCard("⏳", "Pending Review", String.valueOf(pendingCount), PENDING_COLOR), gbc);
+        panel.add(createStatCard("⏳", "Pending", String.valueOf(stats.pending), PENDING_COLOR), gbc);
         
         gbc.gridx = 2;
-        panel.add(createStatCard("❌", "Rejected", String.valueOf(rejectedCount), REJECTED_COLOR), gbc);
+        panel.add(createStatCard("❌", "Rejected", String.valueOf(stats.rejected), REJECTED_COLOR), gbc);
         
         gbc.gridx = 3;
         gbc.insets = new Insets(0, 0, 0, 0);
-        panel.add(createStatCard("📋", "In Progress", "2", PRIMARY_BLUE), gbc);
+        panel.add(createStatCard("📋", "Total", String.valueOf(stats.getTotal()), PRIMARY_BLUE), gbc);
 
         return panel;
     }
@@ -313,13 +331,26 @@ public class TAMainFrame extends BaseFrame {
         viewAllBtn.setBorderPainted(false);
         viewAllBtn.setFocusPainted(false);
         viewAllBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        viewAllBtn.addActionListener(e -> {
+            new TAApplicationsFrame(ta).setVisible(true);
+            dispose();
+        });
         
         headerPanel.add(titleLabel, BorderLayout.WEST);
         headerPanel.add(viewAllBtn, BorderLayout.EAST);
         
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(Box.createVerticalStrut(16));
-        panel.add(createApplicationsTable());  // 修复：直接添加 JScrollPane
+        
+        int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
+        int maxApps = applicationController.getMaxActiveApplications();
+        JLabel limitLabel = new JLabel("You can only have " + maxApps + " active applications at once. " +
+                (remainingSlots > 0 ? remainingSlots + " slots remaining." : "No slots remaining."));
+        limitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        limitLabel.setForeground(remainingSlots > 0 ? new Color(107, 114, 128) : new Color(239, 68, 68));
+        limitLabel.setBorder(new EmptyBorder(8, 0, 16, 0));
+        panel.add(limitLabel, BorderLayout.CENTER);
+        
+        panel.add(createApplicationsTable(), BorderLayout.SOUTH);
 
         return panel;
     }
@@ -333,31 +364,19 @@ public class TAMainFrame extends BaseFrame {
             }
         };
 
-        List<TAApplication> applications = applicationService.listByTaUserId(ta.getUserId());
+        List<TAApplication> applications = applicationController.getMyApplications(ta.getUserId());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        for (TAApplication app : applications) {
-            String status = app.getStatus();
-            String statusText;
-            
-            switch (status) {
-                case "HIRED":
-                    statusText = "accepted";
-                    break;
-                case "SUBMITTED":
-                    statusText = "pending";
-                    break;
-                case "REJECTED":
-                    statusText = "rejected";
-                    break;
-                default:
-                    statusText = status.toLowerCase();
-            }
-            
+        // 只显示最近的 5 条
+        int displayCount = Math.min(applications.size(), 5);
+        for (int i = 0; i < displayCount; i++) {
+            TAApplication app = applications.get(i);
+            String status = applicationController.getDisplayStatus(app);
             String appliedAt = app.getAppliedAt() != null ? app.getAppliedAt().format(formatter) : "";
-            String feedback = getFeedbackMessage(status);
+            String feedback = applicationController.getFeedbackMessage(app);
+            String courseName = getCourseName(app.getJobId());
             
-            model.addRow(new Object[]{getModuleName(app.getJobId()), statusText, appliedAt, feedback});
+            model.addRow(new Object[]{courseName, status, appliedAt, feedback});
         }
 
         if (applications.isEmpty()) {
@@ -365,7 +384,7 @@ public class TAMainFrame extends BaseFrame {
         }
 
         JTable table = new JTable(model);
-        table.setRowHeight(50);
+        table.setRowHeight(45);
         table.setFont(new Font("SansSerif", Font.PLAIN, 13));
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
@@ -375,18 +394,18 @@ public class TAMainFrame extends BaseFrame {
         JTableHeader header = table.getTableHeader();
         header.setFont(new Font("SansSerif", Font.BOLD, 13));
         header.setForeground(new Color(107, 114, 128));
-        header.setBackground(new Color(248, 250, 252));
+        header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(null);
-        scrollPane.setPreferredSize(new Dimension(720, 250));
+        scrollPane.setPreferredSize(new Dimension(720, 220));
 
         return scrollPane;
     }
 
-    private String getModuleName(Long jobId) {
-        List<MOJob> jobs = jobService.listPublishedJobs();
+    private String getCourseName(Long jobId) {
+        List<MOJob> jobs = applicationController.getPublishedJobs();
         for (MOJob job : jobs) {
             if (job.getJobId().equals(jobId)) {
                 return job.getModuleCode() + " - " + job.getTitle();
@@ -395,84 +414,12 @@ public class TAMainFrame extends BaseFrame {
         return "Course #" + jobId;
     }
 
-    private String getFeedbackMessage(String status) {
-        switch (status) {
-            case "HIRED":
-                return "Excellent candidate with strong programming background.";
-            case "SUBMITTED":
-                return "—";
-            case "REJECTED":
-                return "Position filled by another candidate.";
-            default:
-                return "";
-        }
-    }
-
-    private JPanel createExploreSection() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(59, 130, 246));
-        panel.setBorder(new EmptyBorder(30, 30, 30, 30));
-
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-
-        JLabel titleLabel = new JLabel("Explore New Opportunities");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
-        titleLabel.setForeground(Color.WHITE);
-        titleLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        JLabel descLabel = new JLabel("Browse open TA positions and apply today");
-        descLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        descLabel.setForeground(new Color(191, 219, 254));
-        descLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        textPanel.add(titleLabel);
-        textPanel.add(Box.createVerticalStrut(8));
-        textPanel.add(descLabel);
-
-        JButton browseBtn = new JButton("Browse Courses →");
-        browseBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        browseBtn.setForeground(PRIMARY_BLUE);
-        browseBtn.setBackground(Color.WHITE);
-        browseBtn.setBorderPainted(false);
-        browseBtn.setFocusPainted(false);
-        browseBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        browseBtn.addActionListener(e -> applyForFirstPublishedJob());
-
-        panel.add(textPanel, BorderLayout.WEST);
-        panel.add(browseBtn, BorderLayout.EAST);
-
-        return panel;
-    }
-
-    private void refreshApplicationsTable() {
-        new TAMainFrame(ta).setVisible(true);
-        dispose();
-    }
-
-    private void applyForFirstPublishedJob() {
-        try {
-            List<MOJob> jobs = jobService.listPublishedJobs();
-            if (jobs.isEmpty()) {
-                showWarning("No published jobs are available.");
-                return;
-            }
-            TAApplication application = applicationService.submitApplication(
-                    ta.getUserId(),
-                    jobs.get(0).getJobId(),
-                    "I am very interested in this TA position and believe my skills align well with the requirements."
-            );
-            showInfo("Application submitted successfully!\n\n" + applicationService.buildApplicationSummary(application));
-            refreshApplicationsTable();
-        } catch (Exception ex) {
-            showWarning(ex.getMessage());
-        }
-    }
-
+    /**
+     * 状态单元格渲染器
+     */
     private class StatusCellRenderer extends DefaultTableCellRenderer {
         @Override
-        public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
+        public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             
