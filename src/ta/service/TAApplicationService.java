@@ -12,6 +12,7 @@ import common.entity.UserRole;
 import common.service.MOJobService;
 import common.service.NotificationService;
 import ta.dao.TAApplicationDAO;
+import ta.entity.CVInfo;
 import ta.entity.TAApplication;
 
 
@@ -295,5 +296,63 @@ public class TAApplicationService {
                 + "\nJob ID: " + application.getJobId()
                 + "\nStatus: " + ApplicationStatus.getDisplayText(application.getStatus())
                 + "\nStatement: " + application.getStatement();
+    }
+    /**
+     * 提交申请（带 CV 选择）
+     * @param taUserId TA用户ID
+     * @param jobId 职位ID
+     * @param statement 申请陈述
+     * @param cvId 选中的CV ID
+     */
+    public TAApplication submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
+        // 1. 验证个人资料是否完整
+        if (!taProfileService.isProfileComplete(taUserId)) {
+            throw new IllegalStateException("Please complete your TA profile before applying.");
+        }
+        
+        // 2. 验证 CV 是否存在且属于该 TA
+        CVInfo selectedCV = cvService.getCVById(taUserId, cvId);
+        if (selectedCV == null) {
+            throw new IllegalArgumentException("Selected CV not found. Please upload a CV first.");
+        }
+
+        // 3. 验证职位是否存在且已发布
+        MOJob job = jobService.getPublishedJob(jobId);
+        if (job == null) {
+            throw new IllegalStateException("This position has not been published yet.");
+        }
+
+        List<TAApplication> userApplications = listByTaUserId(taUserId);
+        
+        // 4. 检查是否已有活跃申请
+        boolean hasActiveApplication = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        (ApplicationStatus.isAwaitingReview(a.getStatus()) || 
+                         ApplicationStatus.WAITLISTED.equals(a.getStatus())));
+        if (hasActiveApplication) {
+            throw new IllegalStateException("You already have an active application for this position.");
+        }
+        
+        // 5. 检查是否曾被拒绝
+        boolean wasRejected = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        ApplicationStatus.isRejected(a.getStatus()));
+        if (wasRejected) {
+            throw new IllegalStateException("Your previous application for this position was rejected. You cannot reapply.");
+        }
+
+        // 6. 检查活跃申请数量限制（最多3个）
+        if (getActiveApplicationCount(taUserId) >= 3) {
+            throw new IllegalStateException("You can only have 3 active applications at once.");
+        }
+
+        // 7. 创建申请
+        TAApplication application = new TAApplication();
+        application.setTaUserId(taUserId);
+        application.setJobId(jobId);
+        application.setStatement(statement);
+        application.setStatus(ApplicationStatus.SUBMITTED);
+        
+        return createOrUpdate(application);
     }
 }

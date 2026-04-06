@@ -261,4 +261,40 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
             return accepted + pending + rejected;
         }
     }
+
+    /**
+     * 提交申请（带用户反馈、限制检查和 CV 选择）
+     * @param taUserId TA用户ID
+     * @param jobId 职位ID
+     * @param statement 申请陈述
+     * @param cvId 选中的CV ID
+     * @param parent 父窗口
+     */
+    public boolean submitApplicationWithFeedback(Long taUserId, Long jobId, String statement, Long cvId, JFrame parent) {
+        // 检查申请数量限制
+        if (!canSubmitMoreApplications(taUserId)) {
+            JOptionPane.showMessageDialog(parent, 
+                "You can only have " + MAX_ACTIVE_APPLICATIONS + " active applications at once.\n" +
+                "Please wait for a decision on your existing applications before applying for more.",
+                "Application Limit Reached", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        try {
+            TAApplication application = applicationService.submitApplication(taUserId, jobId, statement, cvId);
+            JOptionPane.showMessageDialog(parent, 
+                "Application submitted successfully!\n\n" + buildApplicationSummary(application),
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+            return true;
+        } catch (IllegalStateException e) {
+            JOptionPane.showMessageDialog(parent, e.getMessage(), "Cannot Apply", JOptionPane.WARNING_MESSAGE);
+            return false;
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(parent, e.getMessage(), "Invalid Input", JOptionPane.WARNING_MESSAGE);
+            return false;
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(parent, "System error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
 }
