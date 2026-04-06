@@ -38,32 +38,6 @@ public class MOJobService {
         return result;
     }
 
-    /**
-     * Iteration 2 listing filters (time filter = deadline after now can be added by teammates).
-     *
-     * @param modulePrefix match start of module code (case-insensitive), blank = any
-     * @param requirementKeyword substring match in {@link MOJob#getRequiredSkills()}, blank = any
-     */
-    public List<MOJob> filterPublishedJobs(String modulePrefix, String requirementKeyword) {
-        List<MOJob> out = new ArrayList<>(listPublishedJobs());
-        if (modulePrefix != null && !modulePrefix.isBlank()) {
-            String p = modulePrefix.trim().toLowerCase();
-            out.removeIf(j -> j.getModuleCode() == null
-                    || !j.getModuleCode().toLowerCase().startsWith(p));
-        }
-        if (requirementKeyword != null && !requirementKeyword.isBlank()) {
-            String k = requirementKeyword.trim().toLowerCase();
-            out.removeIf(j -> {
-                if (j.getRequiredSkills() == null || j.getRequiredSkills().isEmpty()) {
-                    return true;
-                }
-                return j.getRequiredSkills().stream()
-                        .noneMatch(s -> s != null && s.toLowerCase().contains(k));
-            });
-        }
-        return out;
-    }
-
     public MOJob getPublishedJob(Long jobId) {
         for (MOJob job : listPublishedJobs()) {
             if (jobId != null && jobId.equals(job.getJobId())) {

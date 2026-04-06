@@ -12,9 +12,6 @@ import java.util.List;
 
 public class TAApplicationService {
 
-    /** Iteration 2: max concurrent course applications per TA. */
-    public static final int MAX_CONCURRENT_APPLICATIONS = 3;
-
     private final TAApplicationDAO dao = new TAApplicationDAO();
     private final MOJobService jobService = new MOJobService();
     private final ta.service.TAProfileService taProfileService = new ta.service.TAProfileService();
@@ -61,34 +58,6 @@ public class TAApplicationService {
             }
         }
         return result;
-    }
-
-    public int countActiveApplications(Long taUserId) {
-        int n = 0;
-        for (TAApplication application : listByTaUserId(taUserId)) {
-            if (ApplicationStatus.countsTowardConcurrentLimit(application.getStatus())) {
-                n++;
-            }
-        }
-        return n;
-    }
-
-    public void cancelApplication(Long applicationId, Long taUserId) {
-        if (applicationId == null || taUserId == null) {
-            throw new IllegalArgumentException("Invalid ids.");
-        }
-        for (TAApplication application : dao.findAll()) {
-            if (applicationId.equals(application.getApplicationId())
-                    && taUserId.equals(application.getTaUserId())) {
-                if (!ApplicationStatus.isCancellableByTa(application.getStatus())) {
-                    throw new IllegalStateException("This application can no longer be cancelled.");
-                }
-                application.setStatus(ApplicationStatus.CANCELLED);
-                dao.save(application);
-                return;
-            }
-        }
-        throw new IllegalArgumentException("Application not found.");
     }
 
     /**
@@ -160,17 +129,11 @@ public class TAApplicationService {
     public TAApplication submitApplication(Long taUserId, Long jobId, String statement) {
         validateApplicationAccess(taUserId, jobId);
 
-        if (countActiveApplications(taUserId) >= MAX_CONCURRENT_APPLICATIONS) {
-            throw new IllegalStateException(
-                    "You may have at most " + MAX_CONCURRENT_APPLICATIONS
-                            + " active applications (pending / waitlisted).");
-        }
-
         TAApplication application = new TAApplication();
         application.setTaUserId(taUserId);
         application.setJobId(jobId);
         application.setStatement(statement);
-        application.setStatus(ApplicationStatus.PENDING_REVIEW);
+        application.setStatus(ApplicationStatus.SUBMITTED);
         return createOrUpdate(application);
     }
 

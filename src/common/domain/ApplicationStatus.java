@@ -15,7 +15,7 @@ public final class ApplicationStatus {
     /** New application awaiting MO review (requirement: “Pending Review”). */
     public static final String PENDING_REVIEW = "PENDING_REVIEW";
 
-    /** Legacy demo value — treated same as {@link #PENDING_REVIEW} for MO queues and caps. */
+    /** Legacy demo value — treated same as {@link #PENDING_REVIEW} for MO queues. */
     public static final String SUBMITTED = "SUBMITTED";
 
     public static final String WAITLISTED = "WAITLISTED";
@@ -31,25 +31,11 @@ public final class ApplicationStatus {
             SUBMITTED
     );
 
-    /** Counts toward the max 3 concurrent course applications (Iteration 2). */
-    private static final Set<String> ACTIVE_SLOT = Set.of(
-            PENDING_REVIEW,
-            SUBMITTED,
-            WAITLISTED
-    );
-
     public static boolean isAwaitingReview(String status) {
         if (status == null) {
             return false;
         }
         return AWAITING_REVIEW.contains(status);
-    }
-
-    public static boolean countsTowardConcurrentLimit(String status) {
-        if (status == null) {
-            return false;
-        }
-        return ACTIVE_SLOT.contains(status);
     }
 
     public static boolean isCancelled(String status) {
@@ -58,10 +44,5 @@ public final class ApplicationStatus {
 
     public static boolean isRejected(String status) {
         return REJECTED.equalsIgnoreCase(status);
-    }
-
-    /** TA may withdraw while still under review. */
-    public static boolean isCancellableByTa(String status) {
-        return isAwaitingReview(status) || WAITLISTED.equalsIgnoreCase(status);
     }
 }
