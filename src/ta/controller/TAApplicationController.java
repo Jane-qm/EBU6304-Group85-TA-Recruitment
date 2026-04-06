@@ -7,10 +7,10 @@ import java.util.stream.Collectors;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
+import common.domain.ApplicationStatus;
 import common.entity.MOJob;
 import common.service.MOJobService;
 import common.service.NotificationService;
-import common.domain.ApplicationStatus;
 import ta.entity.TAApplication;
 import ta.service.TAApplicationService;
 
@@ -74,16 +74,35 @@ public class TAApplicationController {
     /**
      * 获取可申请的职位（TA 未申请过的）
      */
-    public List<MOJob> getAvailableJobs(Long taUserId) {
-        List<MOJob> allJobs = jobService.listPublishedJobs();
-        List<Long> appliedJobIds = applicationService.listByTaUserId(taUserId).stream()
-                .map(TAApplication::getJobId)
-                .collect(Collectors.toList());
-        
-        return allJobs.stream()
-                .filter(job -> !appliedJobIds.contains(job.getJobId()))
-                .collect(Collectors.toList());
-    }
+public List<MOJob> getAvailableJobs(Long taUserId) {
+    List<MOJob> allJobs = jobService.listPublishedJobs();
+    
+    // 获取 TA 所有申请记录
+    List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
+    
+    // 需要排除的 jobId（活跃申请 + 被拒绝的申请）
+    List<Long> excludedJobIds = applications.stream()
+            .filter(a -> {
+                String status = a.getStatus();
+                // 活跃申请：待审核或候补（不可重新申请）
+                if (ApplicationStatus.isAwaitingReview(status) || 
+                    ApplicationStatus.WAITLISTED.equals(status)) {
+                    return true;
+                }
+                // 被拒绝的申请（不可重新申请）
+                if (ApplicationStatus.isRejected(status)) {
+                    return true;
+                }
+                // 已取消的申请（可以重新申请，不排除）
+                return false;
+            })
+            .map(TAApplication::getJobId)
+            .collect(Collectors.toList());
+    
+    return allJobs.stream()
+            .filter(job -> !excludedJobIds.contains(job.getJobId()))
+            .collect(Collectors.toList());
+}
     
     /**
      * 提交申请（带用户反馈和限制检查）

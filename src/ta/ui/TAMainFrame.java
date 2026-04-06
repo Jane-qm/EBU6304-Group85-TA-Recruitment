@@ -2,7 +2,6 @@ package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -23,7 +22,6 @@ import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
@@ -39,26 +37,24 @@ import ta.controller.TAOfferController;
 import ta.controller.TAProfileController;
 import ta.controller.TAAuthController;
 import ta.entity.TAApplication;
+import ta.ui.components.StatusCellRenderer;
 
 /**
  * TA 主界面 - Dashboard
- * 继承 BaseFrame，使用统一窗口大小
  * 
  * @author Can Chen
- * @version 3.0
+ * @version 3.1 - 使用公共 StatusCellRenderer
  */
 public class TAMainFrame extends BaseFrame {
     
     private final TA ta;
     
-    // Controllers
     private final TAProfileController profileController;
     private final TAApplicationController applicationController;
     private final TAOfferController offerController;
     private final TAAuthController authController;
     private final NotificationService notificationService;
 
-    // 颜色常量
     private static final Color SIDEBAR_BG = new Color(30, 35, 45);
     private static final Color ACCEPTED_COLOR = new Color(34, 197, 94);
     private static final Color PENDING_COLOR = new Color(234, 179, 8);
@@ -367,7 +363,6 @@ public class TAMainFrame extends BaseFrame {
         List<TAApplication> applications = applicationController.getMyApplications(ta.getUserId());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        // 只显示最近的 5 条
         int displayCount = Math.min(applications.size(), 5);
         for (int i = 0; i < displayCount; i++) {
             TAApplication app = applications.get(i);
@@ -389,6 +384,7 @@ public class TAMainFrame extends BaseFrame {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         
+        // 使用公共的 StatusCellRenderer
         table.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
         
         JTableHeader header = table.getTableHeader();
@@ -412,36 +408,5 @@ public class TAMainFrame extends BaseFrame {
             }
         }
         return "Course #" + jobId;
-    }
-
-    /**
-     * 状态单元格渲染器
-     */
-    private class StatusCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            
-            String status = (String) value;
-            setHorizontalAlignment(CENTER);
-            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-            
-            if ("accepted".equalsIgnoreCase(status)) {
-                setBackground(new Color(220, 252, 231));
-                setForeground(new Color(22, 101, 52));
-            } else if ("pending".equalsIgnoreCase(status)) {
-                setBackground(new Color(254, 249, 195));
-                setForeground(new Color(161, 98, 7));
-            } else if ("rejected".equalsIgnoreCase(status)) {
-                setBackground(new Color(254, 226, 226));
-                setForeground(new Color(153, 27, 27));
-            } else {
-                setBackground(Color.WHITE);
-                setForeground(new Color(107, 114, 128));
-            }
-            
-            return this;
-        }
     }
 }

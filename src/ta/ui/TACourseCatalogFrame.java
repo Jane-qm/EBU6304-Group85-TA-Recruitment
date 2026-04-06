@@ -2,10 +2,11 @@ package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -13,11 +14,12 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
@@ -27,12 +29,13 @@ import common.entity.User;
 import common.ui.BaseFrame;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
+import ta.ui.components.ActionButtonRenderer;
 
 /**
  * TA 课程目录界面
  * 
  * @author Can Chen
- * @version 1.0
+ * @version 2.0 - 修复 Apply 按钮点击功能
  */
 public class TACourseCatalogFrame extends BaseFrame {
     
@@ -121,7 +124,7 @@ public class TACourseCatalogFrame extends BaseFrame {
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 3;
+                return false;
             }
         };
 
@@ -130,12 +133,13 @@ public class TACourseCatalogFrame extends BaseFrame {
 
         for (MOJob job : availableJobs) {
             String action = remainingSlots > 0 ? "Apply" : "Full";
+            String description = job.getDescription() != null ? 
+                    (job.getDescription().length() > 60 ? job.getDescription().substring(0, 60) + "..." : job.getDescription()) : "";
+            
             model.addRow(new Object[]{
                     job.getModuleCode() + " - " + job.getTitle(),
                     job.getWeeklyHours(),
-                    job.getDescription() != null ? 
-                        (job.getDescription().length() > 60 ? job.getDescription().substring(0, 60) + "..." : job.getDescription()) 
-                        : "",
+                    description,
                     action
             });
         }
@@ -150,7 +154,26 @@ public class TACourseCatalogFrame extends BaseFrame {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         
+        // 使用公共的 ActionButtonRenderer
         table.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
+        
+        // 添加鼠标点击事件处理
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                int col = table.columnAtPoint(e.getPoint());
+                
+                // 检查是否点击了 Action 列（第4列，索引为3）
+                if (col == 3 && row < availableJobs.size()) {
+                    String action = (String) table.getValueAt(row, 3);
+                    if ("Apply".equals(action)) {
+                        MOJob job = availableJobs.get(row);
+                        showApplicationDialog(job);
+                    }
+                }
+            }
+        });
         
         JTableHeader header = table.getTableHeader();
         header.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -166,31 +189,36 @@ public class TACourseCatalogFrame extends BaseFrame {
     }
     
     /**
-     * 操作按钮渲染器
+     * 显示申请对话框
      */
-    private class ActionButtonRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            
-            String action = (String) value;
-            setHorizontalAlignment(CENTER);
-            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-            
-            if ("Apply".equals(action)) {
-                setForeground(PRIMARY_BLUE);
-                setFont(new Font("SansSerif", Font.BOLD, 12));
-                setBackground(Color.WHITE);
-            } else if ("Full".equals(action)) {
-                setForeground(new Color(156, 163, 175));
-                setFont(new Font("SansSerif", Font.PLAIN, 12));
-                setBackground(Color.WHITE);
-            } else {
-                setForeground(new Color(107, 114, 128));
+    private void showApplicationDialog(MOJob job) {
+        JTextArea statementArea = new JTextArea(5, 30);
+        statementArea.setLineWrap(true);
+        statementArea.setWrapStyleWord(true);
+        
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.add(new JLabel("Application for: " + job.getModuleCode() + " - " + job.getTitle()), BorderLayout.NORTH);
+        panel.add(new JScrollPane(statementArea), BorderLayout.CENTER);
+        panel.add(new JLabel("Please explain why you are suitable for this position:"), BorderLayout.SOUTH);
+        
+        int result = JOptionPane.showConfirmDialog(this, panel, 
+            "Submit Application", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            String statement = statementArea.getText().trim();
+            if (statement.isEmpty()) {
+                showWarning("Please provide a statement for your application.");
+                return;
             }
             
-            return this;
+            boolean success = applicationController.submitApplicationWithFeedback(
+                ta.getUserId(), job.getJobId(), statement, this);
+            
+            if (success) {
+                // 刷新界面
+                dispose();
+                new TACourseCatalogFrame(ta).setVisible(true);
+            }
         }
     }
 }
