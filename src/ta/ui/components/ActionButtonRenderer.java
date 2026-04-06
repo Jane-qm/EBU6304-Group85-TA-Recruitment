@@ -1,3 +1,4 @@
+// ta/ui/components/ActionButtonRenderer.java
 package ta.ui.components;
 
 import java.awt.Color;
@@ -10,6 +11,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 
 public class ActionButtonRenderer extends DefaultTableCellRenderer {
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
+    private static final Color CANCEL_RED = new Color(220, 38, 38);
     
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value,
@@ -22,6 +24,10 @@ public class ActionButtonRenderer extends DefaultTableCellRenderer {
         
         if ("Apply".equals(action) || "Accept Offer".equals(action)) {
             setForeground(PRIMARY_BLUE);
+            setFont(new Font("SansSerif", Font.BOLD, 12));
+            setBackground(Color.WHITE);
+        } else if ("Cancel".equals(action)) {
+            setForeground(CANCEL_RED);
             setFont(new Font("SansSerif", Font.BOLD, 12));
             setBackground(Color.WHITE);
         } else {
