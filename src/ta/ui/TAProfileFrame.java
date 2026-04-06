@@ -42,7 +42,7 @@ import ta.service.TAProfileService;
  * 包含个人信息填写和 CV 上传功能
  * 
  * @author System
- * @version 1.0
+ * @version 2.0 - 移除对 TA 字段的直接依赖
  */
 public class TAProfileFrame extends BaseFrame {
     
@@ -88,6 +88,7 @@ public class TAProfileFrame extends BaseFrame {
     
     /**
      * 加载 TA 个人信息
+     * 修改：不再从 TA 对象读取个人资料，完全从 TAProfile 获取
      */
     private void loadProfile() {
         profile = profileService.getProfileByTaId(ta.getUserId());
@@ -586,46 +587,51 @@ public class TAProfileFrame extends BaseFrame {
      * 上传 CV
      */
     private void uploadCV() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files", "pdf", "doc", "docx"));
+    JFileChooser fileChooser = new JFileChooser();
+    fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files", "pdf", "doc", "docx"));
+    
+    int result = fileChooser.showOpenDialog(this);
+    if (result == JFileChooser.APPROVE_OPTION) {
+        File file = fileChooser.getSelectedFile();
+        String fileName = file.getName();
+        String cvName = JOptionPane.showInputDialog(this, "Enter a name for this CV:", 
+                "CV Name", JOptionPane.QUESTION_MESSAGE);
         
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File file = fileChooser.getSelectedFile();
-            String fileName = file.getName();
-            String cvName = JOptionPane.showInputDialog(this, "Enter a name for this CV:", 
-                    "CV Name", JOptionPane.QUESTION_MESSAGE);
+        if (cvName == null || cvName.trim().isEmpty()) {
+            showWarning("CV name is required");
+            return;
+        }
+        
+        try {
+            byte[] fileData = Files.readAllBytes(file.toPath());
             
-            if (cvName == null || cvName.trim().isEmpty()) {
-                showWarning("CV name is required");
-                return;
-            }
+            // 修复：从 profile 获取姓名，而不是从 ta
+            String taName = (profile != null && profile.getFullName() != null) 
+                ? profile.getFullName() 
+                : "";
             
-            try {
-                byte[] fileData = Files.readAllBytes(file.toPath());
-                
-                CVInfo newCV = cvService.uploadCV(
-                        ta.getUserId(),
-                        ta.getEmail(),
-                        ta.getName(),
-                        cvName.trim(),
-                        "",
-                        fileName,
-                        fileData
-                );
-                
-                currentCV = newCV;
-                showInfo("CV uploaded successfully: " + cvName);
-                
-                // 刷新界面
-                dispose();
-                new TAProfileFrame(ta).setVisible(true);
-                
-            } catch (Exception e) {
-                showError("Upload failed: " + e.getMessage());
-            }
+            CVInfo newCV = cvService.uploadCV(
+                    ta.getUserId(),
+                    ta.getEmail(),
+                    taName,
+                    cvName.trim(),
+                    "",
+                    fileName,
+                    fileData
+            );
+            
+            currentCV = newCV;
+            showInfo("CV uploaded successfully: " + cvName);
+            
+            // 刷新界面
+            dispose();
+            new TAProfileFrame(ta).setVisible(true);
+            
+        } catch (Exception e) {
+            showError("Upload failed: " + e.getMessage());
         }
     }
+}
     
     /**
      * 查看 CV
@@ -665,6 +671,7 @@ public class TAProfileFrame extends BaseFrame {
     
     /**
      * 保存个人信息
+     * 修改：不再需要同步更新 TA 对象
      */
     private void saveProfile() {
         try {
@@ -683,7 +690,7 @@ public class TAProfileFrame extends BaseFrame {
             profile.setSkillTags(skillTags);
             profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
             
-            // 保存
+            // 保存（不再需要同步 TA 对象）
             profileService.saveProfile(profile);
             
             showInfo("Profile saved successfully!");

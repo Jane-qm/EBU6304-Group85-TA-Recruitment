@@ -6,10 +6,7 @@
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-03-29T17:03:47.3523407",
-    "lastLogin": "2026-04-03T21:41:33.5836257",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
+    "lastLogin": "2026-04-03T21:41:33.5836257"
   },
   {
     "userId": 100003,
@@ -26,15 +23,7 @@
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-03-30T20:24:21.9557693",
-    "lastLogin": "2026-03-30T20:50:36.5981948",
-    "name": "1 1",
-    "grade": "一年级",
-    "skillTags": [
-      "11"
-    ],
-    "availableWorkingHours": 0,
-    "profileSaved": false,
-    "profileLastUpdated": "2026-03-30T20:52:14.6755723"
+    "lastLogin": "2026-04-06T14:38:35.3034664"
   },
   {
     "userId": 100002,
@@ -59,9 +48,15 @@
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     "role": "TA",
     "status": "ACTIVE",
-    "createdAt": "2026-03-29T17:03:03.7447052",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
+    "createdAt": "2026-03-29T17:03:03.7447052"
+  },
+  {
+    "userId": 100007,
+    "email": "can@qmul.ac.uk",
+    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
+    "role": "TA",
+    "status": "PENDING",
+    "createdAt": "2026-04-06T15:16:13.4672067",
+    "lastLogin": "2026-04-06T15:25:40.919789"
   }
 ]

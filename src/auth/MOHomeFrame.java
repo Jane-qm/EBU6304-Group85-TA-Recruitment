@@ -1,18 +1,24 @@
 package auth;
 
+import java.awt.GridLayout;
+import java.util.List;
+
+import javax.swing.BorderFactory;              // 改为 ta.entity
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;      // 改为 ta.service
+
 import common.entity.MOJob;
 import common.entity.MOOffer;
-import common.entity.TAApplication;
 import common.entity.User;
 import common.service.MOJobService;
 import common.service.MOOfferService;
 import common.service.NotificationService;
-import common.service.TAApplicationService;
 import common.ui.NotificationPopup;
-
-import javax.swing.*;
-import java.awt.*;
-import java.util.List;
+import ta.entity.TAApplication;
+import ta.service.TAApplicationService;
 
 public class MOHomeFrame extends JFrame {
     private final User currentUser;
