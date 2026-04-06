@@ -1,10 +1,11 @@
-package common.dao;
-
-import common.entity.TAApplication;
+package ta.dao;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+
+import common.dao.JsonPersistenceManager;
+import ta.entity.TAApplication;
 
 public class TAApplicationDAO {
     private final JsonPersistenceManager persistenceManager = new JsonPersistenceManager();

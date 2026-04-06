@@ -20,7 +20,7 @@ import common.entity.UserRole;
  * 负责用户数据的 JSON 文件读写操作
  * 
  * @author Can Chen
- * @version 2.0
+ * @version 3.0 - 移除 TA 冗余字段的序列化
  */
 public class UserFileDAO {
 
@@ -69,7 +69,9 @@ public class UserFileDAO {
     }
 
     /**
-     * 用于 JSON 存储的中间结构，避免抽象类 User 直接反序列化。
+     * 用于 JSON 存储的中间结构
+     * 修改：移除 TA 的冗余个人资料字段
+     * 个人资料已移至 ta.entity.TAProfile 独立存储
      */
     private static class PersistedUser {
         private Long userId;
@@ -80,14 +82,10 @@ public class UserFileDAO {
         private LocalDateTime createdAt;
         private LocalDateTime lastLogin;
 
-        // TA profile fields
-        private String name;
-        private String major;
-        private String grade;
-        private List<String> skillTags;
-        private Integer availableWorkingHours;
-        private Boolean profileSaved;
-        private LocalDateTime profileLastUpdated;
+        // 已移除所有 TA profile 相关字段：
+        // name, major, grade, skillTags, availableWorkingHours, 
+        // profileSaved, profileLastUpdated
+        // 个人资料由 TAProfileService 通过 ta_profiles.json 独立管理
 
         public PersistedUser() {
         }
@@ -102,15 +100,9 @@ public class UserFileDAO {
             row.createdAt = user.getCreatedAt();
             row.lastLogin = user.getLastLogin();
 
-            if (user instanceof TA ta) {
-                row.name = ta.getName();
-                row.major = ta.getMajor();
-                row.grade = ta.getGrade();
-                row.skillTags = new ArrayList<>(ta.getSkillTags());
-                row.availableWorkingHours = ta.getAvailableWorkingHours();
-                row.profileSaved = ta.isProfileSaved();
-                row.profileLastUpdated = ta.getProfileLastUpdated();
-            }
+            // 移除 TA profile 字段的序列化
+            // 个人资料由 TAProfileService 独立管理
+
             return row;
         }
 
@@ -126,20 +118,7 @@ public class UserFileDAO {
             }
 
             User user = switch (role) {
-                case TA -> {
-                    TA ta = new TA(email, "temp_password");
-                    ta.setName(name);
-                    ta.setMajor(major);
-                    ta.setGrade(grade);
-                    if (skillTags != null) {
-                        ta.setSkillTags(skillTags);
-                    }
-                    if (availableWorkingHours != null) {
-                        ta.setAvailableWorkingHours(availableWorkingHours);
-                    }
-                    ta.restoreProfileState(Boolean.TRUE.equals(profileSaved), profileLastUpdated);
-                    yield ta;
-                }
+                case TA -> new TA(email, "temp_password");
                 case MO -> new MO(email, "temp_password");
                 case ADMIN -> new Admin(email, "temp_password");
             };
@@ -157,6 +136,10 @@ public class UserFileDAO {
             if (lastLogin != null) {
                 user.setLastLogin(lastLogin);
             }
+            
+            // 移除 TA profile 字段的恢复代码
+            // 个人资料由 TAProfileService 独立加载
+
             return user;
         }
     }
