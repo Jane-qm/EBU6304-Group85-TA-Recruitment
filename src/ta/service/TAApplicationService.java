@@ -1,33 +1,31 @@
-package common.service;
+package ta.service;
+//package common.service;
 
-import common.dao.TAApplicationDAO;
+import ta.dao.TAApplicationDAO;
 
 import common.domain.ApplicationStatus;
 import common.domain.NotificationKind;
 import common.entity.MOJob;
 
-import common.entity.TAApplication;
+import ta.entity.TAApplication;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import common.entity.MOJob;
 import common.service.MOJobService;
 import common.service.NotificationService;
-import ta.dao.TAApplicationDAO;
-import ta.entity.TAApplication;
+ 
 
 public class TAApplicationService {
 
     private final TAApplicationDAO dao = new TAApplicationDAO();
-<<<<<<< HEAD:src/common/service/TAApplicationService.java
-=======
+
+
     private final MOJobService jobService = new MOJobService();
     private final TAProfileService taProfileService = new TAProfileService();
     private final CVService cvService = new CVService();
-    private final NotificationService notificationService = new NotificationService();
->>>>>>> aa2732b48ca9c1f4a7107f3d8b004fc7c57fa014:src/ta/service/TAApplicationService.java
+    private final common.service.NotificationService notificationService = new NotificationService();
+
 
     public TAApplication createOrUpdate(TAApplication application) {
         if (application.getAppliedAt() == null) {
@@ -97,8 +95,8 @@ public class TAApplicationService {
         for (TAApplication application : all) {
             if (applicationId != null && applicationId.equals(application.getApplicationId())) {
 
-                application.setStatus("HIRED");
-                return dao.save(application);
+                //application.setStatus("HIRED");
+                //return dao.save(application);
 
                 application.setStatus(ApplicationStatus.HIRED);
                 TAApplication saved = dao.save(application);
@@ -173,9 +171,6 @@ public class TAApplicationService {
                 + "\nStatus: " + application.getStatus()
                 + "\nStatement: " + application.getStatement();
     }
-<<<<<<< HEAD:src/common/service/TAApplicationService.java
 
 }
-=======
-}
->>>>>>> aa2732b48ca9c1f4a7107f3d8b004fc7c57fa014:src/ta/service/TAApplicationService.java
+

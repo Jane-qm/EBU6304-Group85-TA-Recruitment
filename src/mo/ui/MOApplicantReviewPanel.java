@@ -2,6 +2,7 @@ package mo.ui;
 
 import common.entity.*;
 import common.service.*;
+import ta.entity.TAApplication;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -15,7 +16,6 @@ public class MOApplicantReviewPanel extends JPanel {
 
     // 引入需要的 Service
     private final UserService userService = new UserService(); // 【新增】：用于抓取 TA 的邮箱和姓名
-    private final TAApplicationService appService = new TAApplicationService();
     private final MOJobService jobService = new MOJobService();
     private final MOOfferService offerService = new MOOfferService();
     
@@ -102,7 +102,7 @@ public class MOApplicantReviewPanel extends JPanel {
                 .collect(Collectors.toList());
 
         // 筛选出投递给这些职位的申请
-        currentApplications = appService.listAll().stream()
+        currentApplications = jobService.listAllApplications().stream()
                 .filter(app -> myJobIds.contains(app.getJobId()))
                 .collect(Collectors.toList());
 
@@ -123,6 +123,7 @@ public class MOApplicantReviewPanel extends JPanel {
                     job != null ? job.getModuleCode() : app.getJobId(), 
                     taUser != null ? taUser.getEmail() :"Unknown",
                     taUser != null ? taUser.getEmail() : "N/A",  // 自动展示邮箱
+                    app.getStatement(),
                     app.getStatus(), 
                     app.getAppliedAt() != null ? app.getAppliedAt().toLocalDate() : "N/A" 
             });
@@ -159,7 +160,7 @@ public class MOApplicantReviewPanel extends JPanel {
         for (int row : selectedRows) {
             TAApplication app = currentApplications.get(row);
             app.setStatus(newStatus);
-            appService.createOrUpdate(app); // 保存更新
+            jobService.updateApplication(app); // [一键标记状态]
         }
         loadApplications();
         JOptionPane.showMessageDialog(this, "Successfully marked " + selectedRows.length + " applicant(s) as " + newStatus);
@@ -183,7 +184,7 @@ public class MOApplicantReviewPanel extends JPanel {
                     .findFirst().orElse(null);
 
             if (job != null) {
-                // 生成 Offer 写入 mo_offer.json
+                // 1. 构造 Offer 对象,生成 Offer 写入 mo_offer.json
                 MOOffer offer = new MOOffer();
                 offer.setApplicationId(app.getApplicationId());
                 offer.setMoUserId(currentUser.getUserId());
@@ -191,11 +192,13 @@ public class MOApplicantReviewPanel extends JPanel {
                 offer.setModuleCode(job.getModuleCode());
                 offer.setOfferedHours(job.getWeeklyHours());
                 offer.setStatus("SENT");
+
+                // 2. [批量发送：内部会自动获取 TA 邮箱并同步 JSON 和发送通知]
                 offerService.createOrUpdate(offer); 
 
-                // 更新申请表状态为 OFFER_SENT (作为通知 TA 的一种状态标记)
+                // 3. 同步更新申请表状态,更新申请表状态为 OFFER_SENT (作为通知 TA 的一种状态标记)
                 app.setStatus("OFFER_SENT");
-                appService.createOrUpdate(app);
+                jobService.updateApplication(app);
                 
                 count++;
             }

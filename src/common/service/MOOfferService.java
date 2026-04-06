@@ -3,6 +3,7 @@ package common.service;
 import common.dao.MOOfferDAO;
 import common.domain.NotificationKind;
 import common.entity.MOOffer;
+import common.entity.UserRole;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.List;
 
 public class MOOfferService {
     private final MOOfferDAO dao = new MOOfferDAO();
+    private final NotificationService notificationService = new NotificationService();
 
     public MOOffer createOrUpdate(MOOffer offer) {
         if (offer.getOfferedAt() == null) {
@@ -31,6 +33,7 @@ public class MOOfferService {
         }
         return result;
     }
+
     public MOOffer sendOffer(MOOffer offer) {
         offer.setStatus("SENT");
         MOOffer savedOffer = createOrUpdate(offer);
@@ -84,5 +87,4 @@ public class MOOfferService {
         }
         throw new IllegalArgumentException("Offer not found.");
     }
-
 }
