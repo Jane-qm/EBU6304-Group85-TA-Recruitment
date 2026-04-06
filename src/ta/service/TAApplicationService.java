@@ -1,20 +1,18 @@
-package common.service;
+package ta.service;
 
-import common.dao.TAApplicationDAO;
+import ta.dao.TAApplicationDAO;
 import common.domain.ApplicationStatus;
 import common.domain.NotificationKind;
 import common.entity.MOJob;
-import common.entity.TAApplication;
+import ta.entity.TAApplication;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import common.entity.MOJob;
 import common.service.MOJobService;
 import common.service.NotificationService;
-import ta.dao.TAApplicationDAO;
-import ta.entity.TAApplication;
+
 
 public class TAApplicationService {
 
