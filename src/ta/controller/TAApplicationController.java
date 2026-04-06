@@ -10,7 +10,7 @@ import javax.swing.JOptionPane;
 import common.entity.MOJob;
 import common.service.MOJobService;
 import common.service.NotificationService;
-import ta.entity.ApplicationStatus;
+import common.domain.ApplicationStatus;
 import ta.entity.TAApplication;
 import ta.service.TAApplicationService;
 

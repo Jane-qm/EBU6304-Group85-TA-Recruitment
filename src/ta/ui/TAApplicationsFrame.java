@@ -23,12 +23,12 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
+import common.domain.ApplicationStatus;
 import common.entity.TA;
 import common.entity.User;
 import common.ui.BaseFrame;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
-import ta.entity.ApplicationStatus;
 import ta.entity.TAApplication;
 import ta.ui.components.ActionButtonRenderer;
 import ta.ui.components.StatusCellRenderer;
