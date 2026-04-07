@@ -205,4 +205,23 @@ public class CVService {
         }
         return manager.getAllCVsSorted();
     }
+
+    /**
+     * 根据 CV ID 获取 CV 信息（需要验证属于该 TA）
+     * @param taId TA用户ID
+     * @param cvId CV ID
+     * @return CVInfo 对象，如果不属于该 TA 则返回 null
+     */
+    public CVInfo getCVById(Long taId, Long cvId) {
+        CVManager manager = cvDao.getCVManager(taId);
+        if (manager == null) {
+            return null;
+        }
+        CVInfo cv = manager.getCVById(cvId);
+        // 验证 CV 属于该 TA
+        if (cv != null && cv.getTaId().equals(taId)) {
+            return cv;
+        }
+        return null;
+    }
 }
