@@ -1,5 +1,7 @@
 package ta.ui;
 
+import java.awt.Desktop;
+import java.io.FileOutputStream;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -644,14 +646,40 @@ public class TAProfileFrame extends BaseFrame {
     /**
      * 查看 CV
      */
+
     private void viewCV() {
         if (currentCV == null) {
             showWarning("No CV to view");
             return;
         }
         
-        // TODO: 实现 CV 查看功能（打开文件或显示内容）
-        showInfo("View CV: " + currentCV.getCvName() + " - Coming soon");
+        try {
+            byte[] fileData = cvService.downloadCV(ta.getUserId(), currentCV.getCvId());
+            if (fileData == null) {
+                showError("Failed to load CV file");
+                return;
+            }
+            
+            // 创建临时文件
+            String extension = currentCV.getFileType().getExtension();
+            java.io.File tempFile = java.io.File.createTempFile("cv_", "." + extension);
+            tempFile.deleteOnExit();
+            
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
+                fos.write(fileData);
+            }
+            
+            // 使用系统默认程序打开文件
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(tempFile);
+            } else {
+                showInfo("CV file saved to: " + tempFile.getAbsolutePath());
+            }
+            
+        } catch (Exception e) {
+            showError("Failed to open CV: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     /**

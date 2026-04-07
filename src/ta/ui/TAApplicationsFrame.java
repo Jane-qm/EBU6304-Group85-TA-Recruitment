@@ -1,11 +1,13 @@
+// ta/ui/TAApplicationsFrame.java
 package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -18,22 +20,24 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
+import common.domain.ApplicationStatus;
 import common.entity.TA;
 import common.entity.User;
 import common.ui.BaseFrame;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
 import ta.entity.TAApplication;
+import ta.ui.components.ActionButtonRenderer;
+import ta.ui.components.StatusCellRenderer;
 
 /**
  * TA 我的申请界面
  * 
  * @author Can Chen
- * @version 1.0
+ * @version 2.0 - 添加取消申请功能
  */
 public class TAApplicationsFrame extends BaseFrame {
     
@@ -117,7 +121,8 @@ public class TAApplicationsFrame extends BaseFrame {
     }
     
     private JScrollPane createApplicationsTable() {
-        String[] columns = {"Course", "Status", "Applied Date", "Statement", "Feedback"};
+        // 添加 Action 列
+        String[] columns = {"Course", "Status", "Applied Date", "Statement", "Feedback", "Action"};
         DefaultTableModel model = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -137,11 +142,15 @@ public class TAApplicationsFrame extends BaseFrame {
                     (app.getStatement().length() > 50 ? app.getStatement().substring(0, 50) + "..." : app.getStatement()) 
                     : "";
             
-            model.addRow(new Object[]{courseName, status, appliedAt, statement, feedback});
+            // 判断是否显示取消按钮
+            boolean canCancel = ApplicationStatus.isCancellable(app.getStatus());
+            String action = canCancel ? "Cancel" : "—";
+            
+            model.addRow(new Object[]{courseName, status, appliedAt, statement, feedback, action});
         }
 
         if (applications.isEmpty()) {
-            model.addRow(new Object[]{"—", "—", "—", "No applications yet", "—"});
+            model.addRow(new Object[]{"—", "—", "—", "No applications yet", "—", "—"});
         }
 
         JTable table = new JTable(model);
@@ -150,7 +159,31 @@ public class TAApplicationsFrame extends BaseFrame {
         table.setShowGrid(false);
         table.setIntercellSpacing(new Dimension(0, 0));
         
+        // 使用公共的渲染器
         table.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
+        table.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());
+        
+        // 添加鼠标点击事件处理取消按钮
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                int col = table.columnAtPoint(e.getPoint());
+                if (col == 5 && row < applications.size()) {  // Action 列
+                    String action = (String) table.getValueAt(row, col);
+                    if ("Cancel".equals(action)) {
+                        TAApplication app = applications.get(row);
+                        boolean success = applicationController.cancelApplicationWithFeedback(
+                            app.getApplicationId(), TAApplicationsFrame.this);
+                        if (success) {
+                            // 刷新界面
+                            dispose();
+                            new TAApplicationsFrame(ta).setVisible(true);
+                        }
+                    }
+                }
+            }
+        });
         
         JTableHeader header = table.getTableHeader();
         header.setFont(new Font("SansSerif", Font.BOLD, 13));
@@ -195,36 +228,5 @@ public class TAApplicationsFrame extends BaseFrame {
         panel.add(browseBtn, BorderLayout.EAST);
         
         return panel;
-    }
-    
-    /**
-     * 状态单元格渲染器
-     */
-    private class StatusCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-            
-            String status = (String) value;
-            setHorizontalAlignment(CENTER);
-            setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-            
-            if ("accepted".equalsIgnoreCase(status)) {
-                setBackground(new Color(220, 252, 231));
-                setForeground(new Color(22, 101, 52));
-            } else if ("pending".equalsIgnoreCase(status)) {
-                setBackground(new Color(254, 249, 195));
-                setForeground(new Color(161, 98, 7));
-            } else if ("rejected".equalsIgnoreCase(status)) {
-                setBackground(new Color(254, 226, 226));
-                setForeground(new Color(153, 27, 27));
-            } else {
-                setBackground(Color.WHITE);
-                setForeground(new Color(107, 114, 128));
-            }
-            
-            return this;
-        }
     }
 }
