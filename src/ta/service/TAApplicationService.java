@@ -1,5 +1,13 @@
-// ta/service/TAApplicationService.java
 package ta.service;
+//package common.service;
+
+import ta.dao.TAApplicationDAO;
+
+import common.domain.ApplicationStatus;
+import common.domain.NotificationKind;
+import common.entity.MOJob;
+
+import ta.entity.TAApplication;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,10 +27,13 @@ import ta.entity.TAApplication;
 public class TAApplicationService {
 
     private final TAApplicationDAO dao = new TAApplicationDAO();
+
+
     private final MOJobService jobService = new MOJobService();
     private final TAProfileService taProfileService = new TAProfileService();
     private final CVService cvService = new CVService();
-    private final NotificationService notificationService = new NotificationService();
+    private final common.service.NotificationService notificationService = new NotificationService();
+
 
     // ==================== 基础 CRUD 方法 ====================
 
@@ -97,15 +108,28 @@ public class TAApplicationService {
         return result;
     }
 
-    /**
-     * 获取TA的活跃申请数量（待审核状态 + 候补状态）
-     * 活跃申请 = 等待MO决策的申请
-     */
-    public int getActiveApplicationCount(Long taUserId) {
-        return (int) listByTaUserId(taUserId).stream()
-                .filter(a -> ApplicationStatus.isAwaitingReview(a.getStatus()) || 
-                             ApplicationStatus.WAITLISTED.equals(a.getStatus()))
-                .count();
+    public TAApplication markAsHired(Long applicationId) {
+        List<TAApplication> all = dao.findAll();
+        for (TAApplication application : all) {
+            if (applicationId != null && applicationId.equals(application.getApplicationId())) {
+
+                //application.setStatus("HIRED");
+                //return dao.save(application);
+
+                application.setStatus(ApplicationStatus.HIRED);
+                TAApplication saved = dao.save(application);
+                notificationService.notifyUser(
+                        saved.getTaUserId(),
+                        common.entity.UserRole.TA,
+                        "Application Result",
+                        "Your application #" + saved.getApplicationId() + " has been approved.",
+                        NotificationKind.RESULT
+                );
+                return saved;
+
+            }
+        }
+        throw new IllegalArgumentException("Application not found.");
     }
 
     // ==================== 申请提交 ====================

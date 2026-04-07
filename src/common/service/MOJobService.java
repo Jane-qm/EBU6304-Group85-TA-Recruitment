@@ -1,7 +1,9 @@
 package common.service;
 
 import common.dao.MOJobDAO;
+import ta.dao.TAApplicationDAO; // [新增引用]
 import common.entity.MOJob;
+import ta.entity.TAApplication; // [新增引用]
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -9,7 +11,7 @@ import java.util.List;
 
 public class MOJobService {
     private final MOJobDAO dao = new MOJobDAO();
-
+    private final TAApplicationDAO appDao = new TAApplicationDAO(); // [新增：直接持有申请DAO]
     public MOJob createOrUpdate(MOJob job) {
         if (job.getCreatedAt() == null) {
             job.setCreatedAt(LocalDateTime.now());
@@ -20,11 +22,6 @@ public class MOJobService {
     public List<MOJob> listAll() {
         return dao.findAll();
     }
-
-    /***
-     * Unpublished positions will also be blocked from viewing and application.
-     *  The corresponding position release capability will be supplemented.
-     */
 
     public List<MOJob> listPublishedJobs() {
         List<MOJob> result = new ArrayList<>();
@@ -55,5 +52,15 @@ public class MOJobService {
             }
         }
         throw new IllegalArgumentException("Job not found.");
+    }
+
+    // [新增方法：供 UI 调用获取所有申请]
+    public List<TAApplication> listAllApplications() {
+        return appDao.findAll();
+    }
+
+    // [新增方法：供 UI 调用更新申请状态]
+    public void updateApplication(TAApplication app) {
+        appDao.save(app);
     }
 }

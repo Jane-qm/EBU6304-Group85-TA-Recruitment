@@ -20,11 +20,20 @@
   },
   {
     "offerId": 5003,
-    "moUserId": 100006,
+    "moUserId": 100007,
     "taUserId": 100001,
     "moduleCode": "EBU6304",
     "offeredHours": 6,
     "status": "SENT",
-    "offeredAt": "2026-04-03T20:51:37.3143158"
+    "offeredAt": "2026-04-02T14:42:20.4823023"
+  },
+  {
+    "offerId": 5004,
+    "moUserId": 100007,
+    "taUserId": 100001,
+    "moduleCode": "EBU6304",
+    "offeredHours": 6,
+    "status": "SENT",
+    "offeredAt": "2026-04-02T16:42:36.4350396"
   }
 ]

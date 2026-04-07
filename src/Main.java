@@ -6,6 +6,8 @@ import common.entity.UserRole;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import mo.ui.MODashboardFrame; // 导入新写的 MO 首页
+
 /**
  * 程序入口类
  */
