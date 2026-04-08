@@ -26,6 +26,13 @@ import common.entity.UserRole;
  * @update
  * - Added strict super-admin validation support
  * - Improved email normalization during user updates
+ *
+ * @version 2.2
+ * @contributor Jiaze Wang
+ * @update
+ * - Added admin-oriented account lifecycle management methods
+ * - Added user listing support for admin operations
+ * - Added account status update, approval, disable, and password reset methods
  */
 public class UserService {
     
@@ -222,5 +229,61 @@ public class UserService {
                 && user.getRole() == UserRole.ADMIN
                 && "admin@test.com".equalsIgnoreCase(user.getEmail())
                 && user.getStatus() == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Returns all users sorted by user ID.
+     */
+    public List<User> listAllUsers() {
+        return usersByEmail.values().stream()
+                .sorted((a, b) -> {
+                    Long aId = a.getUserId() == null ? 0L : a.getUserId();
+                    Long bId = b.getUserId() == null ? 0L : b.getUserId();
+                    return aId.compareTo(bId);
+                })
+                .toList();
+    }
+
+    /**
+     * Updates account status.
+     */
+    public void updateAccountStatus(String email, AccountStatus newStatus) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(newStatus);
+        saveUser(user);
+    }
+
+    /**
+     * Approves an MO account.
+     */
+    public void approveMoAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null || user.getRole() != UserRole.MO) {
+            throw new IllegalArgumentException("MO account not found: " + email);
+        }
+        user.setStatus(AccountStatus.ACTIVE);
+        saveUser(user);
+    }
+
+    /**
+     * Disables an account.
+     */
+    public void disableAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(AccountStatus.DISABLED);
+        saveUser(user);
+    }
+
+    /**
+     * Resets a user's password as an administrator action.
+     */
+    public void resetPasswordByAdmin(String email, String newPassword) {
+        updatePassword(email, newPassword);
     }
 }
