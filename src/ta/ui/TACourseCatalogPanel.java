@@ -33,8 +33,6 @@ import javax.swing.table.JTableHeader;
 
 import common.entity.MOJob;
 import common.entity.TA;
-import common.entity.User;
-import common.ui.BaseFrame;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
 import ta.controller.TAProfileController;
@@ -43,12 +41,13 @@ import ta.service.CVService;
 import ta.ui.components.ActionButtonRenderer;
 
 /**
- * TA 课程目录界面
+ * TA 课程目录面板
+ * 显示可申请的课程列表，支持查看详情和提交申请
  * 
  * @author Can Chen
- * @version 4.0 - 添加课程详情功能
+ * @version 1.0
  */
-public class TACourseCatalogFrame extends BaseFrame {
+public class TACourseCatalogPanel extends JPanel {
     
     private final TA ta;
     private final TAApplicationController applicationController;
@@ -58,29 +57,35 @@ public class TACourseCatalogFrame extends BaseFrame {
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
-
-    public TACourseCatalogFrame(User user) {
-        super("TA Recruitment System - Course Catalog", 1100, 750);
-        this.ta = (TA) user;
+    
+    private JTable coursesTable;
+    private DefaultTableModel tableModel;
+    private List<MOJob> availableJobs;
+    
+    public TACourseCatalogPanel(TA ta) {
+        this.ta = ta;
         this.applicationController = new TAApplicationController();
         this.authController = new TAAuthController();
         this.profileController = new TAProfileController();
         this.cvService = new CVService();
+        
+        setLayout(new BorderLayout());
+        setBackground(new Color(248, 250, 252));
+        
         initUI();
     }
-
-    @Override
-    protected void initUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(new Color(248, 250, 252));
+    
+    private void initUI() {
+        // 标题区域
+        JPanel headerPanel = createHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
         
-        mainPanel.add(createHeader(), BorderLayout.NORTH);
-        mainPanel.add(createContent(), BorderLayout.CENTER);
-        
-        setContentPane(mainPanel);
+        // 内容区域
+        JScrollPane contentScroll = createContentPanel();
+        add(contentScroll, BorderLayout.CENTER);
     }
     
-    private JPanel createHeader() {
+    private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
@@ -89,25 +94,12 @@ public class TACourseCatalogFrame extends BaseFrame {
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         titleLabel.setForeground(new Color(30, 35, 45));
         
-        JButton backBtn = new JButton("← Back to Dashboard");
-        backBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        backBtn.setForeground(PRIMARY_BLUE);
-        backBtn.setBackground(Color.WHITE);
-        backBtn.setBorderPainted(false);
-        backBtn.setFocusPainted(false);
-        backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backBtn.addActionListener(e -> {
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
-        });
-        
         panel.add(titleLabel, BorderLayout.WEST);
-        panel.add(backBtn, BorderLayout.EAST);
         
         return panel;
     }
     
-    private JScrollPane createContent() {
+    private JScrollPane createContentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(new Color(248, 250, 252));
@@ -137,14 +129,71 @@ public class TACourseCatalogFrame extends BaseFrame {
     private JScrollPane createCoursesTable() {
         // 添加 Detail 和 Apply 两列
         String[] columns = {"Course", "Hours/Week", "Description", "", ""};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+        tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
 
-        List<MOJob> availableJobs = applicationController.getAvailableJobs(ta.getUserId());
+        refreshTable();
+        
+        coursesTable = new JTable(tableModel);
+        coursesTable.setRowHeight(50);
+        coursesTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        coursesTable.setShowGrid(false);
+        coursesTable.setIntercellSpacing(new Dimension(0, 0));
+        
+        // 设置渲染器
+        coursesTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
+        coursesTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
+        
+        // 添加鼠标点击事件处理
+        coursesTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int row = coursesTable.rowAtPoint(e.getPoint());
+                int col = coursesTable.columnAtPoint(e.getPoint());
+                
+                if (row < availableJobs.size()) {
+                    MOJob job = availableJobs.get(row);
+                    
+                    if (col == 3) {  // Detail 列
+                        showCourseDetailDialog(job);
+                    } else if (col == 4) {  // Apply 列
+                        String action = (String) coursesTable.getValueAt(row, 4);
+                        if ("Apply".equals(action)) {
+                            showApplicationDialog(job);
+                        }
+                    }
+                }
+            }
+        });
+        
+        JTableHeader header = coursesTable.getTableHeader();
+        header.setFont(new Font("SansSerif", Font.BOLD, 13));
+        header.setForeground(new Color(107, 114, 128));
+        header.setBackground(TABLE_HEADER_BG);
+        header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        
+        // 设置列宽
+        coursesTable.getColumnModel().getColumn(0).setPreferredWidth(300);
+        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(400);
+        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(60);
+        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+
+        JScrollPane scrollPane = new JScrollPane(coursesTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+        scrollPane.setPreferredSize(new Dimension(1000, 400));
+
+        return scrollPane;
+    }
+    
+    private void refreshTable() {
+        tableModel.setRowCount(0);
+        
+        availableJobs = applicationController.getAvailableJobs(ta.getUserId());
         int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
 
         for (MOJob job : availableJobs) {
@@ -152,7 +201,7 @@ public class TACourseCatalogFrame extends BaseFrame {
             String description = job.getDescription() != null ? 
                     (job.getDescription().length() > 60 ? job.getDescription().substring(0, 60) + "..." : job.getDescription()) : "";
             
-            model.addRow(new Object[]{
+            tableModel.addRow(new Object[]{
                     job.getModuleCode() + " - " + job.getTitle(),
                     job.getWeeklyHours(),
                     description,
@@ -162,59 +211,8 @@ public class TACourseCatalogFrame extends BaseFrame {
         }
 
         if (availableJobs.isEmpty()) {
-            model.addRow(new Object[]{"—", "—", "No available courses at this time", "—", "—"});
+            tableModel.addRow(new Object[]{"—", "—", "No available courses at this time", "—", "—"});
         }
-
-        JTable table = new JTable(model);
-        table.setRowHeight(50);
-        table.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        table.setShowGrid(false);
-        table.setIntercellSpacing(new Dimension(0, 0));
-        
-        // 设置渲染器
-        table.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
-        table.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
-        
-        // 添加鼠标点击事件处理
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                int col = table.columnAtPoint(e.getPoint());
-                
-                if (row < availableJobs.size()) {
-                    MOJob job = availableJobs.get(row);
-                    
-                    if (col == 3) {  // Detail 列
-                        showCourseDetailDialog(job);
-                    } else if (col == 4) {  // Apply 列
-                        String action = (String) table.getValueAt(row, 4);
-                        if ("Apply".equals(action)) {
-                            showApplicationDialog(job);
-                        }
-                    }
-                }
-            }
-        });
-        
-        JTableHeader header = table.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 13));
-        header.setForeground(new Color(107, 114, 128));
-        header.setBackground(TABLE_HEADER_BG);
-        header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        
-        // 设置列宽
-        table.getColumnModel().getColumn(0).setPreferredWidth(300);
-        table.getColumnModel().getColumn(1).setPreferredWidth(100);
-        table.getColumnModel().getColumn(2).setPreferredWidth(400);
-        table.getColumnModel().getColumn(3).setPreferredWidth(60);
-        table.getColumnModel().getColumn(4).setPreferredWidth(60);
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        scrollPane.setPreferredSize(new Dimension(1000, 400));
-
-        return scrollPane;
     }
     
     /**
@@ -337,7 +335,7 @@ public class TACourseCatalogFrame extends BaseFrame {
         panel.add(descScroll);
         
         // 对话框
-        int result = JOptionPane.showConfirmDialog(this, new JScrollPane(panel), 
+        JOptionPane.showConfirmDialog(null, new JScrollPane(panel), 
             "Course Details", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
     }
     
@@ -371,8 +369,11 @@ public class TACourseCatalogFrame extends BaseFrame {
                 "Please complete your personal profile first!\n\n" +
                 "Go to My Profile to fill in all required information.",
                 "Profile Incomplete", JOptionPane.WARNING_MESSAGE);
-            new TAProfileFrame(ta).setVisible(true);
-            dispose();
+            // 切换到Profile面板
+            TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
+            if (mainFrame instanceof TAMainFrame) {
+                mainFrame.switchToProfile();
+            }
             return;
         }
         
@@ -528,12 +529,32 @@ public class TACourseCatalogFrame extends BaseFrame {
             
             // 提交申请
             boolean success = applicationController.submitApplicationWithFeedback(
-                ta.getUserId(), job.getJobId(), statement, selectedCvId[0], this);
+                ta.getUserId(), job.getJobId(), statement, selectedCvId[0], null);
             
             if (success) {
-                dispose();
-                new TACourseCatalogFrame(ta).setVisible(true);
+                refresh();
             }
         }
+    }
+    
+    private void showWarning(String message) {
+        JOptionPane.showMessageDialog(this, message, "Warning", JOptionPane.WARNING_MESSAGE);
+    }
+    
+    private void showInfo(String message) {
+        JOptionPane.showMessageDialog(this, message, "Information", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+    
+    /**
+     * 刷新面板数据
+     */
+    public void refresh() {
+        refreshTable();
+        revalidate();
+        repaint();
     }
 }
