@@ -2,7 +2,6 @@ package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.util.List;
@@ -10,7 +9,6 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -19,48 +17,50 @@ import javax.swing.border.EmptyBorder;
 import common.entity.MOJob;
 import common.entity.MOOffer;
 import common.entity.TA;
-import common.entity.User;
-import common.ui.BaseFrame;
 import ta.controller.TAApplicationController;
-import ta.controller.TAAuthController;
 import ta.controller.TAOfferController;
 
 /**
- * TA 工作量追踪界面
+ * TA 工作量追踪面板
+ * 显示当前活跃职位和工时统计
  * 
- * @author System
+ * @author Can Chen
  * @version 1.0
  */
-public class TAWorkloadFrame extends BaseFrame {
+public class TAWorkloadPanel extends JPanel {
     
     private final TA ta;
     private final TAApplicationController applicationController;
     private final TAOfferController offerController;
-    private final TAAuthController authController;
     
-    public static final Color PRIMARY_BLUE = new Color(59, 130, 246);
-
-    public TAWorkloadFrame(User user) {
-        super("TA Recruitment System - Workload Tracking", 1000, 700);
-        this.ta = (TA) user;
+    private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
+    private static final Color ACCEPTED_COLOR = new Color(34, 197, 94);
+    private static final Color PENDING_COLOR = new Color(234, 179, 8);
+    
+    private JPanel contentPanel;
+    
+    public TAWorkloadPanel(TA ta) {
+        this.ta = ta;
         this.applicationController = new TAApplicationController();
         this.offerController = new TAOfferController();
-        this.authController = new TAAuthController();
+        
+        setLayout(new BorderLayout());
+        setBackground(new Color(248, 250, 252));
+        
         initUI();
     }
-
-    @Override
-    protected void initUI() {
-        JPanel mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(new Color(248, 250, 252));
+    
+    private void initUI() {
+        // 标题区域
+        JPanel headerPanel = createHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
         
-        mainPanel.add(createHeader(), BorderLayout.NORTH);
-        mainPanel.add(createContent(), BorderLayout.CENTER);
-        
-        setContentPane(mainPanel);
+        // 内容区域
+        JScrollPane contentScroll = createContentPanel();
+        add(contentScroll, BorderLayout.CENTER);
     }
     
-    private JPanel createHeader() {
+    private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
@@ -69,25 +69,12 @@ public class TAWorkloadFrame extends BaseFrame {
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         titleLabel.setForeground(new Color(30, 35, 45));
         
-        JButton backBtn = new JButton("← Back to Dashboard");
-        backBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        backBtn.setForeground(PRIMARY_BLUE);
-        backBtn.setBackground(Color.WHITE);
-        backBtn.setBorderPainted(false);
-        backBtn.setFocusPainted(false);
-        backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        backBtn.addActionListener(e -> {
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
-        });
-        
         panel.add(titleLabel, BorderLayout.WEST);
-        panel.add(backBtn, BorderLayout.EAST);
         
         return panel;
     }
     
-    private JScrollPane createContent() {
+    private JScrollPane createContentPanel() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(new Color(248, 250, 252));
@@ -120,8 +107,8 @@ public class TAWorkloadFrame extends BaseFrame {
         int pendingOffers = (int) offers.stream().filter(o -> "SENT".equals(o.getStatus())).count();
         
         panel.add(createSummaryCard("Total Hours", String.valueOf(totalHours), "per week", PRIMARY_BLUE));
-        panel.add(createSummaryCard("Active Positions", String.valueOf(acceptedCount), "TA roles", new Color(34, 197, 94)));
-        panel.add(createSummaryCard("Pending Offers", String.valueOf(pendingOffers), "awaiting response", new Color(234, 179, 8)));
+        panel.add(createSummaryCard("Active Positions", String.valueOf(acceptedCount), "TA roles", ACCEPTED_COLOR));
+        panel.add(createSummaryCard("Pending Offers", String.valueOf(pendingOffers), "awaiting response", PENDING_COLOR));
         
         return panel;
     }
@@ -172,9 +159,23 @@ public class TAWorkloadFrame extends BaseFrame {
         titleLabel.setForeground(new Color(30, 35, 45));
         panel.add(titleLabel, BorderLayout.NORTH);
         
-        JPanel contentPanel = new JPanel();
+        contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Color.WHITE);
+        
+        refreshContent();
+        
+        JScrollPane scrollPane = new JScrollPane(contentPanel);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        
+        panel.add(scrollPane, BorderLayout.CENTER);
+        
+        return panel;
+    }
+    
+    private void refreshContent() {
+        contentPanel.removeAll();
         
         List<MOOffer> offers = offerController.getMyOffers(ta.getUserId());
         List<MOOffer> acceptedOffers = offers.stream()
@@ -194,9 +195,8 @@ public class TAWorkloadFrame extends BaseFrame {
             }
         }
         
-        panel.add(contentPanel, BorderLayout.CENTER);
-        
-        return panel;
+        contentPanel.revalidate();
+        contentPanel.repaint();
     }
     
     private JPanel createOfferCard(MOOffer offer) {
@@ -234,5 +234,14 @@ public class TAWorkloadFrame extends BaseFrame {
             }
         }
         return moduleCode;
+    }
+    
+    public void refresh() {
+        refreshContent();
+        // 刷新统计卡片
+        removeAll();
+        initUI();
+        revalidate();
+        repaint();
     }
 }

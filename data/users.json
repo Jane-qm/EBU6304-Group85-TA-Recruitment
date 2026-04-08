@@ -1,24 +1,11 @@
 [
   {
-    "userId": 100007,
-    "email": "123456@qmul.ac.uk",
-    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
-    "role": "MO",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T14:41:43.5806595",
-    "lastLogin": "2026-04-06T17:14:27.2532311"
-  },
-  {
-    "userId": 100008,
-    "email": "123@qmul.ac.uk",
-    "passwordHash": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-    "role": "TA",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T17:30:57.0332694",
-    "lastLogin": "2026-04-02T17:31:10.8071757",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
+    "userId": 100003,
+    "email": "admin@test.com",
+    "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-08T14:49:04.2640618"
   },
   {
     "userId": 100002,
@@ -26,81 +13,7 @@
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     "role": "MO",
     "status": "PENDING",
-    "createdAt": "2026-03-29T17:03:03.7461416"
-  },
-  {
-    "userId": 100010,
-    "email": "123456789@qmul.ac.uk",
-    "passwordHash": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-    "role": "TA",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T19:26:57.3365838",
-    "lastLogin": "2026-04-02T19:27:04.4655376",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
-  },
-  {
-    "userId": 100011,
-    "email": "111@qmul.ac.uk",
-    "passwordHash": "f6e0a1e2ac41945a9aa7ff8a8aaa0cebc12a3bcc981a929ad5cf810a090e11ae",
-    "role": "MO",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T19:37:39.6388795",
-    "lastLogin": "2026-04-02T19:37:49.8613359"
-  },
-  {
-    "userId": 100004,
-    "email": "111@qq.com",
-    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
-    "role": "TA",
-    "status": "ACTIVE",
-    "createdAt": "2026-03-29T17:03:47.3523407",
-    "lastLogin": "2026-03-29T17:51:30.5229622",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
-  },
-  {
-    "userId": 100003,
-    "email": "admin@test.com",
-    "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
-    "role": "ADMIN",
-    "status": "ACTIVE",
-    "createdAt": "2026-03-29T17:03:03.7471377"
-  },
-  {
-    "userId": 100005,
-    "email": "ta@.com",
-    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
-    "role": "TA",
-    "status": "ACTIVE",
-    "createdAt": "2026-03-30T20:24:21.9557693",
-    "lastLogin": "2026-04-06T14:38:35.3034664"
-  },
-  {
-    "userId": 100006,
-    "email": "12345678@qmul.ac.uk",
-    "passwordHash": "15e2b0d3c33891ebb0f1ef609ec419420c20e320ce94c65fbc8c3312448eb225",
-    "role": "TA",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T14:30:33.9523401",
-    "lastLogin": "2026-04-02T20:55:33.8999931",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
-  },
-  {
-    "userId": 100013,
-    "email": "1234560@qmul.ac.uk",
-    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
-    "role": "TA",
-    "status": "PENDING",
-    "createdAt": "2026-04-06T17:15:00.7107226",
-    "lastLogin": "2026-04-06T17:15:13.8747405",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
+    "createdAt": "2026-04-08T14:49:04.263056"
   },
   {
     "userId": 100001,
@@ -108,29 +21,15 @@
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     "role": "TA",
     "status": "ACTIVE",
-    "createdAt": "2026-03-29T17:03:03.7447052",
-    "skillTags": [],
-    "availableWorkingHours": 0,
-    "profileSaved": false
+    "createdAt": "2026-04-08T14:49:04.2617075"
   },
   {
-    "userId": 100012,
-    "email": "1234567890@qmul.ac.uk",
-    "passwordHash": "c775e7b757ede630cd0aa1113bd102661ab38829ca52a6422ab782862f268646",
-    "role": "MO",
+    "userId": 100004,
+    "email": "can@qmul.ac.uk",
+    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
+    "role": "TA",
     "status": "PENDING",
-    "createdAt": "2026-04-02T21:01:56.7247788",
-    "lastLogin": "2026-04-06T18:44:30.487388"
-  },
-  {
-    "userId": 100009,
-    "email": "1@qmul.ac.uk",
-    "passwordHash": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
-    "role": "MO",
-    "status": "PENDING",
-    "createdAt": "2026-04-02T17:32:17.4872019",
-    "lastLogin": "2026-04-02T19:20:17.4799989"
-    "lastLogin": "2026-04-06T16:17:26.7418443"
-
+    "createdAt": "2026-04-08T14:50:18.3105706",
+    "lastLogin": "2026-04-08T15:40:33.8744605"
   }
 ]

@@ -9,7 +9,7 @@ import java.util.List;
  * 根据实际 TA 招募问卷设计
  * 
  * @author Can Chen
- * @version 1.0
+ * @version 1.1 - 添加校区字段
  */
 public class TAProfile {
     
@@ -103,6 +103,32 @@ public class TAProfile {
         }
     }
     
+    // 校区枚举
+    public enum Campus {
+        XITUCHENG("XituCheng", "西土城校区"),
+        SHAHE("ShaHe", "沙河校区");
+        
+        private final String englishName;
+        private final String chineseName;
+        
+        Campus(String englishName, String chineseName) {
+            this.englishName = englishName;
+            this.chineseName = chineseName;
+        }
+        
+        public String getEnglishName() { return englishName; }
+        public String getChineseName() { return chineseName; }
+        
+        public static Campus fromEnglishName(String name) {
+            for (Campus campus : values()) {
+                if (campus.englishName.equals(name)) {
+                    return campus;
+                }
+            }
+            return XITUCHENG;
+        }
+    }
+    
     private Long taId;                      // TA ID，关联 User.userId
     private String email;                   // QMplus 邮箱账号
     private String studentId;               // BUPT 学生证号
@@ -115,6 +141,7 @@ public class TAProfile {
     private String supervisor;              // 导师姓名
     private StudentType studentType;        // 学生类型 (MSc/PhD)
     private Year currentYear;               // 当前年级
+    private Campus campus;                  // 校区
     private String previousExperience;      // 过往经历 (是否参加过联合项目等)
     private List<String> skillTags;         // 技能标签（额外添加）
     private String major;                   // 专业（兼容原有 TA 类）
@@ -128,6 +155,7 @@ public class TAProfile {
         this.profileCompleted = false;
         this.createdAt = LocalDateTime.now();
         this.profileLastUpdated = LocalDateTime.now();
+        this.campus = Campus.XITUCHENG;  // 默认西土城校区
     }
     
     public TAProfile(Long taId, String email) {
@@ -264,6 +292,20 @@ public class TAProfile {
         return currentYear != null ? currentYear.getEnglishName() : "";
     }
     
+    // 校区相关方法
+    public Campus getCampus() {
+        return campus;
+    }
+    
+    public void setCampus(Campus campus) {
+        this.campus = campus;
+        markAsEdited();
+    }
+    
+    public String getCampusDisplay() {
+        return campus != null ? campus.getChineseName() : "";
+    }
+    
     /**
      * 获取年级显示名称（兼容原有 TA 类）
      */
@@ -373,12 +415,12 @@ public class TAProfile {
      * 保存资料（标记为完整）
      */
     public void saveProfile() {
-        // 检查必填字段是否完整
+        // 检查必填字段是否完整（包括校区）
         boolean isComplete = isEmailValid() && isStudentIdValid() && isSurnameValid() 
                 && isForenameValid() && isPhoneValid() && gender != null 
                 && school != null && !school.trim().isEmpty()
                 && supervisor != null && !supervisor.trim().isEmpty()
-                && studentType != null && currentYear != null;
+                && studentType != null && currentYear != null && campus != null;
         this.profileCompleted = isComplete;
         this.profileLastUpdated = LocalDateTime.now();
     }
@@ -429,7 +471,7 @@ public class TAProfile {
      * 获取完整度百分比
      */
     public int getCompletionPercentage() {
-        int total = 12; // 必填字段数量
+        int total = 13; // 必填字段数量（增加校区字段）
         int completed = 0;
         
         if (isEmailValid()) completed++;
@@ -443,6 +485,7 @@ public class TAProfile {
         if (supervisor != null && !supervisor.trim().isEmpty()) completed++;
         if (studentType != null) completed++;
         if (currentYear != null) completed++;
+        if (campus != null) completed++;
         if (previousExperience != null && !previousExperience.trim().isEmpty()) completed++;
         
         return (completed * 100) / total;
@@ -465,6 +508,7 @@ public class TAProfile {
         if (supervisor == null || supervisor.trim().isEmpty()) missing.add("Supervisor Name");
         if (studentType == null) missing.add("Student Type (MSc/PhD)");
         if (currentYear == null) missing.add("Current Year");
+        if (campus == null) missing.add("Campus");
         
         return missing;
     }
@@ -484,6 +528,7 @@ public class TAProfile {
                 ", supervisor='" + supervisor + '\'' +
                 ", studentType=" + studentType +
                 ", currentYear=" + currentYear +
+                ", campus=" + campus +
                 ", profileCompleted=" + profileCompleted +
                 '}';
     }
