@@ -15,6 +15,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * Central JSON persistence manager.
+ * Responsible for initializing and reading/writing all JSON files under the data directory.
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added support for object-based JSON persistence
+ * - Added system_config.json initialization and read/write support
+ */
 public class JsonPersistenceManager {
     public static final String USERS_FILE = "users.json";
     public static final String TA_PROFILES_FILE = "ta_profiles.json";
@@ -23,8 +33,9 @@ public class JsonPersistenceManager {
     public static final String CV_INFOS_FILE = "cv_infos.json";
     public static final String MO_OFFERS_FILE = "mo_offers.json";
     public static final String NOTIFICATIONS_FILE = "notifications.json";
+    public static final String SYSTEM_CONFIG_FILE = "system_config.json";
 
-    private static final List<String> ALL_FILES = Arrays.asList(
+    private static final List<String> ARRAY_FILES = Arrays.asList(
             USERS_FILE,
             TA_PROFILES_FILE,
             MO_JOBS_FILE,
@@ -47,11 +58,17 @@ public class JsonPersistenceManager {
     public void initializeBaseFiles() {
         try {
             Files.createDirectories(dataDirectory);
-            for (String file : ALL_FILES) {
+
+            for (String file : ARRAY_FILES) {
                 Path path = dataDirectory.resolve(file);
                 if (!Files.exists(path)) {
                     Files.writeString(path, "[]", StandardCharsets.UTF_8);
                 }
+            }
+
+            Path configPath = dataDirectory.resolve(SYSTEM_CONFIG_FILE);
+            if (!Files.exists(configPath)) {
+                Files.writeString(configPath, "{}", StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to initialize JSON data files.", e);
@@ -74,6 +91,18 @@ public class JsonPersistenceManager {
 
     public void writeList(String fileName, List<?> values) {
         writeRaw(fileName, GsonUtils.toJson(values == null ? List.of() : values));
+    }
+
+    public <T> T readObject(String fileName, Class<T> clazz) {
+        String json = readRaw(fileName);
+        if (!GsonUtils.isValidJson(json)) {
+            throw new IllegalStateException("Invalid JSON format in file: " + fileName);
+        }
+        return GsonUtils.fromJson(json, clazz);
+    }
+
+    public void writeObject(String fileName, Object value) {
+        writeRaw(fileName, GsonUtils.toJson(value == null ? Map.of() : value));
     }
 
     public <K, V> Map<K, V> loadMapFromFile(String fileName, Class<V> valueClass, Function<V, K> keyExtractor) {
@@ -110,7 +139,11 @@ public class JsonPersistenceManager {
         Path path = dataDirectory.resolve(fileName);
         try {
             if (!Files.exists(path)) {
-                Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                if (SYSTEM_CONFIG_FILE.equals(fileName)) {
+                    Files.writeString(path, "{}", StandardCharsets.UTF_8);
+                } else {
+                    Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                }
             }
             return Files.readString(path, StandardCharsets.UTF_8);
         } catch (IOException e) {

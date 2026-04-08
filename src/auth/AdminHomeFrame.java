@@ -9,6 +9,7 @@ import common.dao.TAProfileDAO;
 import common.entity.AccountStatus;
 import common.entity.User;
 import common.entity.UserRole;
+import common.service.SystemConfigService;
 import common.service.UserService;
 import common.util.CsvExportUtil;
 
@@ -16,12 +17,14 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
  * Admin portal.
- * Supports administrator operations such as account management
- * and system data inspection.
+ * Supports administrator operations such as account management,
+ * system data inspection, and global configuration.
  *
  * @version 2.0
  * @contributor Jiaze Wang
@@ -36,10 +39,18 @@ import java.util.List;
  * - Added system-wide data viewing
  * - Added CSV export for core datasets
  * - Kept existing account lifecycle management functions
+ *
+ * @version 4.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added global application cycle configuration support
+ * - Structured the admin portal into three functional tabs
+ * - Kept account management, system data inspection, and CSV export
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
     private final UserService userService = new UserService();
+    private final SystemConfigService systemConfigService = new SystemConfigService();
 
     private final TAProfileDAO taProfileDAO = new TAProfileDAO();
     private final MOJobDAO moJobDAO = new MOJobDAO();
@@ -54,6 +65,9 @@ public class AdminHomeFrame extends JFrame {
     private JTable dataTable;
     private DefaultTableModel dataTableModel;
     private JComboBox<String> datasetCombo;
+
+    private JTextField cycleStartField;
+    private JTextField cycleEndField;
 
     public AdminHomeFrame(User user) {
         this.currentUser = user;
@@ -71,19 +85,21 @@ public class AdminHomeFrame extends JFrame {
         }
 
         setTitle("Admin Portal");
-        setSize(1100, 700);
+        setSize(1100, 720);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
         initUi();
         refreshUserTable();
         refreshDataTable();
+        loadCycleFields();
     }
 
     private void initUi() {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("MO Account Approval", createUserManagementPanel());
         tabs.addTab("System Data", createDataPanel());
+        tabs.addTab("Application Cycle", createCyclePanel());
 
         JButton logoutBtn = new JButton("Logout");
         logoutBtn.addActionListener(e -> {
@@ -235,6 +251,34 @@ public class AdminHomeFrame extends JFrame {
 
         panel.add(top, BorderLayout.NORTH);
         panel.add(new JScrollPane(dataTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createCyclePanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel tip = new JLabel("Datetime format example: 2026-04-07T09:00:00");
+        tip.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        cycleStartField = new JTextField();
+        cycleEndField = new JTextField();
+
+        JButton saveBtn = new JButton("Save Application Cycle");
+        saveBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        saveBtn.addActionListener(e -> saveApplicationCycle());
+
+        panel.add(new JLabel("Application Start"));
+        panel.add(cycleStartField);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(new JLabel("Application End"));
+        panel.add(cycleEndField);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(tip);
+        panel.add(Box.createVerticalStrut(16));
+        panel.add(saveBtn);
+
         return panel;
     }
 
@@ -392,6 +436,32 @@ public class AdminHomeFrame extends JFrame {
             }
         } catch (Exception ex) {
             showMessage("Export failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Loads saved application cycle values into the form.
+     */
+    private void loadCycleFields() {
+        var config = systemConfigService.getConfig();
+        cycleStartField.setText(config.getApplicationStart() == null ? "" : config.getApplicationStart().toString());
+        cycleEndField.setText(config.getApplicationEnd() == null ? "" : config.getApplicationEnd().toString());
+    }
+
+    /**
+     * Saves the application cycle to system_config.json.
+     */
+    private void saveApplicationCycle() {
+        try {
+            LocalDateTime start = LocalDateTime.parse(cycleStartField.getText().trim());
+            LocalDateTime end = LocalDateTime.parse(cycleEndField.getText().trim());
+
+            systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
+            showMessage("Application cycle saved successfully.");
+        } catch (DateTimeParseException ex) {
+            showMessage("Invalid datetime format. Use format like 2026-04-07T09:00:00");
+        } catch (Exception ex) {
+            showMessage("Save failed: " + ex.getMessage());
         }
     }
 
