@@ -1,5 +1,7 @@
 package ta.ui;
 
+import java.awt.Desktop;
+import java.io.FileOutputStream;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -10,6 +12,8 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -32,23 +36,26 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import common.entity.TA;
 import common.entity.User;
 import common.ui.BaseFrame;
+import ta.controller.TAProfileController;
 import ta.entity.CVInfo;
 import ta.entity.TAProfile;
 import ta.service.CVService;
-import ta.service.TAProfileService;
 
 /**
  * TA 个人信息界面
  * 包含个人信息填写和 CV 上传功能
  * 
- * @author System
- * @version 1.0
+ * @author Can Chen
+ * @version 3.0 - 使用 Controller 架构
  */
 public class TAProfileFrame extends BaseFrame {
     
     private final TA ta;
-    private final TAProfileService profileService;
+    
+    // 使用 Controller 替代直接使用 Service
+    private final TAProfileController profileController;
     private final CVService cvService;
+    
     private TAProfile profile;
     
     // 个人信息组件
@@ -65,37 +72,41 @@ public class TAProfileFrame extends BaseFrame {
     private JTextArea experienceArea;
     private JPanel skillTagsPanel;
     private JSpinner hoursSpinner;
-    private java.util.List<String> skillTags;
+    private List<String> skillTags;
     
     // CV 相关组件
     private JLabel cvFileNameLabel;
-    private JLabel cvFileSizeLabel;
     private JLabel cvUploadTimeLabel;
-    private JButton uploadCVBtn;
     private JButton viewCVBtn;
     private JButton deleteCVBtn;
     private CVInfo currentCV;
     
+    // 颜色常量
+    private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
+    private static final Color LABEL_FOREGROUND = new Color(55, 65, 81);
+    
     public TAProfileFrame(User user) {
         super("TA Recruitment System - My Profile", 900, 750);
         this.ta = (TA) user;
-        this.profileService = new TAProfileService();
+        
+        // 初始化 Controllers 和 Service
+        this.profileController = new TAProfileController();
         this.cvService = new CVService();
-        this.skillTags = new java.util.ArrayList<>();
+        this.skillTags = new ArrayList<>();
+        
         loadProfile();
         initUI();
     }
     
     /**
-     * 加载 TA 个人信息
+     * 加载 TA 个人信息（使用 Controller）
      */
     private void loadProfile() {
-        profile = profileService.getProfileByTaId(ta.getUserId());
-        if (profile == null) {
-            profile = new TAProfile(ta.getUserId(), ta.getEmail());
-        }
+        // 使用 Controller 获取个人资料
+        profile = profileController.getProfileForUI(ta);
+        
         if (profile.getSkillTags() != null) {
-            skillTags = new java.util.ArrayList<>(profile.getSkillTags());
+            skillTags = new ArrayList<>(profile.getSkillTags());
         }
         
         // 加载 CV 信息
@@ -129,7 +140,7 @@ public class TAProfileFrame extends BaseFrame {
      */
     private JPanel createHeaderPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(37, 99, 235));
+        panel.setBackground(PRIMARY_BLUE);
         panel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
         
         JLabel titleLabel = new JLabel("My Profile");
@@ -148,7 +159,7 @@ public class TAProfileFrame extends BaseFrame {
         // 返回按钮
         JButton backBtn = new JButton("← Back to Dashboard");
         backBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        backBtn.setForeground(new Color(37, 99, 235));
+        backBtn.setForeground(PRIMARY_BLUE);
         backBtn.setBackground(Color.WHITE);
         backBtn.setBorderPainted(false);
         backBtn.setFocusPainted(false);
@@ -203,7 +214,7 @@ public class TAProfileFrame extends BaseFrame {
                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                 new Font("SansSerif", Font.BOLD, 16),
-                new Color(37, 99, 235)
+                PRIMARY_BLUE
         ));
         
         // 第一行：姓氏 + 名字
@@ -281,7 +292,7 @@ public class TAProfileFrame extends BaseFrame {
         
         JLabel expLabel = new JLabel("Previous Experience");
         expLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
-        expLabel.setForeground(new Color(55, 65, 81));
+        expLabel.setForeground(LABEL_FOREGROUND);
         
         experienceArea = new JTextArea(4, 30);
         experienceArea.setText(profile.getPreviousExperience());
@@ -320,7 +331,7 @@ public class TAProfileFrame extends BaseFrame {
                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                 new Font("SansSerif", Font.BOLD, 16),
-                new Color(37, 99, 235)
+                PRIMARY_BLUE
         ));
         
         // 技能标签显示区域
@@ -339,7 +350,7 @@ public class TAProfileFrame extends BaseFrame {
         
         JButton addSkillBtn = new JButton("+ Add Skill");
         addSkillBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
-        addSkillBtn.setBackground(new Color(37, 99, 235));
+        addSkillBtn.setBackground(PRIMARY_BLUE);
         addSkillBtn.setForeground(Color.WHITE);
         addSkillBtn.setFocusPainted(false);
         addSkillBtn.addActionListener(e -> {
@@ -418,7 +429,7 @@ public class TAProfileFrame extends BaseFrame {
                 javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION,
                 javax.swing.border.TitledBorder.DEFAULT_POSITION,
                 new Font("SansSerif", Font.BOLD, 16),
-                new Color(37, 99, 235)
+                PRIMARY_BLUE
         ));
         
         // 上传区域
@@ -447,7 +458,7 @@ public class TAProfileFrame extends BaseFrame {
         JButton browseBtn = new JButton("Click to browse");
         browseBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         browseBtn.setForeground(Color.WHITE);
-        browseBtn.setBackground(new Color(37, 99, 235));
+        browseBtn.setBackground(PRIMARY_BLUE);
         browseBtn.setBorderPainted(false);
         browseBtn.setFocusPainted(false);
         browseBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
@@ -525,7 +536,7 @@ public class TAProfileFrame extends BaseFrame {
         
         JLabel lbl = new JLabel(label);
         lbl.setFont(new Font("SansSerif", Font.BOLD, 12));
-        lbl.setForeground(new Color(55, 65, 81));
+        lbl.setForeground(LABEL_FOREGROUND);
         
         panel.add(lbl, BorderLayout.NORTH);
         panel.add(field, BorderLayout.CENTER);
@@ -557,7 +568,7 @@ public class TAProfileFrame extends BaseFrame {
         JButton saveBtn = new JButton("Save Profile");
         saveBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         saveBtn.setForeground(Color.WHITE);
-        saveBtn.setBackground(new Color(37, 99, 235));
+        saveBtn.setBackground(PRIMARY_BLUE);
         saveBtn.setFocusPainted(false);
         saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         saveBtn.setPreferredSize(new Dimension(140, 40));
@@ -604,10 +615,15 @@ public class TAProfileFrame extends BaseFrame {
             try {
                 byte[] fileData = Files.readAllBytes(file.toPath());
                 
+                // 从 profile 获取姓名
+                String taName = (profile != null && profile.getFullName() != null) 
+                    ? profile.getFullName() 
+                    : "";
+                
                 CVInfo newCV = cvService.uploadCV(
                         ta.getUserId(),
                         ta.getEmail(),
-                        ta.getName(),
+                        taName,
                         cvName.trim(),
                         "",
                         fileName,
@@ -630,14 +646,40 @@ public class TAProfileFrame extends BaseFrame {
     /**
      * 查看 CV
      */
+
     private void viewCV() {
         if (currentCV == null) {
             showWarning("No CV to view");
             return;
         }
         
-        // TODO: 实现 CV 查看功能（打开文件或显示内容）
-        showInfo("View CV: " + currentCV.getCvName() + " - Coming soon");
+        try {
+            byte[] fileData = cvService.downloadCV(ta.getUserId(), currentCV.getCvId());
+            if (fileData == null) {
+                showError("Failed to load CV file");
+                return;
+            }
+            
+            // 创建临时文件
+            String extension = currentCV.getFileType().getExtension();
+            java.io.File tempFile = java.io.File.createTempFile("cv_", "." + extension);
+            tempFile.deleteOnExit();
+            
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
+                fos.write(fileData);
+            }
+            
+            // 使用系统默认程序打开文件
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(tempFile);
+            } else {
+                showInfo("CV file saved to: " + tempFile.getAbsolutePath());
+            }
+            
+        } catch (Exception e) {
+            showError("Failed to open CV: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
     
     /**
@@ -664,7 +706,7 @@ public class TAProfileFrame extends BaseFrame {
     }
     
     /**
-     * 保存个人信息
+     * 保存个人信息（使用 Controller）
      */
     private void saveProfile() {
         try {
@@ -683,14 +725,14 @@ public class TAProfileFrame extends BaseFrame {
             profile.setSkillTags(skillTags);
             profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
             
-            // 保存
-            profileService.saveProfile(profile);
+            // 使用 Controller 保存（带用户反馈）
+            boolean success = profileController.saveProfileWithFeedback(profile, this);
             
-            showInfo("Profile saved successfully!");
-            
-            // 返回主界面
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
+            if (success) {
+                // 返回主界面
+                new TAMainFrame(ta).setVisible(true);
+                dispose();
+            }
             
         } catch (Exception e) {
             showError("Save failed: " + e.getMessage());

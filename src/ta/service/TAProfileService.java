@@ -1,19 +1,19 @@
 package ta.service;
 
+import java.util.List;
+
 import common.entity.TA;
 import common.entity.User;
 import common.service.UserService;
 import ta.dao.TAProfileDAO;
 import ta.entity.TAProfile;
 
-import java.util.List;
-
 /**
  * TA 个人信息业务服务
  * 负责 TA 个人信息的业务逻辑处理
  * 
  * @author Can Chen
- * @version 1.0
+ * @version 2.0 - 移除对 TA 对象的冗余同步
  */
 public class TAProfileService {
     
@@ -51,6 +51,7 @@ public class TAProfileService {
     
     /**
      * 保存 TA 个人信息
+     * 修改：不再同步更新 TA 对象中的冗余字段
      */
     public void saveProfile(TAProfile profile) {
         if (profile == null) {
@@ -70,16 +71,8 @@ public class TAProfileService {
         profile.saveProfile();
         profileDAO.save(profile);
         
-        // 同步更新 TA 对象中的基本信息
-        TA ta = (TA) user;
-        ta.setName(profile.getFullName());
-        ta.setMajor(profile.getMajor());
-        ta.setGrade(profile.getGradeDisplayName());
-        ta.setSkillTags(profile.getSkillTags());
-        ta.setAvailableWorkingHours(profile.getAvailableWorkingHours());
-        
-        // 保存用户信息
-        userService.updateUser(ta);
+        // 移除：不再同步更新 TA 对象中的冗余字段
+        // TA 对象只保留账户信息，个人资料统一从 TAProfile 获取
     }
     
     /**

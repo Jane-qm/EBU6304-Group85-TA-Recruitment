@@ -1,0 +1,57 @@
+[
+  {
+    "jobId": 2001,
+    "moUserId": 100002,
+    "moduleCode": "EBU6304",
+    "title": "Teaching Assistant",
+    "description": "Support labs and coursework marking.",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "OPEN",
+    "createdAt": "2026-03-31T23:35:59.063262"
+  },
+  {
+    "jobId": 2002,
+    "moUserId": 100007,
+    "moduleCode": "EBU6304",
+    "title": "Teaching Assistant",
+    "description": "Support labs and coursework marking.",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "OPEN",
+    "createdAt": "2026-04-02T14:42:15.8203147"
+  },
+  {
+    "jobId": 2003,
+    "moUserId": 100007,
+    "moduleCode": "EBU6304",
+    "title": "Teaching Assistant",
+    "description": "Support labs and coursework marking.",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "OPEN",
+    "createdAt": "2026-04-02T16:42:39.9555814"
+  },
+  {
+    "jobId": 2004,
+    "moUserId": 100012,
+    "moduleCode": "EBU6304",
+    "title": "teaching assistant",
+    "description": "Skills: none\nHeadcount: 5\nDeadline: 2026.4.20\nDetails: none",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "WITHDRAWN",
+    "createdAt": "2026-04-02T22:28:48.6619327"
+  },
+  {
+    "jobId": 2005,
+    "moUserId": 100012,
+    "moduleCode": "EBU6305",
+    "title": "Maths",
+    "description": "Skills: none\nHeadcount: 5\nDeadline: 5.1\nDetails: none",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "OPEN",
+    "createdAt": "2026-04-04T17:41:48.9819552"
+  }
+]
