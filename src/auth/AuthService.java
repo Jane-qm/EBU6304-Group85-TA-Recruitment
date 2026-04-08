@@ -1,10 +1,20 @@
 package auth;
 
-import common.entity.AccountStatus;
 import common.entity.User;
 import common.entity.UserRole;
 import common.service.UserService;
 
+/**
+ * Authentication service.
+ * Handles registration, login, password reset, and account checks.
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Refined registration flow to keep role-based account status logic inside UserService
+ * - Removed duplicated status override during registration
+ * - Kept authentication responsibilities focused on validation and routing support
+ */
 public class AuthService {
 
     private static final UserService USER_SERVICE = new UserService();
@@ -20,10 +30,9 @@ public class AuthService {
             throw new IllegalArgumentException(
                     "Only university email is allowed (e.g. user" + UNIVERSITY_DOMAIN + ").");
         }
-        User user = USER_SERVICE.register(normalized, password, role);
-        user.setStatus(AccountStatus.PENDING);
-        USER_SERVICE.saveUser(user);
-        return user;
+
+        // Keep role-based status logic inside UserService.
+        return USER_SERVICE.register(normalized, password, role);
     }
 
     public User login(String email, String password) {
@@ -33,7 +42,7 @@ public class AuthService {
     }
 
     public boolean isAccountValid(User user) {
-        return user != null && user.getStatus() == AccountStatus.ACTIVE;
+        return user != null && user.getStatus() == common.entity.AccountStatus.ACTIVE;
     }
 
     public String getAccountStatusMessage(User user) {
@@ -80,6 +89,9 @@ public class AuthService {
     private static void validatePassword(String password) {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Password must not be empty.");
+        }
+        if (password.length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters.");
         }
     }
 }

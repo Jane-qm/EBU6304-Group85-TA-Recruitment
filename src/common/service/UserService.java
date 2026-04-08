@@ -20,6 +20,12 @@ import common.entity.UserRole;
  * 
  * @author Can Chen
  * @version 2.0
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added strict super-admin validation support
+ * - Improved email normalization during user updates
  */
 public class UserService {
     
@@ -185,25 +191,36 @@ public class UserService {
     }
 
     /**
- * 根据 ID 查找用户
- */
-public User findById(Long userId) {
-    for (User user : usersByEmail.values()) {
-        if (user.getUserId() != null && user.getUserId().equals(userId)) {
-            return user;
+     * 根据 ID 查找用户
+     */
+    public User findById(Long userId) {
+        for (User user : usersByEmail.values()) {
+            if (user.getUserId() != null && user.getUserId().equals(userId)) {
+                return user;
+            }
         }
+        return null;
     }
-    return null;
-}
 
-/**
- * 更新用户信息
- */
-public void updateUser(User user) {
-    if (user == null || user.getEmail() == null) {
-        return;
+    /**
+     * 更新用户信息
+     */
+    public void updateUser(User user) {
+        if (user == null || user.getEmail() == null) {
+            return;
+        }
+        usersByEmail.put(normalizeEmail(user.getEmail()), user);
+        saveToFile();
     }
-    usersByEmail.put(user.getEmail(), user);
-    saveToFile();
-}
+
+    /**
+     * Validates the strict super-admin rule.
+     * Only admin@test.com with ACTIVE status can enter the admin portal.
+     */
+    public boolean isStrictAdmin(User user) {
+        return user != null
+                && user.getRole() == UserRole.ADMIN
+                && "admin@test.com".equalsIgnoreCase(user.getEmail())
+                && user.getStatus() == AccountStatus.ACTIVE;
+    }
 }

@@ -3,6 +3,7 @@ package auth;
 import common.entity.User;
 import common.entity.UserRole;
 import common.service.PermissionService;
+import common.service.UserService;
 import javax.swing.*;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
@@ -71,6 +72,10 @@ import ta.ui.TAMainFrame;
  * @author Can Chen
  * @version 5.0
  * @update 添加 TA 登录跳转到 TAMainFrame
+ *
+ * @author Jiaze Wang
+ * @version 6.0
+ * @update Add strict super-admin access validation before routing to Admin Portal
  */
 
 /**
@@ -371,12 +376,22 @@ public class LoginFrame extends BaseFrame {
                         showError(authService.getAccountStatusMessage(user));
                         return;
                     }
-                    // 5. Pending accounts continue directly in demo flow.
+
+                    // 5. Enforce strict super-admin rule before routing to Admin Portal.
+                    if (user.getRole() == UserRole.ADMIN) {
+                        UserService userService = new UserService();
+                        if (!userService.isStrictAdmin(user)) {
+                            showError("Only active super admin account admin@test.com can access Admin Portal.");
+                            return;
+                        }
+                    }
+
+                    // 6. Pending accounts continue directly in demo flow.
                     if (user.getStatus() == common.entity.AccountStatus.PENDING) {
                         // No popup; continue to role-based routing directly.
                     }
 
-                    // 6. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
+                    // 7. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
                         new AdminHomeFrame(user).setVisible(true);
                         dispose();
@@ -496,22 +511,29 @@ public class LoginFrame extends BaseFrame {
             g2.setColor(color);
             if (thickness > 0) {
                 g2.setStroke(new BasicStroke(thickness));
-                g2.drawRoundRect(x, y, width - 1, height - 1, radius, radius);
             }
+            g2.drawRoundRect(
+                    x + thickness / 2,
+                    y + thickness / 2,
+                    width - thickness,
+                    height - thickness,
+                    radius,
+                    radius
+            );
             g2.dispose();
         }
 
         @Override
         public Insets getBorderInsets(Component c) {
-            return new Insets(10, 10, 10, 10);
+            return new Insets(radius / 2, radius / 2, radius / 2, radius / 2);
         }
 
         @Override
         public Insets getBorderInsets(Component c, Insets insets) {
-            insets.left = 10;
-            insets.right = 10;
-            insets.top = 10;
-            insets.bottom = 10;
+            insets.left = radius / 2;
+            insets.right = radius / 2;
+            insets.top = radius / 2;
+            insets.bottom = radius / 2;
             return insets;
         }
     }
