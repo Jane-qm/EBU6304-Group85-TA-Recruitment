@@ -396,7 +396,10 @@ public class AdminHomeFrame extends JFrame {
                             })
                             .toList()
             );
-            default -> loadGenericTable(new String[]{"Info"}, List.of(new Object[]{"No dataset selected"}));
+            default -> loadGenericTable(
+        		new String[]{"Info"},
+       			java.util.Collections.singletonList(new Object[]{"No dataset selected"})
+);
         }
     }
 
