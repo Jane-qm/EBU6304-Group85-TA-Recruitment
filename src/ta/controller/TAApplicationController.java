@@ -1,4 +1,3 @@
-// ta/controller/TAApplicationController.java
 package ta.controller;
 
 import java.util.List;
@@ -13,7 +12,6 @@ import common.service.MOJobService;
 import common.service.NotificationService;
 import ta.entity.TAApplication;
 import ta.service.TAApplicationService;
-
 
 public class TAApplicationController {
     
@@ -74,40 +72,40 @@ public class TAApplicationController {
     /**
      * 获取可申请的职位（TA 未申请过的）
      */
-public List<MOJob> getAvailableJobs(Long taUserId) {
-    List<MOJob> allJobs = jobService.listPublishedJobs();
-    
-    // 获取 TA 所有申请记录
-    List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
-    
-    // 需要排除的 jobId（活跃申请 + 被拒绝的申请）
-    List<Long> excludedJobIds = applications.stream()
-            .filter(a -> {
-                String status = a.getStatus();
-                // 活跃申请：待审核或候补（不可重新申请）
-                if (ApplicationStatus.isAwaitingReview(status) || 
-                    ApplicationStatus.WAITLISTED.equals(status)) {
-                    return true;
-                }
-                // 被拒绝的申请（不可重新申请）
-                if (ApplicationStatus.isRejected(status)) {
-                    return true;
-                }
-                // 已取消的申请（可以重新申请，不排除）
-                return false;
-            })
-            .map(TAApplication::getJobId)
-            .collect(Collectors.toList());
-    
-    return allJobs.stream()
-            .filter(job -> !excludedJobIds.contains(job.getJobId()))
-            .collect(Collectors.toList());
-}
+    public List<MOJob> getAvailableJobs(Long taUserId) {
+        List<MOJob> allJobs = jobService.listPublishedJobs();
+        
+        // 获取 TA 所有申请记录
+        List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
+        
+        // 需要排除的 jobId（活跃申请 + 被拒绝的申请）
+        List<Long> excludedJobIds = applications.stream()
+                .filter(a -> {
+                    String status = a.getStatus();
+                    // 活跃申请：待审核或候补（不可重新申请）
+                    if (ApplicationStatus.isAwaitingReview(status) || 
+                        ApplicationStatus.WAITLISTED.equals(status)) {
+                        return true;
+                    }
+                    // 被拒绝的申请（不可重新申请）
+                    if (ApplicationStatus.isRejected(status)) {
+                        return true;
+                    }
+                    // 已取消的申请（可以重新申请，不排除）
+                    return false;
+                })
+                .map(TAApplication::getJobId)
+                .collect(Collectors.toList());
+        
+        return allJobs.stream()
+                .filter(job -> !excludedJobIds.contains(job.getJobId()))
+                .collect(Collectors.toList());
+    }
     
     /**
-     * 提交申请（带用户反馈和限制检查）
+     * 提交申请（带用户反馈、限制检查和 CV 选择）
      */
-    public boolean submitApplicationWithFeedback(Long taUserId, Long jobId, String statement, JFrame parent) {
+    public boolean submitApplicationWithFeedback(Long taUserId, Long jobId, String statement, Long cvId, JFrame parent) {
         // 检查申请数量限制
         if (!canSubmitMoreApplications(taUserId)) {
             JOptionPane.showMessageDialog(parent, 
@@ -118,13 +116,16 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         }
         
         try {
-            TAApplication application = applicationService.submitApplication(taUserId, jobId, statement);
+            TAApplication application = applicationService.submitApplication(taUserId, jobId, statement, cvId);
             JOptionPane.showMessageDialog(parent, 
                 "Application submitted successfully!\n\n" + buildApplicationSummary(application),
                 "Success", JOptionPane.INFORMATION_MESSAGE);
             return true;
         } catch (IllegalStateException e) {
             JOptionPane.showMessageDialog(parent, e.getMessage(), "Cannot Apply", JOptionPane.WARNING_MESSAGE);
+            return false;
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(parent, e.getMessage(), "Invalid Input", JOptionPane.WARNING_MESSAGE);
             return false;
         } catch (Exception e) {
             JOptionPane.showMessageDialog(parent, "System error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -203,14 +204,14 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
     }
     
     /**
-     * 获取申请显示状态（完善版）
+     * 获取申请显示状态
      */
     public String getDisplayStatus(TAApplication application) {
         return ApplicationStatus.getDisplayText(application.getStatus());
     }
     
     /**
-     * 获取反馈信息（完善版）
+     * 获取反馈信息
      */
     public String getFeedbackMessage(TAApplication application) {
         return ApplicationStatus.getFeedbackMessage(application.getStatus());
@@ -259,42 +260,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         
         public long getTotal() {
             return accepted + pending + rejected;
-        }
-    }
-
-    /**
-     * 提交申请（带用户反馈、限制检查和 CV 选择）
-     * @param taUserId TA用户ID
-     * @param jobId 职位ID
-     * @param statement 申请陈述
-     * @param cvId 选中的CV ID
-     * @param parent 父窗口
-     */
-    public boolean submitApplicationWithFeedback(Long taUserId, Long jobId, String statement, Long cvId, JFrame parent) {
-        // 检查申请数量限制
-        if (!canSubmitMoreApplications(taUserId)) {
-            JOptionPane.showMessageDialog(parent, 
-                "You can only have " + MAX_ACTIVE_APPLICATIONS + " active applications at once.\n" +
-                "Please wait for a decision on your existing applications before applying for more.",
-                "Application Limit Reached", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-        
-        try {
-            TAApplication application = applicationService.submitApplication(taUserId, jobId, statement, cvId);
-            JOptionPane.showMessageDialog(parent, 
-                "Application submitted successfully!\n\n" + buildApplicationSummary(application),
-                "Success", JOptionPane.INFORMATION_MESSAGE);
-            return true;
-        } catch (IllegalStateException e) {
-            JOptionPane.showMessageDialog(parent, e.getMessage(), "Cannot Apply", JOptionPane.WARNING_MESSAGE);
-            return false;
-        } catch (IllegalArgumentException e) {
-            JOptionPane.showMessageDialog(parent, e.getMessage(), "Invalid Input", JOptionPane.WARNING_MESSAGE);
-            return false;
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(parent, "System error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
         }
     }
 }
