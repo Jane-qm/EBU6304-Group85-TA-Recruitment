@@ -1,10 +1,12 @@
 package common.util;
 
+import common.entity.User;
+
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +22,7 @@ public final class CsvExportUtil {
 
     /**
      * Exports a list of objects to a CSV file using reflection.
+     * This method is suitable for homogeneous object lists.
      */
     public static <T> Path exportObjects(String fileName, List<T> rows) throws IOException {
         Path exportDir = Path.of("exports");
@@ -62,10 +65,38 @@ public final class CsvExportUtil {
     }
 
     /**
+     * Exports user data using common fields only.
+     * This avoids reflection issues caused by mixed subclasses such as TA, MO, and Admin.
+     */
+    public static Path exportUsers(String fileName, List<User> users) throws IOException {
+        Path exportDir = Path.of("exports");
+        Files.createDirectories(exportDir);
+
+        Path filePath = exportDir.resolve(fileName);
+
+        StringBuilder builder = new StringBuilder();
+        builder.append("\"userId\",\"email\",\"role\",\"status\",\"createdAt\",\"lastLogin\"\n");
+
+        if (users != null) {
+            for (User user : users) {
+                builder.append(escape(user.getUserId() == null ? "" : String.valueOf(user.getUserId()))).append(",");
+                builder.append(escape(user.getEmail())).append(",");
+                builder.append(escape(user.getRole() == null ? "" : String.valueOf(user.getRole()))).append(",");
+                builder.append(escape(user.getStatus() == null ? "" : String.valueOf(user.getStatus()))).append(",");
+                builder.append(escape(user.getCreatedAt() == null ? "" : String.valueOf(user.getCreatedAt()))).append(",");
+                builder.append(escape(user.getLastLogin() == null ? "" : String.valueOf(user.getLastLogin()))).append("\n");
+            }
+        }
+
+        Files.writeString(filePath, builder.toString(), StandardCharsets.UTF_8);
+        return filePath;
+    }
+
+    /**
      * Escapes a CSV field.
      */
     private static String escape(String value) {
-        String safe = value.replace("\"", "\"\"");
+        String safe = value == null ? "" : value.replace("\"", "\"\"");
         return "\"" + safe + "\"";
     }
 }

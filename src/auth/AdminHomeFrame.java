@@ -424,7 +424,7 @@ public class AdminHomeFrame extends JFrame {
 
         try {
             Path filePath = switch (selected) {
-                case "Users" -> CsvExportUtil.exportObjects("users.csv", userService.listAllUsers());
+                case "Users" -> CsvExportUtil.exportUsers("users.csv", userService.listAllUsers());
                 case "TA Profiles" -> CsvExportUtil.exportObjects("ta_profiles.csv", taProfileDAO.findAll());
                 case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
                 case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
