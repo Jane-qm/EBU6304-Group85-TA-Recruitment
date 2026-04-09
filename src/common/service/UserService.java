@@ -20,6 +20,19 @@ import common.entity.UserRole;
  * 
  * @author Can Chen
  * @version 2.0
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added strict super-admin validation support
+ * - Improved email normalization during user updates
+ *
+ * @version 2.2
+ * @contributor Jiaze Wang
+ * @update
+ * - Added admin-oriented account lifecycle management methods
+ * - Added user listing support for admin operations
+ * - Added account status update, approval, disable, and password reset methods
  */
 public class UserService {
     
@@ -230,6 +243,84 @@ public class UserService {
         return null;
     }
 
+    /**
+     * 更新用户信息
+     */
+    public void updateUser(User user) {
+        if (user == null || user.getEmail() == null) {
+            return;
+        }
+        usersByEmail.put(normalizeEmail(user.getEmail()), user);
+        saveToFile();
+    }
+
+    /**
+     * Validates the strict super-admin rule.
+     * Only admin@test.com with ACTIVE status can enter the admin portal.
+     */
+    public boolean isStrictAdmin(User user) {
+        return user != null
+                && user.getRole() == UserRole.ADMIN
+                && "admin@test.com".equalsIgnoreCase(user.getEmail())
+                && user.getStatus() == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Returns all users sorted by user ID.
+     */
+    public List<User> listAllUsers() {
+        return usersByEmail.values().stream()
+                .sorted((a, b) -> {
+                    Long aId = a.getUserId() == null ? 0L : a.getUserId();
+                    Long bId = b.getUserId() == null ? 0L : b.getUserId();
+                    return aId.compareTo(bId);
+                })
+                .toList();
+    }
+
+    /**
+     * Updates account status.
+     */
+    public void updateAccountStatus(String email, AccountStatus newStatus) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(newStatus);
+        saveUser(user);
+    }
+
+    /**
+     * Approves an MO account.
+     */
+    public void approveMoAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null || user.getRole() != UserRole.MO) {
+            throw new IllegalArgumentException("MO account not found: " + email);
+        }
+        user.setStatus(AccountStatus.ACTIVE);
+        saveUser(user);
+    }
+
+    /**
+     * Disables an account.
+     */
+    public void disableAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(AccountStatus.DISABLED);
+        saveUser(user);
+    }
+
+    /**
+     * Resets a user's password as an administrator action.
+     */
+    public void resetPasswordByAdmin(String email, String newPassword) {
+        updatePassword(email, newPassword);
+    }
+}
 /**
  * 【新增】：获取所有申请者（TA角色）的列表
  */
