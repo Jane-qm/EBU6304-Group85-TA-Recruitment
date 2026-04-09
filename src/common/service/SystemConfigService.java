@@ -3,12 +3,19 @@ package common.service;
 import common.dao.JsonPersistenceManager;
 import common.entity.SystemConfig;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 /**
  * Service class for global system configuration.
  *
  * Contributor: Jiaze Wang
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added date-based validation helpers for MO job deadline enforcement
  */
 public class SystemConfigService {
     private final JsonPersistenceManager persistenceManager = new JsonPersistenceManager();
@@ -65,5 +72,28 @@ public class SystemConfigService {
 
         return !dateTime.isBefore(config.getApplicationStart())
                 && !dateTime.isAfter(config.getApplicationEnd());
+    }
+
+    /**
+     * Checks whether a date-only deadline falls within the configured application cycle.
+     * The end of the deadline day is used so that the whole date remains valid.
+     */
+    public boolean isDateWithinApplicationCycle(LocalDate date) {
+        if (date == null) {
+            return false;
+        }
+        LocalDateTime dateTime = LocalDateTime.of(date, LocalTime.MAX);
+        return isWithinApplicationCycle(dateTime);
+    }
+
+    /**
+     * Validates a date-only deadline against the configured application cycle.
+     */
+    public void validateDateWithinApplicationCycle(LocalDate date) {
+        if (!isDateWithinApplicationCycle(date)) {
+            throw new IllegalArgumentException(
+                    "Job deadline must fall within the configured application cycle."
+            );
+        }
     }
 }
