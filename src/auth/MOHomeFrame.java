@@ -1,18 +1,24 @@
 package auth;
 
+import java.awt.GridLayout;
+import java.util.List;
+
+import javax.swing.BorderFactory;              // 改为 ta.entity
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;      // 改为 ta.service
+
 import common.entity.MOJob;
 import common.entity.MOOffer;
-import common.entity.TAApplication;
 import common.entity.User;
 import common.service.MOJobService;
 import common.service.MOOfferService;
 import common.service.NotificationService;
-import common.service.TAApplicationService;
 import common.ui.NotificationPopup;
-
-import javax.swing.*;
-import java.awt.*;
-import java.util.List;
+import ta.entity.TAApplication;
+import ta.service.TAApplicationService;
 
 public class MOHomeFrame extends JFrame {
     private final User currentUser;
@@ -84,9 +90,9 @@ public class MOHomeFrame extends JFrame {
 
         JButton hireBtn = new JButton("Hire First Submitted TA");
         hireBtn.addActionListener(e -> {
-            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
             if (submitted.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
                 return;
             }
 
@@ -105,14 +111,25 @@ public class MOHomeFrame extends JFrame {
 
         JButton rejectBtn = new JButton("Reject First Submitted TA");
         rejectBtn.addActionListener(e -> {
-            List<TAApplication> submitted = applicationService.listByStatus("SUBMITTED");
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
             if (submitted.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No submitted applications found.");
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
                 return;
             }
             TAApplication target = submitted.get(0);
             applicationService.rejectApplication(target.getApplicationId());
             JOptionPane.showMessageDialog(this, "Application rejected and TA notified.\nApplication ID: " + target.getApplicationId());
+        });
+
+        JButton waitlistBtn = new JButton("Waitlist first awaiting (demo)");
+        waitlistBtn.addActionListener(e -> {
+            List<TAApplication> submitted = applicationService.listApplicationsAwaitingReview();
+            if (submitted.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "No applications awaiting review.");
+                return;
+            }
+            applicationService.markAsWaitlisted(submitted.get(0).getApplicationId());
+            JOptionPane.showMessageDialog(this, "TA waitlisted and notified.");
         });
 
         JButton notificationsBtn = new JButton("View Notifications");
@@ -124,6 +141,7 @@ public class MOHomeFrame extends JFrame {
         panel.add(offerBtn);
         panel.add(hireBtn);
         panel.add(rejectBtn);
+        panel.add(waitlistBtn);
         panel.add(notificationsBtn);
         panel.add(logoutBtn);
         setContentPane(panel);

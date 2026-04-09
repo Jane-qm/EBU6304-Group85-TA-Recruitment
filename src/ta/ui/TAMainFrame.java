@@ -1,19 +1,10 @@
 package ta.ui;
 
-import auth.LoginFrame;
-import common.entity.MOJob;
-import common.entity.MOOffer;
-import common.entity.TA;
-import common.entity.TAApplication;
-import common.entity.User;
-import common.service.MOJobService;
-import common.service.MOOfferService;
-import common.service.NotificationService;
-import common.service.TAApplicationService;
-import common.ui.BaseFrame;
-import common.ui.NotificationPopup;
-import ta.service.CVService;
-import ta.service.TAProfileService;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -21,291 +12,388 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
+import javax.swing.JSeparator;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.util.List;
+
+import auth.LoginFrame;
+import common.entity.TA;
+import common.entity.User;
+import common.service.NotificationService;
+import common.ui.BaseFrame;
+import common.ui.NotificationPopup;
+import ta.controller.TAApplicationController;
+import ta.controller.TAAuthController;
+
 
 public class TAMainFrame extends BaseFrame {
+    
     private final TA ta;
-    private final TAProfileService profileService;
-    private final CVService cvService;
-    private final MOJobService jobService;
-    private final TAApplicationService applicationService;
-    private final MOOfferService offerService;
+    
+    private final TAApplicationController applicationController;
+    private final TAAuthController authController;
     private final NotificationService notificationService;
-
-    /***
-     * Users can browse published positions, submit applications, view their own applications/offers, 
-     * and see if they currently meet the application requirements.
-     */
+    
+    // 面板组件
+    private JPanel contentPanel;
+    private java.awt.CardLayout cardLayout;
+    
+    // 各个功能面板
+    private TADashboardPanel dashboardPanel;
+    private TACourseCatalogPanel courseCatalogPanel;
+    private TAApplicationsPanel applicationsPanel;
+    private TAProfilePanel profilePanel;
+    private TAWorkloadPanel workloadPanel;
+    
+    // 导航按钮
+    private JButton dashboardBtn;
+    private JButton courseCatalogBtn;
+    private JButton applicationsBtn;
+    private JButton profileBtn;
+    private JButton workloadBtn;
+    
+    // 颜色常量
+    private static final Color SIDEBAR_BG = new Color(30, 35, 45);
+    private static final Color NAV_ACTIVE_BG = new Color(37, 99, 235);
+    private static final Color NAV_HOVER_BG = new Color(55, 65, 81);
+    private static final Color NAV_ACTIVE_FG = Color.WHITE;
+    private static final Color NAV_INACTIVE_FG = new Color(156, 163, 175);
+    
+    // 当前选中的按钮
+    private JButton currentActiveBtn = null;
 
     public TAMainFrame(User user) {
-        super("TA Recruitment System - Dashboard", 1100, 700);
+        super("TA Recruitment System - Dashboard", 1200, 750);
         this.ta = (TA) user;
-        this.profileService = new TAProfileService();
-        this.cvService = new CVService();
-        this.jobService = new MOJobService();
-        this.applicationService = new TAApplicationService();
-        this.offerService = new MOOfferService();
+        
+        this.applicationController = new TAApplicationController();
+        this.authController = new TAAuthController();
         this.notificationService = new NotificationService();
+        
         initUI();
     }
 
     @Override
     protected void initUI() {
-        JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(new Color(245, 247, 251));
-        root.add(createSidebar(), BorderLayout.WEST);
-        root.add(createContentPanel(), BorderLayout.CENTER);
-        setContentPane(root);
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(new Color(248, 250, 252));
+
+        mainPanel.add(createSidebar(), BorderLayout.WEST);
+        mainPanel.add(createMainContent(), BorderLayout.CENTER);
+
+        setContentPane(mainPanel);
     }
 
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
-        sidebar.setBackground(new Color(37, 99, 235));
-        sidebar.setPreferredSize(new Dimension(250, getHeight()));
-        sidebar.setBorder(new EmptyBorder(24, 18, 24, 18));
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setPreferredSize(new Dimension(280, getHeight()));
+        sidebar.setBorder(new EmptyBorder(28, 20, 28, 20));
 
-        JLabel title = new JLabel("TA Recruitment");
-        title.setForeground(Color.WHITE);
-        title.setFont(new Font("SansSerif", Font.BOLD, 22));
+        // Logo 区域
+        JPanel logoPanel = new JPanel();
+        logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
+        logoPanel.setBackground(SIDEBAR_BG);
+        logoPanel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        JLabel logoLabel = new JLabel("TA Recruit");
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setForeground(Color.WHITE);
+        logoLabel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        JLabel logoSubLabel = new JLabel("Teaching Assistant System");
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setForeground(new Color(107, 114, 128));
+        logoSubLabel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        logoPanel.add(logoLabel);
+        logoPanel.add(Box.createVerticalStrut(4));
+        logoPanel.add(logoSubLabel);
+        
+        sidebar.add(logoPanel);
+        sidebar.add(Box.createVerticalStrut(36));
 
-        JLabel userLabel = new JLabel(ta.getEmail());
-        userLabel.setForeground(new Color(219, 234, 254));
-        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        userLabel.setBorder(new EmptyBorder(8, 0, 24, 0));
+        // 导航按钮 - 使用类似 LoginFrame 的 Tab 风格
+        dashboardBtn = createNavButton("Dashboard", "🏠");
+        courseCatalogBtn = createNavButton("Course Catalog", "📚");
+        applicationsBtn = createNavButton("My Applications", "📝");
+        profileBtn = createNavButton("My Profile", "👤");
+        workloadBtn = createNavButton("Workload Tracking", "⏱️");
+        
+        sidebar.add(dashboardBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(courseCatalogBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(applicationsBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(profileBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(workloadBtn);
 
-        JButton profileBtn = createSidebarButton("My Profile");
-        profileBtn.addActionListener(e -> {
-            new TAProfileFrame(ta).setVisible(true);
-            dispose();
+        sidebar.add(Box.createVerticalGlue());
+
+        // 分隔线
+        JSeparator separator = new JSeparator();
+        separator.setForeground(new Color(55, 65, 81));
+        separator.setMaximumSize(new Dimension(240, 1));
+        separator.setAlignmentX(LEFT_ALIGNMENT);
+        sidebar.add(separator);
+        sidebar.add(Box.createVerticalStrut(20));
+
+        // 底部用户信息
+        JPanel userPanel = new JPanel();
+        userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
+        userPanel.setBackground(SIDEBAR_BG);
+        userPanel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        String displayName = authController.getDisplayName(ta);
+        JLabel userLabel = new JLabel(displayName);
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setForeground(Color.WHITE);
+        userLabel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
+        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        roleLabel.setForeground(new Color(107, 114, 128));
+        roleLabel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        userPanel.add(userLabel);
+        userPanel.add(Box.createVerticalStrut(4));
+        userPanel.add(roleLabel);
+        
+        sidebar.add(userPanel);
+        sidebar.add(Box.createVerticalStrut(16));
+        
+        // 退出按钮
+        JButton logoutBtn = createLogoutButton();
+        sidebar.add(logoutBtn);
+        
+        // 设置默认选中 Dashboard
+        setActiveButton(dashboardBtn);
+
+        return sidebar;
+    }
+    
+    /**
+     * 创建导航按钮 - 类似 LoginFrame 的 Tab 风格
+     */
+    private JButton createNavButton(String text, String icon) {
+        JButton button = new JButton(icon + "  " + text);
+        button.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setBackground(SIDEBAR_BG);
+        button.setForeground(NAV_INACTIVE_FG);
+        button.setMaximumSize(new Dimension(240, 48));
+        button.setPreferredSize(new Dimension(240, 48));
+        button.setMinimumSize(new Dimension(240, 48));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        
+        // 添加悬停效果
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                if (button != currentActiveBtn) {
+                    button.setBackground(NAV_HOVER_BG);
+                }
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                if (button != currentActiveBtn) {
+                    button.setBackground(SIDEBAR_BG);
+                }
+            }
         });
-
-        JButton notificationsBtn = createSidebarButton("System Notifications");
-        notificationsBtn.addActionListener(e ->
-                NotificationPopup.showUnreadNotifications(this, ta, notificationService));
-
-        JButton logoutBtn = createSidebarButton("Logout");
-        logoutBtn.addActionListener(e -> {
+        
+        button.addActionListener(e -> {
+            switchPanel(text);
+            setActiveButton(button);
+        });
+        
+        return button;
+    }
+    
+    /**
+     * 创建退出按钮
+     */
+    private JButton createLogoutButton() {
+        JButton button = new JButton("🚪  Sign Out");
+        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setBackground(SIDEBAR_BG);
+        button.setForeground(new Color(239, 68, 68));
+        button.setMaximumSize(new Dimension(240, 44));
+        button.setPreferredSize(new Dimension(240, 44));
+        button.setMinimumSize(new Dimension(240, 44));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(NAV_HOVER_BG);
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(SIDEBAR_BG);
+            }
+        });
+        
+        button.addActionListener(e -> {
             new LoginFrame().setVisible(true);
             dispose();
         });
-
-        sidebar.add(title);
-        sidebar.add(userLabel);
-        sidebar.add(profileBtn);
-        sidebar.add(Box.createVerticalStrut(10));
-        sidebar.add(notificationsBtn);
-        sidebar.add(Box.createVerticalGlue());
-        sidebar.add(logoutBtn);
-        return sidebar;
-    }
-
-    private JButton createSidebarButton(String text) {
-        JButton button = new JButton(text);
-        button.setMaximumSize(new Dimension(220, 42));
-        button.setAlignmentX(LEFT_ALIGNMENT);
-        button.setFocusPainted(false);
-        button.setForeground(new Color(17, 24, 39));
-        button.setBackground(Color.WHITE);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
         return button;
     }
-
-    private JPanel createContentPanel() {
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(new Color(245, 247, 251));
-        content.setBorder(new EmptyBorder(24, 30, 24, 30));
-
-        JLabel welcome = new JLabel("Welcome, " + (ta.getName() == null ? ta.getEmail() : ta.getName()));
-        welcome.setFont(new Font("SansSerif", Font.BOLD, 28));
-        welcome.setForeground(new Color(17, 24, 39));
-
-        JLabel status = new JLabel(buildEligibilitySummary());
-        status.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        status.setForeground(new Color(75, 85, 99));
-        status.setBorder(new EmptyBorder(8, 0, 20, 0));
-
-        content.add(welcome);
-        content.add(status);
-        content.add(createActionPanel());
-        content.add(Box.createVerticalStrut(20));
-        content.add(createSectionCard("My Applications", createApplicationsTable()));
-        content.add(Box.createVerticalStrut(20));
-        content.add(createSectionCard("Published Positions", createJobsTable()));
-        content.add(Box.createVerticalStrut(20));
-        content.add(createSectionCard("My Offers", createOffersTable()));
-
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setBackground(new Color(245, 247, 251));
-        wrapper.add(new JScrollPane(content), BorderLayout.CENTER);
-        return wrapper;
-    }
-
-    private JPanel createActionPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
-        panel.setOpaque(false);
-
-        JButton applyBtn = new JButton("Apply for First Published Job");
-        applyBtn.addActionListener(e -> applyForFirstPublishedJob());
-
-        JButton rejectOfferBtn = new JButton("Reject Latest Offer");
-        rejectOfferBtn.addActionListener(e -> rejectLatestOffer());
-
-        JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.addActionListener(e -> {
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
-        });
-
-        panel.add(applyBtn);
-        panel.add(rejectOfferBtn);
-        panel.add(refreshBtn);
-        return panel;
-    }
-
-    private JPanel createSectionCard(String title, JScrollPane tablePane) {
-        JPanel card = new JPanel(new BorderLayout());
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 224, 230)),
-                new EmptyBorder(16, 16, 16, 16)
-        ));
-
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        titleLabel.setBorder(new EmptyBorder(0, 0, 12, 0));
-
-        card.add(titleLabel, BorderLayout.NORTH);
-        card.add(tablePane, BorderLayout.CENTER);
-        return card;
-    }
-
-    private JScrollPane createApplicationsTable() {
-        String[] columns = {"Application ID", "Job ID", "Status", "Statement"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
+    
+    /**
+     * 设置激活按钮样式
+     */
+    private void setActiveButton(JButton button) {
+        // 重置所有按钮样式
+        JButton[] buttons = {dashboardBtn, courseCatalogBtn, applicationsBtn, profileBtn, workloadBtn};
+        for (JButton btn : buttons) {
+            if (btn != null) {
+                btn.setBackground(SIDEBAR_BG);
+                btn.setForeground(NAV_INACTIVE_FG);
+                btn.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
             }
-        };
-
-        for (TAApplication application : applicationService.listByTaUserId(ta.getUserId())) {
-            model.addRow(new Object[]{
-                    application.getApplicationId(),
-                    application.getJobId(),
-                    application.getStatus(),
-                    application.getStatement()
-            });
         }
-        return buildTable(model);
-    }
-
-    private JScrollPane createJobsTable() {
-        String[] columns = {"Job ID", "Module", "Title", "Hours", "Status"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        for (MOJob job : jobService.listPublishedJobs()) {
-            model.addRow(new Object[]{
-                    job.getJobId(),
-                    job.getModuleCode(),
-                    job.getTitle(),
-                    job.getWeeklyHours(),
-                    job.getStatus()
-            });
+        
+        // 设置当前按钮为激活状态
+        currentActiveBtn = button;
+        if (button != null) {
+            button.setBackground(NAV_ACTIVE_BG);
+            button.setForeground(NAV_ACTIVE_FG);
+            button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
         }
-        return buildTable(model);
     }
-
-    private JScrollPane createOffersTable() {
-        String[] columns = {"Offer ID", "Module", "Hours", "Status"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        for (MOOffer offer : offerService.listByTaUserId(ta.getUserId())) {
-            model.addRow(new Object[]{
-                    offer.getOfferId(),
-                    offer.getModuleCode(),
-                    offer.getOfferedHours(),
-                    offer.getStatus()
-            });
-        }
-        return buildTable(model);
-    }
-
-    private JScrollPane buildTable(DefaultTableModel model) {
-        JTable table = new JTable(model);
-        table.setRowHeight(32);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
-        table.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        JScrollPane pane = new JScrollPane(table);
-        pane.setPreferredSize(new Dimension(720, 170));
-        return pane;
-    }
-
-    private String buildEligibilitySummary() {
-        boolean profileComplete = profileService.isProfileComplete(ta.getUserId());
-        boolean hasCv = cvService.hasCV(ta.getUserId());
-        return "Application access: "
-                + (profileComplete ? "profile complete" : "profile incomplete")
-                + ", "
-                + (hasCv ? "CV uploaded" : "CV missing")
-                + ". Unpublished jobs are hidden from TA users.";
-    }
-
-    private void applyForFirstPublishedJob() {
-        try {
-            List<MOJob> jobs = jobService.listPublishedJobs();
-            if (jobs.isEmpty()) {
-                showWarning("No published jobs are available.");
+    
+    /**
+     * 切换到指定面板
+     */
+    public void switchPanel(String panelName) {
+        String cardName = "";
+        
+        switch (panelName) {
+            case "Dashboard":
+                cardName = "DASHBOARD";
+                break;
+            case "Course Catalog":
+                cardName = "COURSE_CATALOG";
+                break;
+            case "My Applications":
+                cardName = "APPLICATIONS";
+                break;
+            case "My Profile":
+                cardName = "PROFILE";
+                break;
+            case "Workload Tracking":
+                cardName = "WORKLOAD";
+                break;
+            default:
                 return;
-            }
-            TAApplication application = applicationService.submitApplication(
-                    ta.getUserId(),
-                    jobs.get(0).getJobId(),
-                    "Submitted from TA dashboard."
-            );
-            showInfo("Application submitted successfully.\n\n" + applicationService.buildApplicationSummary(application));
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
-        } catch (Exception ex) {
-            showWarning(ex.getMessage());
+        }
+        
+        // 切换卡片
+        if (cardLayout != null && contentPanel != null) {
+            cardLayout.show(contentPanel, cardName);
+        }
+        
+        // 刷新对应面板数据
+        refreshPanel(cardName);
+    }
+    
+    /**
+     * 切换到 Profile 面板
+     */
+    public void switchToProfile() {
+        switchPanel("My Profile");
+        setActiveButton(profileBtn);
+    }
+    
+    private void refreshPanel(String panelName) {
+        switch (panelName) {
+            case "DASHBOARD":
+                if (dashboardPanel != null) dashboardPanel.refresh();
+                break;
+            case "COURSE_CATALOG":
+                if (courseCatalogPanel != null) courseCatalogPanel.refresh();
+                break;
+            case "APPLICATIONS":
+                if (applicationsPanel != null) applicationsPanel.refresh();
+                break;
+            case "PROFILE":
+                if (profilePanel != null) profilePanel.refresh();
+                break;
+            case "WORKLOAD":
+                if (workloadPanel != null) workloadPanel.refresh();
+                break;
+            default:
+                break;
         }
     }
-
-    private void rejectLatestOffer() {
-        try {
-            List<MOOffer> offers = offerService.listByTaUserId(ta.getUserId());
-            if (offers.isEmpty()) {
-                showWarning("No offers available.");
-                return;
-            }
-            MOOffer latest = offers.get(offers.size() - 1);
-            offerService.rejectOffer(latest.getOfferId());
-            showInfo("Offer rejected. The MO has been notified.");
-            new TAMainFrame(ta).setVisible(true);
-            dispose();
-        } catch (Exception ex) {
-            showError(ex.getMessage());
-        }
+    
+    private JPanel createMainContent() {
+        JPanel mainContent = new JPanel(new BorderLayout());
+        mainContent.setBackground(new Color(248, 250, 252));
+        
+        // 顶部栏
+        mainContent.add(createTopBar(), BorderLayout.NORTH);
+        
+        // 卡片内容面板
+        cardLayout = new java.awt.CardLayout();
+        contentPanel = new JPanel(cardLayout);
+        contentPanel.setBackground(new Color(248, 250, 252));
+        
+        // 初始化各个面板
+        dashboardPanel = new TADashboardPanel(ta);
+        courseCatalogPanel = new TACourseCatalogPanel(ta);
+        applicationsPanel = new TAApplicationsPanel(ta);
+        profilePanel = new TAProfilePanel(ta);
+        workloadPanel = new TAWorkloadPanel(ta);
+        
+        contentPanel.add(dashboardPanel, "DASHBOARD");
+        contentPanel.add(courseCatalogPanel, "COURSE_CATALOG");
+        contentPanel.add(applicationsPanel, "APPLICATIONS");
+        contentPanel.add(profilePanel, "PROFILE");
+        contentPanel.add(workloadPanel, "WORKLOAD");
+        
+        // 默认显示Dashboard
+        cardLayout.show(contentPanel, "DASHBOARD");
+        
+        mainContent.add(contentPanel, BorderLayout.CENTER);
+        
+        return mainContent;
+    }
+    
+    private JPanel createTopBar() {
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(Color.WHITE);
+        topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
+        
+        // 欢迎语
+        String displayName = authController.getDisplayName(ta);
+        JLabel welcomeLabel = new JLabel("Welcome, " + displayName);
+        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        welcomeLabel.setForeground(new Color(30, 35, 45));
+        
+        // 通知按钮
+        int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
+        JButton notifyBtn = new JButton("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
+        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        notifyBtn.setBackground(Color.WHITE);
+        notifyBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+        notifyBtn.setFocusPainted(false);
+        notifyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        notifyBtn.addActionListener(e -> 
+                NotificationPopup.showUnreadNotifications(this, ta, notificationService));
+        
+        topBar.add(welcomeLabel, BorderLayout.WEST);
+        topBar.add(notifyBtn, BorderLayout.EAST);
+        
+        return topBar;
     }
 }

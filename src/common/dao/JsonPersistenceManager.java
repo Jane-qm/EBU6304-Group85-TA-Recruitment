@@ -27,22 +27,28 @@ import java.util.function.Function;
  */
 public class JsonPersistenceManager {
     public static final String USERS_FILE = "users.json";
-    public static final String TA_PROFILES_FILE = "ta_profiles.json";
     public static final String MO_JOBS_FILE = "mo_jobs.json";
     public static final String TA_APPLICATIONS_FILE = "ta_applications.json";
-    public static final String CV_INFOS_FILE = "cv_infos.json";
     public static final String MO_OFFERS_FILE = "mo_offers.json";
+
     public static final String NOTIFICATIONS_FILE = "notifications.json";
-    public static final String SYSTEM_CONFIG_FILE = "system_config.json";
+    /** CV 元数据列表（与 {@code ta.dao.CVDao} 使用的路径一致，相对 {@code data/}） */
+    public static final String TA_CVS_FILE = "ta_cvs.json";
+
+
+    // 注意：以下文件已移除，使用独立模块的 DAO：
+    // - TA_PROFILES_FILE: 使用 ta.dao.TAProfileDAO (文件: data/ta_profiles.json)
+    // - CV_INFOS_FILE: 使用 ta.dao.CVDao (文件: data/ta_cvs.json)
+
 
     private static final List<String> ARRAY_FILES = Arrays.asList(
             USERS_FILE,
-            TA_PROFILES_FILE,
             MO_JOBS_FILE,
             TA_APPLICATIONS_FILE,
-            CV_INFOS_FILE,
+
             MO_OFFERS_FILE,
-            NOTIFICATIONS_FILE
+            NOTIFICATIONS_FILE,
+            TA_CVS_FILE
     );
 
     private final Path dataDirectory;
@@ -58,8 +64,9 @@ public class JsonPersistenceManager {
     public void initializeBaseFiles() {
         try {
             Files.createDirectories(dataDirectory);
-
-            for (String file : ARRAY_FILES) {
+            Path cvsDir = dataDirectory.resolve("cvs");
+            Files.createDirectories(cvsDir);
+            for (String file : ALL_FILES) {
                 Path path = dataDirectory.resolve(file);
                 if (!Files.exists(path)) {
                     Files.writeString(path, "[]", StandardCharsets.UTF_8);

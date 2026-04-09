@@ -6,6 +6,8 @@ import common.entity.UserRole;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import mo.ui.MODashboardFrame; // 导入新写的 MO 首页
+
 /**
  * 程序入口类
  */
@@ -20,7 +22,8 @@ public class Main {
     }
 
     /**
-     * Initialize six core JSON files with default empty-array content.
+     * Iteration 2: ensure JSON stores under {@code data/} exist (empty arrays and {@code data/cvs/}).
+     * Filename constants live in {@link JsonPersistenceManager}.
      */
     private static void initializeJsonStorage() {
         JSON_PERSISTENCE_MANAGER.initializeBaseFiles();

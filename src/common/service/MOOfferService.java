@@ -1,6 +1,7 @@
 package common.service;
 
 import common.dao.MOOfferDAO;
+import common.domain.NotificationKind;
 import common.entity.MOOffer;
 import common.entity.UserRole;
 
@@ -72,7 +73,16 @@ public class MOOfferService {
             if (offerId != null && offerId.equals(offer.getOfferId())) {
                 offer.setStatus("ACCEPTED");
                 offer.setRespondedAt(LocalDateTime.now());
-                return dao.save(offer);
+                MOOffer saved = dao.save(offer);
+                notificationService.notifyUser(
+                        saved.getMoUserId(),
+                        UserRole.MO,
+                        "Offer accepted",
+                        "TA user #" + saved.getTaUserId() + " accepted the offer for "
+                                + saved.getModuleCode() + ".",
+                        NotificationKind.OFFER_RESPONSE
+                );
+                return saved;
             }
         }
         throw new IllegalArgumentException("Offer not found.");
