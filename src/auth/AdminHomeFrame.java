@@ -1,17 +1,23 @@
 package auth;
 
-import common.dao.CVInfoDAO;
 import common.dao.MOJobDAO;
 import common.dao.MOOfferDAO;
 import common.dao.NotificationDAO;
-import common.dao.TAApplicationDAO;
-import common.dao.TAProfileDAO;
 import common.entity.AccountStatus;
+import common.entity.MOJob;
+import common.entity.MOOffer;
+import common.entity.NotificationMessage;
 import common.entity.User;
 import common.entity.UserRole;
 import common.service.SystemConfigService;
 import common.service.UserService;
 import common.util.CsvExportUtil;
+import ta.dao.CVDao;
+import ta.dao.TAApplicationDAO;
+import ta.dao.TAProfileDAO;
+import ta.entity.CVInfo;
+import ta.entity.TAApplication;
+import ta.entity.TAProfile;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -46,6 +52,13 @@ import java.util.List;
  * - Added global application cycle configuration support
  * - Structured the admin portal into three functional tabs
  * - Kept account management, system data inspection, and CSV export
+ *
+ * @version 5.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned System Data with ta.* profile/application/CV data sources
+ * - Removed dependency on outdated common.* profile/application/CV stores
+ * - Fixed TA profile and CV dataset rendering and export consistency
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
@@ -55,7 +68,7 @@ public class AdminHomeFrame extends JFrame {
     private final TAProfileDAO taProfileDAO = new TAProfileDAO();
     private final MOJobDAO moJobDAO = new MOJobDAO();
     private final TAApplicationDAO applicationDAO = new TAApplicationDAO();
-    private final CVInfoDAO cvInfoDAO = new CVInfoDAO();
+    private final CVDao cvDao = new CVDao();
     private final MOOfferDAO offerDAO = new MOOfferDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
 
@@ -321,86 +334,114 @@ public class AdminHomeFrame extends JFrame {
                             .toList()
             );
             case "TA Profiles" -> loadGenericTable(
-                    new String[]{"Profile ID", "User ID", "Name", "Major", "Grade", "Hours"},
+                    new String[]{"TA ID", "Email", "Name", "Major", "Year", "Hours"},
                     taProfileDAO.findAll().stream()
-                            .map(p -> new Object[]{
-                                    p.getProfileId(),
-                                    p.getUserId(),
-                                    p.getName(),
-                                    p.getMajor(),
-                                    p.getGrade(),
-                                    p.getAvailableWorkingHours()
-                            })
+                            .map(this::toTaProfileRow)
                             .toList()
             );
             case "Jobs" -> loadGenericTable(
                     new String[]{"Job ID", "MO User ID", "Module", "Title", "Hours", "Status"},
                     moJobDAO.findAll().stream()
-                            .map(j -> new Object[]{
-                                    j.getJobId(),
-                                    j.getMoUserId(),
-                                    j.getModuleCode(),
-                                    j.getTitle(),
-                                    j.getWeeklyHours(),
-                                    j.getStatus()
-                            })
+                            .map(this::toJobRow)
                             .toList()
             );
             case "Applications" -> loadGenericTable(
-                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At"},
+                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At", "CV ID"},
                     applicationDAO.findAll().stream()
-                            .map(a -> new Object[]{
-                                    a.getApplicationId(),
-                                    a.getTaUserId(),
-                                    a.getJobId(),
-                                    a.getStatus(),
-                                    a.getAppliedAt()
-                            })
+                            .map(this::toApplicationRow)
                             .toList()
             );
             case "CV Infos" -> loadGenericTable(
-                    new String[]{"CV ID", "User ID", "Education", "File Path", "Updated At"},
-                    cvInfoDAO.findAll().stream()
-                            .map(c -> new Object[]{
-                                    c.getCvId(),
-                                    c.getUserId(),
-                                    c.getEducationSummary(),
-                                    c.getFilePath(),
-                                    c.getUpdatedAt()
-                            })
+                    new String[]{"CV ID", "TA ID", "TA Email", "CV Name", "File Path", "Updated At"},
+                    cvDao.findAll().stream()
+                            .map(this::toCvRow)
                             .toList()
             );
             case "Offers" -> loadGenericTable(
                     new String[]{"Offer ID", "Application ID", "TA User ID", "Module", "Hours", "Status"},
                     offerDAO.findAll().stream()
-                            .map(o -> new Object[]{
-                                    o.getOfferId(),
-                                    o.getApplicationId(),
-                                    o.getTaUserId(),
-                                    o.getModuleCode(),
-                                    o.getOfferedHours(),
-                                    o.getStatus()
-                            })
+                            .map(this::toOfferRow)
                             .toList()
             );
             case "Notifications" -> loadGenericTable(
                     new String[]{"Notification ID", "Recipient User ID", "Title", "Type", "Read", "Created At"},
                     notificationDAO.findAll().stream()
-                            .map(n -> new Object[]{
-                                    n.getNotificationId(),
-                                    n.getRecipientUserId(),
-                                    n.getTitle(),
-                                    n.getType(),
-                                    n.isRead(),
-                                    n.getCreatedAt()
-                            })
+                            .map(this::toNotificationRow)
                             .toList()
             );
             default -> loadGenericTable(
-        		new String[]{"Info"},
-       			java.util.Collections.singletonList(new Object[]{"No dataset selected"})
-);
+                    new String[]{"Info"},
+                    java.util.Collections.singletonList(new Object[]{"No dataset selected"})
+            );
         }
+    }
+
+    private Object[] toTaProfileRow(TAProfile profile) {
+        String fullName = profile.getFullName();
+        String year = profile.getCurrentYear() == null ? "" : profile.getCurrentYear().getEnglishName();
+        return new Object[]{
+                profile.getTaId(),
+                profile.getEmail(),
+                fullName == null ? "" : fullName,
+                profile.getMajor(),
+                year,
+                profile.getAvailableWorkingHours()
+        };
+    }
+
+    private Object[] toJobRow(MOJob job) {
+        return new Object[]{
+                job.getJobId(),
+                job.getMoUserId(),
+                job.getModuleCode(),
+                job.getTitle(),
+                job.getWeeklyHours(),
+                job.getStatus()
+        };
+    }
+
+    private Object[] toApplicationRow(TAApplication application) {
+        return new Object[]{
+                application.getApplicationId(),
+                application.getTaUserId(),
+                application.getJobId(),
+                application.getStatus(),
+                application.getAppliedAt(),
+                application.getCvId()
+        };
+    }
+
+    private Object[] toCvRow(CVInfo cv) {
+        return new Object[]{
+                cv.getCvId(),
+                cv.getTaId(),
+                cv.getTaEmail(),
+                cv.getCvName(),
+                cv.getFilePath(),
+                cv.getUpdatedAt()
+        };
+    }
+
+    private Object[] toOfferRow(MOOffer offer) {
+        return new Object[]{
+                offer.getOfferId(),
+                offer.getApplicationId(),
+                offer.getTaUserId(),
+                offer.getModuleCode(),
+                offer.getOfferedHours(),
+                offer.getStatus()
+        };
+    }
+
+    private Object[] toNotificationRow(NotificationMessage notification) {
+        return new Object[]{
+                notification.getNotificationId(),
+                notification.getRecipientUserId(),
+                notification.getTitle(),
+                notification.getType(),
+                notification.isRead(),
+                notification.getCreatedAt()
+        };
     }
 
     /**
@@ -428,7 +469,7 @@ public class AdminHomeFrame extends JFrame {
                 case "TA Profiles" -> CsvExportUtil.exportObjects("ta_profiles.csv", taProfileDAO.findAll());
                 case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
                 case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
-                case "CV Infos" -> CsvExportUtil.exportObjects("cv_infos.csv", cvInfoDAO.findAll());
+                case "CV Infos" -> CsvExportUtil.exportObjects("ta_cvs.csv", cvDao.findAll());
                 case "Offers" -> CsvExportUtil.exportObjects("offers.csv", offerDAO.findAll());
                 case "Notifications" -> CsvExportUtil.exportObjects("notifications.csv", notificationDAO.findAll());
                 default -> null;
