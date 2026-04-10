@@ -3,6 +3,7 @@ package auth;
 import common.entity.User;
 import common.entity.UserRole;
 import common.service.UserService;
+import ta.service.TAProfileService;
 
 /**
  * Authentication service.
@@ -14,10 +15,17 @@ import common.service.UserService;
  * - Refined registration flow to keep role-based account status logic inside UserService
  * - Removed duplicated status override during registration
  * - Kept authentication responsibilities focused on validation and routing support
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Initialized a blank TA profile immediately after TA registration
+ * - Reduced the chance of stale profile data being shown for newly registered TA accounts
  */
 public class AuthService {
 
     private static final UserService USER_SERVICE = new UserService();
+    private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
 
     /** School email suffix enforced on registration only (demo accounts may use other domains for login). */
     private static final String UNIVERSITY_DOMAIN = "@qmul.ac.uk";
@@ -32,7 +40,14 @@ public class AuthService {
         }
 
         // Keep role-based status logic inside UserService.
-        return USER_SERVICE.register(normalized, password, role);
+        User user = USER_SERVICE.register(normalized, password, role);
+
+        // Create a blank TA profile as soon as a TA account is created.
+        if (user != null && user.getRole() == UserRole.TA) {
+            TA_PROFILE_SERVICE.initializeProfile(user.getUserId(), user.getEmail());
+        }
+
+        return user;
     }
 
     public User login(String email, String password) {

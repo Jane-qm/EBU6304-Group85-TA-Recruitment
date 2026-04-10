@@ -43,6 +43,12 @@ import ta.service.CVService;
  * 
  * @author Can Chen
  * @version 2.0 - 统一风格，添加校区选择
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added a Major input field to match the TAProfile entity and admin data table
+ * - Saved Major together with the rest of the TA profile fields
  */
 public class TAProfilePanel extends JPanel {
     
@@ -61,6 +67,7 @@ public class TAProfilePanel extends JPanel {
     private JComboBox<String> genderCombo;
     private JTextField schoolField;
     private JTextField supervisorField;
+    private JTextField majorField;
     private JComboBox<String> studentTypeCombo;
     private JComboBox<String> yearCombo;
     private JComboBox<String> campusCombo;  // 新增校区选择
@@ -75,7 +82,6 @@ public class TAProfilePanel extends JPanel {
     
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
     private static final Color LABEL_FOREGROUND = new Color(55, 65, 81);
-    private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     
     public TAProfilePanel(TA ta) {
         this.ta = ta;
@@ -177,6 +183,7 @@ public class TAProfilePanel extends JPanel {
         phoneField = createTextField(profile.getPhone());
         schoolField = createTextField(profile.getSchool());
         supervisorField = createTextField(profile.getSupervisor());
+        majorField = createTextField(profile.getMajor());
         
         genderCombo = new JComboBox<>(new String[]{"Male", "Female"});
         genderCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
@@ -214,6 +221,7 @@ public class TAProfilePanel extends JPanel {
         formPanel.add(createLabeledField("Gender *", genderCombo));
         formPanel.add(createLabeledField("School *", schoolField));
         formPanel.add(createLabeledField("Supervisor *", supervisorField));
+        formPanel.add(createLabeledField("Major", majorField));
         formPanel.add(createLabeledField("Student Type *", studentTypeCombo));
         formPanel.add(createLabeledField("Current Year *", yearCombo));
         formPanel.add(createLabeledField("Campus *", campusCombo));
@@ -280,9 +288,9 @@ public class TAProfilePanel extends JPanel {
         
         JButton addSkillBtn = new JButton("+ Add Skill");
         addSkillBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
-        addSkillBtn.setBackground(new Color(243, 246, 251)); // 浅灰色背景
-        addSkillBtn.setForeground(Color.BLACK);   // 黑色文字
-        addSkillBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230))); // 添加边框
+        addSkillBtn.setBackground(new Color(243, 246, 251));
+        addSkillBtn.setForeground(Color.BLACK);
+        addSkillBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         addSkillBtn.setFocusPainted(false);
         addSkillBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         addSkillBtn.addActionListener(e -> {
@@ -503,9 +511,9 @@ public class TAProfilePanel extends JPanel {
         
         JButton saveBtn = new JButton("Save Profile");
         saveBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        saveBtn.setBackground(Color.WHITE);   // 白色背景
-        saveBtn.setForeground(Color.BLACK);   // 黑色文字
-        saveBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230))); // 添加边框
+        saveBtn.setBackground(Color.WHITE);
+        saveBtn.setForeground(Color.BLACK);
+        saveBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         saveBtn.setFocusPainted(false);
         saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         saveBtn.setPreferredSize(new Dimension(160, 42));
@@ -518,66 +526,66 @@ public class TAProfilePanel extends JPanel {
     
     private void uploadCV() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files", "pdf", "doc", "docx"));
-        
+        fileChooser.setDialogTitle("Select CV File");
+        fileChooser.setFileFilter(new FileNameExtensionFilter("PDF or Word Documents", "pdf", "doc", "docx"));
+
         int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File file = fileChooser.getSelectedFile();
-            String fileName = file.getName();
-            String cvName = JOptionPane.showInputDialog(this, "Enter a name for this CV:", 
-                    "CV Name", JOptionPane.QUESTION_MESSAGE);
-            
-            if (cvName == null || cvName.trim().isEmpty()) {
-                showWarning("CV name is required");
-                return;
+        if (result != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File selectedFile = fileChooser.getSelectedFile();
+        try {
+            byte[] fileData = Files.readAllBytes(selectedFile.toPath());
+            String cvName = selectedFile.getName();
+            String description = "Uploaded from TA profile panel";
+
+            String taName = profile.getFullName();
+            if (taName == null || taName.isBlank()) {
+                taName = ta.getEmail();
             }
-            
-            try {
-                byte[] fileData = Files.readAllBytes(file.toPath());
-                String taName = profile != null && profile.getFullName() != null 
-                    ? profile.getFullName() : "";
-                
-                CVInfo newCV = cvService.uploadCV(
-                        ta.getUserId(),
-                        ta.getEmail(),
-                        taName,
-                        cvName.trim(),
-                        "",
-                        fileName,
-                        fileData
-                );
-                
-                currentCV = newCV;
-                showInfo("CV uploaded successfully: " + cvName);
-                updateCVInfoDisplay();
-                
-            } catch (Exception e) {
-                showError("Upload failed: " + e.getMessage());
-            }
+
+            currentCV = cvService.uploadCV(
+                    ta.getUserId(),
+                    ta.getEmail(),
+                    taName,
+                    cvName,
+                    description,
+                    selectedFile.getName(),
+                    fileData
+            );
+            showInfo("CV uploaded successfully!");
+            updateCVInfoDisplay();
+        } catch (Exception e) {
+            showError("Failed to upload CV: " + e.getMessage());
         }
     }
     
     private void viewCV() {
         if (currentCV == null) {
-            showWarning("No CV to view");
+            showWarning("No CV available.");
             return;
         }
-        
+
         try {
             byte[] fileData = cvService.downloadCV(ta.getUserId(), currentCV.getCvId());
-            if (fileData == null) {
-                showError("Failed to load CV file");
+            if (fileData == null || fileData.length == 0) {
+                showError("Failed to read CV file.");
                 return;
             }
-            
-            String extension = currentCV.getFileType().getExtension();
-            java.io.File tempFile = java.io.File.createTempFile("cv_", "." + extension);
+
+            String extension = currentCV.getOriginalFileName() != null
+                    && currentCV.getOriginalFileName().contains(".")
+                    ? currentCV.getOriginalFileName().substring(currentCV.getOriginalFileName().lastIndexOf('.') + 1)
+                    : "pdf";
+
+            File tempFile = File.createTempFile("cv_", "." + extension);
             tempFile.deleteOnExit();
-            
+
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
                 fos.write(fileData);
             }
-            
+
             if (java.awt.Desktop.isDesktopSupported()) {
                 java.awt.Desktop.getDesktop().open(tempFile);
             } else {
@@ -620,6 +628,7 @@ public class TAProfilePanel extends JPanel {
             profile.setGender(TAProfile.Gender.fromEnglishName((String) genderCombo.getSelectedItem()));
             profile.setSchool(schoolField.getText().trim());
             profile.setSupervisor(supervisorField.getText().trim());
+            profile.setMajor(majorField.getText().trim());
             profile.setStudentType(TAProfile.StudentType.fromEnglishName((String) studentTypeCombo.getSelectedItem()));
             profile.setCurrentYear(TAProfile.Year.fromEnglishName((String) yearCombo.getSelectedItem()));
             profile.setCampus(TAProfile.Campus.fromEnglishName((String) campusCombo.getSelectedItem()));
