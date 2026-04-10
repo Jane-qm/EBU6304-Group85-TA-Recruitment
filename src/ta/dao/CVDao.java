@@ -9,7 +9,6 @@ import java.io.Writer;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,19 +25,24 @@ import ta.entity.CVManager;
 /**
  * CV 数据访问对象
  * 负责 CV 元数据的 JSON 文件读写和 CV 文件存储
- * 
+ *
  * @author System
  * @version 1.0
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added a flattened findAll method for admin-wide data inspection and CSV export
  */
 public class CVDao {
-    
+
     private static final String DATA_FILE = "data/ta_cvs.json";
     private static final String CV_DIR = "data/cvs/";
-    
+
     private final Gson gson;
     private final Map<Long, CVManager> cvManagers;  // key: taId
     private long nextCvId;
-    
+
     public CVDao() {
         this.gson = new GsonBuilder()
                 .setPrettyPrinting()
@@ -48,7 +52,7 @@ public class CVDao {
         ensureDirectoryExists();
         loadFromFile();
     }
-    
+
     /**
      * 确保目录存在
      */
@@ -62,7 +66,7 @@ public class CVDao {
             dataDir.mkdir();
         }
     }
-    
+
     /**
      * 从文件加载 CV 元数据
      */
@@ -72,9 +76,9 @@ public class CVDao {
             nextCvId = 1;
             return;
         }
-        
+
         try (Reader reader = new FileReader(file)) {
-            Type listType = new TypeToken<List<CVInfo>>(){}.getType();
+            Type listType = new TypeToken<List<CVInfo>>() {}.getType();
             List<CVInfo> list;
             try {
                 list = gson.fromJson(reader, listType);
@@ -86,7 +90,7 @@ public class CVDao {
                 saveAll();
                 return;
             }
-            
+
             if (list != null) {
                 for (CVInfo cv : list) {
                     CVManager manager = cvManagers.get(cv.getTaId());
@@ -95,7 +99,7 @@ public class CVDao {
                         cvManagers.put(cv.getTaId(), manager);
                     }
                     manager.addCV(cv);
-                    
+
                     if (cv.getCvId() != null && cv.getCvId() >= nextCvId) {
                         nextCvId = cv.getCvId() + 1;
                     }
@@ -104,12 +108,12 @@ public class CVDao {
         } catch (IOException e) {
             System.err.println("加载 CV 数据失败: " + e.getMessage());
         }
-        
+
         if (nextCvId == 0) {
             nextCvId = 1;
         }
     }
-    
+
     /**
      * 保存所有 CV 元数据到文件
      */
@@ -118,21 +122,32 @@ public class CVDao {
         for (CVManager manager : cvManagers.values()) {
             allCVs.addAll(manager.getAllCVs());
         }
-        
+
         try (Writer writer = new FileWriter(DATA_FILE)) {
             gson.toJson(allCVs, writer);
         } catch (IOException e) {
             System.err.println("保存 CV 数据失败: " + e.getMessage());
         }
     }
-    
+
+    /**
+     * Returns all CV metadata records across all TAs.
+     */
+    public List<CVInfo> findAll() {
+        List<CVInfo> allCVs = new ArrayList<>();
+        for (CVManager manager : cvManagers.values()) {
+            allCVs.addAll(manager.getAllCVs());
+        }
+        return allCVs;
+    }
+
     /**
      * 获取 TA 的 CV 管理器
      */
     public CVManager getCVManager(Long taId) {
         return cvManagers.get(taId);
     }
-    
+
     /**
      * 获取或创建 CV 管理器
      */
@@ -144,7 +159,7 @@ public class CVDao {
         }
         return manager;
     }
-    
+
     /**
      * 保存 CV 信息
      */
@@ -152,22 +167,22 @@ public class CVDao {
         if (cvInfo == null) {
             return;
         }
-        
+
         if (cvInfo.getCvId() == null) {
             cvInfo.setCvId(nextCvId++);
         }
-        
+
         CVManager manager = getOrCreateCVManager(cvInfo.getTaId(), cvInfo.getTaEmail(), cvInfo.getTaName());
-        
+
         // 检查是否已存在同名 CV
         if (manager.isCvNameExists(cvInfo.getCvName())) {
             throw new IllegalArgumentException("CV name already exists: " + cvInfo.getCvName());
         }
-        
+
         manager.addCV(cvInfo);
         saveAll();
     }
-    
+
     /**
      * 删除 CV
      */
@@ -176,22 +191,22 @@ public class CVDao {
         if (manager == null) {
             return false;
         }
-        
+
         CVInfo cv = manager.getCVById(cvId);
         if (cv == null) {
             return false;
         }
-        
+
         // 删除物理文件
         deletePhysicalFile(cv.getFilePath());
-        
+
         boolean removed = manager.removeCV(cvId);
         if (removed) {
             saveAll();
         }
         return removed;
     }
-    
+
     /**
      * 设置默认 CV
      */
@@ -200,14 +215,14 @@ public class CVDao {
         if (manager == null) {
             return false;
         }
-        
+
         boolean success = manager.setDefaultCV(cvId);
         if (success) {
             saveAll();
         }
         return success;
     }
-    
+
     /**
      * 保存 CV 文件到磁盘
      */
@@ -215,45 +230,43 @@ public class CVDao {
         try {
             String timestamp = java.time.LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            String safeName = cvName.replaceAll("[^a-zA-Z0-9\\u4e00-\\u9fa5]", "_");
-            String savedFileName = String.format("ta_%d_%s_%s.pdf", taId, safeName, timestamp);
-            String filePath = CV_DIR + savedFileName;
-            
-            Path path = Paths.get(filePath);
-            Files.write(path, data);
-            return filePath;
+            String safeName = cvName.replaceAll("[^a-zA-Z0-9_-]", "_");
+            String fileName = "ta_" + taId + "_" + safeName + "_" + timestamp + ".pdf";
+            Path filePath = Path.of(CV_DIR, fileName);
+            Files.write(filePath, data);
+            return filePath.toString().replace("\\", "/");
         } catch (IOException e) {
             System.err.println("保存 CV 文件失败: " + e.getMessage());
             return null;
         }
     }
-    
+
     /**
      * 读取 CV 文件
      */
     public byte[] readCVFile(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return null;
+        }
         try {
-            Path path = Paths.get(filePath);
-            return Files.readAllBytes(path);
+            return Files.readAllBytes(Path.of(filePath));
         } catch (IOException e) {
             System.err.println("读取 CV 文件失败: " + e.getMessage());
             return null;
         }
     }
-    
+
     /**
      * 删除物理文件
      */
-    private boolean deletePhysicalFile(String filePath) {
-        if (filePath == null) {
-            return true;
+    private void deletePhysicalFile(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return;
         }
         try {
-            Path path = Paths.get(filePath);
-            return Files.deleteIfExists(path);
+            Files.deleteIfExists(Path.of(filePath));
         } catch (IOException e) {
-            System.err.println("删除 CV 文件失败: " + e.getMessage());
-            return false;
+            System.err.println("删除 CV 物理文件失败: " + e.getMessage());
         }
     }
 }

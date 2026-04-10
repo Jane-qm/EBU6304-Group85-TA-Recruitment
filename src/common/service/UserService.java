@@ -33,6 +33,13 @@ import common.entity.UserRole;
  * - Added admin-oriented account lifecycle management methods
  * - Added user listing support for admin operations
  * - Added account status update, approval, disable, and password reset methods
+ *
+ * @version 2.3
+ * @contributor Jiaze Wang
+ * @update
+ * - Fixed duplicated methods and broken class structure after merge
+ * - Kept legacy helper methods used by existing panels
+ * - Restored a compilable and compatible UserService implementation
  */
 public class UserService {
     
@@ -97,7 +104,7 @@ public class UserService {
             user.setStatus(AccountStatus.ACTIVE);
         }
         usersByEmail.put(normalizedEmail, user);
-        saveToFile();  // 保存到文件
+        saveToFile();
         return user;
     }
 
@@ -111,7 +118,7 @@ public class UserService {
             return null;
         }
         user.setLastLogin(LocalDateTime.now());
-        saveToFile();  // 更新最后登录时间后保存
+        saveToFile();
         return user;
     }
 
@@ -138,7 +145,7 @@ public class UserService {
             throw new IllegalArgumentException("Email is not registered.");
         }
         user.setPassword(newPassword);
-        saveToFile();  // 保存到文件
+        saveToFile();
     }
 
     public void saveUser(User user) {
@@ -198,45 +205,11 @@ public class UserService {
     }
 
     /**
-    * 根据 ID 查找用户
-    */
+     * 根据 ID 查找用户
+     */
     public User findById(Long userId) {
         for (User user : usersByEmail.values()) {
             if (user.getUserId() != null && user.getUserId().equals(userId)) {
-                return user;
-            }
-        }
-        return null;
-    }
-
-    /**
-    * 更新用户信息
-    */
-    public void updateUser(User user) {
-        if (user == null || user.getEmail() == null) {
-            return;
-        }
-        usersByEmail.put(user.getEmail(), user);
-        saveToFile();
-    }
-    /**
-    * 【新增】：返回所有用户列表
-    * 解决 MOApplicantReviewPanel 报 listAll() 找不到的问题
-    */
-    public List<User> listAll() {
-        // 将 Map 中的所有 User 对象转换为 List 返回
-        return new java.util.ArrayList<>(usersByEmail.values());
-    }
-
-/**
- * 【新增】：根据用户 ID 获取用户对象（更高效的版本）
- * 方便在 ReviewPanel 中直接通过 ID 获取 TA 的姓名和邮箱
- */
-    public User getUserById(Long userId) {
-        if (userId == null) return null;
-        // 遍历现有的内存 Map
-        for (User user : usersByEmail.values()) {
-            if (userId.equals(user.getUserId())) {
                 return user;
             }
         }
@@ -252,6 +225,30 @@ public class UserService {
         }
         usersByEmail.put(normalizeEmail(user.getEmail()), user);
         saveToFile();
+    }
+
+    /**
+     * 【新增】：返回所有用户列表
+     * 解决 MOApplicantReviewPanel 报 listAll() 找不到的问题
+     */
+    public List<User> listAll() {
+        return new java.util.ArrayList<>(usersByEmail.values());
+    }
+
+    /**
+     * 【新增】：根据用户 ID 获取用户对象（更高效的版本）
+     * 方便在 ReviewPanel 中直接通过 ID 获取 TA 的姓名和邮箱
+     */
+    public User getUserById(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        for (User user : usersByEmail.values()) {
+            if (userId.equals(user.getUserId())) {
+                return user;
+            }
+        }
+        return null;
     }
 
     /**
@@ -319,14 +316,5 @@ public class UserService {
      */
     public void resetPasswordByAdmin(String email, String newPassword) {
         updatePassword(email, newPassword);
-    }
-}
-/**
- * 【新增】：获取所有申请者（TA角色）的列表
- */
-    public List<User> getAllTAs() {
-        return listAll().stream()
-                .filter(u -> u.getRole() == UserRole.TA)
-                .collect(java.util.stream.Collectors.toList());
     }
 }
