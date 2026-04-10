@@ -69,6 +69,17 @@ public class NotificationService {
         }
     }
 
+    public int getUnreadCount(Long userId) {
+        return listUnreadByUser(userId).size();
+    }
+
+    public String formatTimestamp(LocalDateTime createdAt) {
+        if (createdAt == null) {
+            return "Unknown time";
+        }
+        return createdAt.format(FORMATTER);
+    }
+
     public String buildPopupMessage(User user, List<NotificationMessage> notifications) {
         if (user == null || notifications == null || notifications.isEmpty()) {
             return "No new notifications.";
