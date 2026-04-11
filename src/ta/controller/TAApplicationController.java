@@ -72,38 +72,41 @@ public class TAApplicationController {
     /**
      * 获取可申请的职位
      * 逻辑：包括未申请过的 + 自行取消的
-     * 不包括：活跃申请（待审核/候补）和被拒绝的申请
+     * 不包括：活跃申请（待审核/候补）、被拒绝的申请、已接受/已录用的申请
      */
-    public List<MOJob> getAvailableJobs(Long taUserId) {
-        List<MOJob> allJobs = jobService.listPublishedJobs();
-        
-        // 获取 TA 所有申请记录
-        List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
-        
-        // 需要排除的 jobId（活跃申请 + 被拒绝的申请）
-        // 已取消的申请不排除，允许重新申请
-        List<Long> excludedJobIds = applications.stream()
-                .filter(a -> {
-                    String status = a.getStatus();
-                    // 活跃申请：待审核或候补（不可重新申请）
-                    if (ApplicationStatus.isAwaitingReview(status) || 
-                        ApplicationStatus.WAITLISTED.equals(status)) {
-                        return true;
-                    }
-                    // 被拒绝的申请（不可重新申请）
-                    if (ApplicationStatus.isRejected(status)) {
-                        return true;
-                    }
-                    // 已取消的申请（可以重新申请，不排除）
-                    return false;
-                })
-                .map(TAApplication::getJobId)
-                .collect(Collectors.toList());
-        
-        return allJobs.stream()
-                .filter(job -> !excludedJobIds.contains(job.getJobId()))
-                .collect(Collectors.toList());
-    }
+public List<MOJob> getAvailableJobs(Long taUserId) {
+    List<MOJob> allJobs = jobService.listPublishedJobs();
+    
+    // 获取 TA 所有申请记录
+    List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
+    
+    // 需要排除的 jobId（只排除有有效申请的职位，不管profile是否完整）
+    List<Long> excludedJobIds = applications.stream()
+            .filter(a -> {
+                String status = a.getStatus();
+                // 活跃申请：待审核或候补（不可重新申请）
+                if (ApplicationStatus.isAwaitingReview(status) || 
+                    ApplicationStatus.WAITLISTED.equals(status)) {
+                    return true;
+                }
+                // 被拒绝的申请（不可重新申请）
+                if (ApplicationStatus.isRejected(status)) {
+                    return true;
+                }
+                // 已接受或已录用的申请（不可重新申请）
+                if (ApplicationStatus.ACCEPTED.equals(status) || 
+                    ApplicationStatus.HIRED.equals(status)) {
+                    return true;
+                }
+                return false;
+            })
+            .map(TAApplication::getJobId)
+            .collect(Collectors.toList());
+    
+    return allJobs.stream()
+            .filter(job -> !excludedJobIds.contains(job.getJobId()))
+            .collect(Collectors.toList());
+}
     
     /**
      * 提交申请（带用户反馈、限制检查和 CV 选择）
@@ -291,6 +294,4 @@ public class TAApplicationController {
             return accepted + pending + rejected;
         }
     }
-
-    
 }

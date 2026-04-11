@@ -76,7 +76,7 @@ public class TAMainFrame extends BaseFrame {
         initUI();
         
         // 登录后检查是否有待处理的 Offer
-        checkPendingOffers();
+    //    checkPendingOffers();
     }
 
     @Override
@@ -93,17 +93,17 @@ public class TAMainFrame extends BaseFrame {
     /**
      * 检查是否有待处理的 Offer
      */
-    private void checkPendingOffers() {
-        if (offerController.hasPendingOffers(ta.getUserId())) {
-            // 延迟显示，确保 UI 已完全加载
-            javax.swing.SwingUtilities.invokeLater(() -> {
-                offerController.handlePendingOffers(ta.getUserId(), this, () -> {
-                    // Offer 处理完成后刷新面板
-                    refreshAllPanels();
-                });
-            });
-        }
-    }
+    //private void checkPendingOffers() {
+    //    if (offerController.hasPendingOffers(ta.getUserId())) {
+         // 延迟显示，确保 UI 已完全加载
+    //        javax.swing.SwingUtilities.invokeLater(() -> {
+    //            offerController.handlePendingOffers(ta.getUserId(), this, () -> {
+    //                // Offer 处理完成后刷新面板
+    //                refreshAllPanels();
+    //            });
+     //       });
+    //    }
+    //}
     
     /**
      * 刷新所有面板

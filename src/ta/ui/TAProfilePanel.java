@@ -618,35 +618,42 @@ public class TAProfilePanel extends JPanel {
         }
     }
     
-    private void saveProfile() {
-        try {
-            profile.setSurname(surnameField.getText().trim());
-            profile.setForename(forenameField.getText().trim());
-            profile.setChineseName(chineseNameField.getText().trim());
-            profile.setStudentId(studentIdField.getText().trim());
-            profile.setPhone(phoneField.getText().trim());
-            profile.setGender(TAProfile.Gender.fromEnglishName((String) genderCombo.getSelectedItem()));
-            profile.setSchool(schoolField.getText().trim());
-            profile.setSupervisor(supervisorField.getText().trim());
-            profile.setMajor(majorField.getText().trim());
-            profile.setStudentType(TAProfile.StudentType.fromEnglishName((String) studentTypeCombo.getSelectedItem()));
-            profile.setCurrentYear(TAProfile.Year.fromEnglishName((String) yearCombo.getSelectedItem()));
-            profile.setCampus(TAProfile.Campus.fromEnglishName((String) campusCombo.getSelectedItem()));
-            profile.setPreviousExperience(experienceArea.getText().trim());
-            profile.setSkillTags(skillTags);
-            profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
+private void saveProfile() {
+    try {
+        profile.setSurname(surnameField.getText().trim());
+        profile.setForename(forenameField.getText().trim());
+        profile.setChineseName(chineseNameField.getText().trim());
+        profile.setStudentId(studentIdField.getText().trim());
+        profile.setPhone(phoneField.getText().trim());
+        profile.setGender(TAProfile.Gender.fromEnglishName((String) genderCombo.getSelectedItem()));
+        profile.setSchool(schoolField.getText().trim());
+        profile.setSupervisor(supervisorField.getText().trim());
+        profile.setMajor(majorField.getText().trim());
+        profile.setStudentType(TAProfile.StudentType.fromEnglishName((String) studentTypeCombo.getSelectedItem()));
+        profile.setCurrentYear(TAProfile.Year.fromEnglishName((String) yearCombo.getSelectedItem()));
+        profile.setCampus(TAProfile.Campus.fromEnglishName((String) campusCombo.getSelectedItem()));
+        profile.setPreviousExperience(experienceArea.getText().trim());
+        profile.setSkillTags(skillTags);
+        profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
+        
+        profile.saveProfile();
+        boolean success = profileController.saveProfileWithFeedback(profile, null);
+        
+        if (success) {
+            showInfo("Profile saved successfully!");
             
-            boolean success = profileController.saveProfileWithFeedback(profile, null);
-            
-            if (success) {
-                showInfo("Profile saved successfully!");
-                refresh();
+            TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
+            if (mainFrame != null) {
+                mainFrame.refreshAllPanels();
             }
             
-        } catch (Exception e) {
-            showError("Save failed: " + e.getMessage());
+            refresh();
         }
+        
+    } catch (Exception e) {
+        showError("Save failed: " + e.getMessage());
     }
+}
     
     private void showWarning(String message) {
         JOptionPane.showMessageDialog(this, message, "Warning", JOptionPane.WARNING_MESSAGE);

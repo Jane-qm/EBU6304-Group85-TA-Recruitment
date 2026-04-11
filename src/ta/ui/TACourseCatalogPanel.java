@@ -162,6 +162,7 @@ public class TACourseCatalogPanel extends JPanel {
                     if (col == 3) {  // Detail 列
                         showCourseDetailDialog(job);
                     } else if (col == 4) {  // Apply 列
+                        refresh();
                         // 检查是否还能申请
                         if (!applicationController.canSubmitMoreApplications(ta.getUserId())) {
                             showWarning("You can only have " + applicationController.getMaxActiveApplications() 
@@ -348,6 +349,7 @@ public class TACourseCatalogPanel extends JPanel {
      * 显示申请对话框（带 CV 选择）
      */
     private void showApplicationDialog(MOJob job) {
+        profileController.getProfileForUI(ta); 
         // 1. 检查个人资料是否完整
         if (!profileController.isProfileComplete(ta.getUserId())) {
             JOptionPane.showMessageDialog(this,

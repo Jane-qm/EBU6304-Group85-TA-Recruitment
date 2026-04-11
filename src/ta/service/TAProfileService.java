@@ -69,6 +69,9 @@ public class TAProfileService {
                 profileById.setEmail(user.getEmail());
                 profileDAO.save(profileById);
             }
+            
+            profileById.saveProfile();
+            profileDAO.save(profileById);
             return profileById;
         }
 

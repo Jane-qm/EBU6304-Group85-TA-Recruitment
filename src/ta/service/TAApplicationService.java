@@ -13,6 +13,7 @@ import common.service.NotificationService;
 import ta.dao.TAApplicationDAO;
 import ta.entity.CVInfo;
 import ta.entity.TAApplication;
+import ta.entity.TAProfile;
 
 public class TAApplicationService {
 
@@ -82,12 +83,14 @@ public class TAApplicationService {
     }
 
     /**
-     * 获取TA的活跃申请数量（待审核状态 + 候补状态）
+     * 获取TA的活跃申请数量
+     * 包括：待审核、候补、已录用
      */
     public int getActiveApplicationCount(Long taUserId) {
         return (int) listByTaUserId(taUserId).stream()
                 .filter(a -> ApplicationStatus.isAwaitingReview(a.getStatus()) || 
-                             ApplicationStatus.WAITLISTED.equals(a.getStatus()))
+                             ApplicationStatus.WAITLISTED.equals(a.getStatus()) ||
+                             ApplicationStatus.HIRED.equals(a.getStatus()))
                 .count();
     }
 
@@ -112,6 +115,9 @@ public class TAApplicationService {
      * 验证申请资格（个人资料和CV）
      */
     public void validateApplicationAccess(Long taUserId, Long jobId) {
+        // 强制刷新 profile 完整性状态
+        refreshProfileCompletion(taUserId);
+        
         if (!taProfileService.isProfileComplete(taUserId)) {
             throw new IllegalStateException("Please complete your TA profile before applying.");
         }
@@ -124,14 +130,33 @@ public class TAApplicationService {
             throw new IllegalStateException("This position has not been published yet and cannot be viewed or applied for.");
         }
     }
+    
+    /**
+     * 强制刷新 TA 个人资料的完整性状态
+     * 确保保存后的 profile 立即被识别为完整
+     */
+    private void refreshProfileCompletion(Long taUserId) {
+        TAProfile profile = taProfileService.getProfileByTaId(taUserId);
+        if (profile != null) {
+            // 重新计算完整性标志
+            profile.saveProfile();
+            // 保存更新后的状态
+            taProfileService.saveProfile(profile);
+        }
+    }
 
     /**
      * 提交申请（带 CV 选择）
      */
     public TAApplication submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
-        // 1. 验证个人资料是否完整
+        // 1. 强制刷新并验证个人资料是否完整
+        refreshProfileCompletion(taUserId);
+        
         if (!taProfileService.isProfileComplete(taUserId)) {
-            throw new IllegalStateException("Please complete your TA profile before applying.");
+            // 获取缺失字段，帮助调试
+            List<String> missing = taProfileService.getMissingFields(taUserId);
+            String missingMsg = missing.isEmpty() ? "" : " Missing: " + String.join(", ", missing);
+            throw new IllegalStateException("Please complete your TA profile before applying." + missingMsg);
         }
         
         // 2. 验证 CV 是否存在且属于该 TA
@@ -165,12 +190,29 @@ public class TAApplicationService {
             throw new IllegalStateException("Your previous application for this position was rejected. You cannot reapply.");
         }
 
-        // 6. 检查活跃申请数量限制（最多3个）
+        // 6. 检查是否已有已接受或已录用的申请
+        boolean hasAcceptedOrHired = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        (ApplicationStatus.ACCEPTED.equals(a.getStatus()) || 
+                         ApplicationStatus.HIRED.equals(a.getStatus())));
+        if (hasAcceptedOrHired) {
+            throw new IllegalStateException("You have already been accepted/hired for this position.");
+        }
+
+        // 7. 检查是否已有待处理的 Offer（申请状态为 ACCEPTED 但尚未处理 Offer）
+        boolean hasPendingOffer = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        ApplicationStatus.ACCEPTED.equals(a.getStatus()));
+        if (hasPendingOffer) {
+            throw new IllegalStateException("You already have a pending offer for this position. Please accept or reject it first.");
+        }
+
+        // 8. 检查活跃申请数量限制（最多3个）- 包括 HIRED
         if (getActiveApplicationCount(taUserId) >= 3) {
             throw new IllegalStateException("You can only have 3 active applications at once.");
         }
 
-        // 7. 创建申请
+        // 9. 创建申请
         TAApplication application = new TAApplication();
         application.setTaUserId(taUserId);
         application.setJobId(jobId);
