@@ -70,7 +70,9 @@ public class TAApplicationController {
     }
     
     /**
-     * 获取可申请的职位（TA 未申请过的）
+     * 获取可申请的职位
+     * 逻辑：包括未申请过的 + 自行取消的
+     * 不包括：活跃申请（待审核/候补）和被拒绝的申请
      */
     public List<MOJob> getAvailableJobs(Long taUserId) {
         List<MOJob> allJobs = jobService.listPublishedJobs();
@@ -79,6 +81,7 @@ public class TAApplicationController {
         List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
         
         // 需要排除的 jobId（活跃申请 + 被拒绝的申请）
+        // 已取消的申请不排除，允许重新申请
         List<Long> excludedJobIds = applications.stream()
                 .filter(a -> {
                     String status = a.getStatus();
@@ -220,7 +223,7 @@ public class TAApplicationController {
     /**
      * 获取课程名称
      */
-    private String getCourseName(Long jobId) {
+    public String getCourseName(Long jobId) {
         List<MOJob> jobs = jobService.listPublishedJobs();
         for (MOJob job : jobs) {
             if (job.getJobId().equals(jobId)) {
@@ -228,6 +231,32 @@ public class TAApplicationController {
             }
         }
         return "Course #" + jobId;
+    }
+    
+    /**
+     * 获取课程名称（通过课程代码）
+     */
+    public String getCourseNameByModuleCode(String moduleCode) {
+        List<MOJob> jobs = jobService.listPublishedJobs();
+        for (MOJob job : jobs) {
+            if (job.getModuleCode().equals(moduleCode)) {
+                return job.getModuleCode() + " - " + job.getTitle();
+            }
+        }
+        return moduleCode;
+    }
+    
+    /**
+     * 根据 JobId 获取 Job 对象
+     */
+    public MOJob getJobById(Long jobId) {
+        List<MOJob> jobs = jobService.listPublishedJobs();
+        for (MOJob job : jobs) {
+            if (job.getJobId().equals(jobId)) {
+                return job;
+            }
+        }
+        return null;
     }
     
     /**
@@ -262,4 +291,6 @@ public class TAApplicationController {
             return accepted + pending + rejected;
         }
     }
+
+    
 }

@@ -15,5 +15,23 @@
     "statement": "1",
     "status": "SUBMITTED",
     "appliedAt": "2026-04-08T14:52:24.4553846"
+  },
+  {
+    "applicationId": 3003,
+    "taUserId": 100004,
+    "jobId": 2006,
+    "cvId": 2,
+    "statement": "3",
+    "status": "HIRED",
+    "appliedAt": "2026-04-11T21:13:00.4409524"
+  },
+  {
+    "applicationId": 3004,
+    "taUserId": 100004,
+    "jobId": 2007,
+    "cvId": 2,
+    "statement": "11",
+    "status": "HIRED",
+    "appliedAt": "2026-04-11T21:45:14.7112201"
   }
 ]
