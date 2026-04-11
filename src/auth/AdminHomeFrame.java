@@ -1,29 +1,118 @@
 package auth;
 
+import common.dao.MOJobDAO;
+import common.dao.MOOfferDAO;
+import common.dao.NotificationDAO;
 import common.entity.AccountStatus;
+import common.entity.MOJob;
+import common.entity.MOOffer;
+import common.entity.NotificationMessage;
 import common.entity.User;
+import common.entity.UserRole;
+import common.service.SystemConfigService;
 import common.service.UserService;
+import common.util.CsvExportUtil;
+import ta.dao.CVDao;
+import ta.dao.TAApplicationDAO;
+import ta.dao.TAProfileDAO;
+import ta.entity.CVInfo;
+import ta.entity.TAApplication;
+import ta.entity.TAProfile;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
 
+/**
+ * Admin portal.
+ * Supports administrator operations such as account management,
+ * system data inspection, and global configuration.
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Expanded the original demo admin page into a structured admin portal
+ * - Added strict super-admin access validation
+ * - Added MO approval, account disable/reactivate, and password reset actions
+ *
+ * @version 3.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added system-wide data viewing
+ * - Added CSV export for core datasets
+ * - Kept existing account lifecycle management functions
+ *
+ * @version 4.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added global application cycle configuration support
+ * - Structured the admin portal into three functional tabs
+ * - Kept account management, system data inspection, and CSV export
+ *
+ * @version 5.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned System Data with ta.* profile/application/CV data sources
+ * - Removed dependency on outdated common.* profile/application/CV stores
+ * - Fixed TA profile and CV dataset rendering and export consistency
+ */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
     private final UserService userService = new UserService();
+    private final SystemConfigService systemConfigService = new SystemConfigService();
+
+    private final TAProfileDAO taProfileDAO = new TAProfileDAO();
+    private final MOJobDAO moJobDAO = new MOJobDAO();
+    private final TAApplicationDAO applicationDAO = new TAApplicationDAO();
+    private final CVDao cvDao = new CVDao();
+    private final MOOfferDAO offerDAO = new MOOfferDAO();
+    private final NotificationDAO notificationDAO = new NotificationDAO();
+
+    private JTable userTable;
+    private DefaultTableModel userTableModel;
+
+    private JTable dataTable;
+    private DefaultTableModel dataTableModel;
+    private JComboBox<String> datasetCombo;
+
+    private JTextField cycleStartField;
+    private JTextField cycleEndField;
 
     public AdminHomeFrame(User user) {
         this.currentUser = user;
-        setTitle("Admin Home");
-        setSize(640, 420);
+
+        if (!userService.isStrictAdmin(user)) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Access denied. Only active super admin account admin@test.com can enter Admin Portal.",
+                    "Permission Denied",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            new LoginFrame().setVisible(true);
+            dispose();
+            return;
+        }
+
+        setTitle("Admin Portal");
+        setSize(1100, 720);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+
         initUi();
+        refreshUserTable();
+        refreshDataTable();
+        loadCycleFields();
     }
 
     private void initUi() {
-        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 8));
-        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-        panel.add(new JLabel("Welcome, " + currentUser.getEmail() + " (ADMIN)"));
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("MO Account Approval", createUserManagementPanel());
+        tabs.addTab("System Data", createDataPanel());
+        tabs.addTab("Application Cycle", createCyclePanel());
 
         JButton logoutBtn = new JButton("Logout");
         logoutBtn.addActionListener(e -> {
@@ -31,20 +120,409 @@ public class AdminHomeFrame extends JFrame {
             dispose();
         });
 
-        JButton approveMoBtn = new JButton("Approve demo MO account");
-        approveMoBtn.addActionListener(e -> {
-            User mo = userService.findByEmail("mo@test.com");
-            if (mo == null) {
-                JOptionPane.showMessageDialog(this, "Demo MO account not found.");
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+
+        JLabel title = new JLabel("Welcome, " + currentUser.getEmail() + " (SUPER ADMIN)");
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+
+        topPanel.add(title, BorderLayout.WEST);
+        topPanel.add(logoutBtn, BorderLayout.EAST);
+
+        setLayout(new BorderLayout());
+        add(topPanel, BorderLayout.NORTH);
+        add(tabs, BorderLayout.CENTER);
+    }
+
+    private JPanel createUserManagementPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        userTableModel = new DefaultTableModel(
+                new Object[]{"User ID", "Email", "Role", "Status", "Last Login"}, 0
+        ) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        userTable = new JTable(userTableModel);
+        panel.add(new JScrollPane(userTable), BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JButton refreshBtn = new JButton("Refresh");
+        JButton approveBtn = new JButton("Approve MO");
+        JButton disableBtn = new JButton("Disable Account");
+        JButton reactivateBtn = new JButton("Reactivate Account");
+        JButton resetPwdBtn = new JButton("Reset Password");
+
+        refreshBtn.addActionListener(e -> refreshUserTable());
+
+        approveBtn.addActionListener(e -> {
+            String email = getSelectedEmail();
+            if (email == null) {
                 return;
             }
-            mo.setStatus(AccountStatus.ACTIVE);
-            userService.saveUser(mo);
-            JOptionPane.showMessageDialog(this, "MO account approved.");
+
+            User user = userService.findByEmail(email);
+            if (user == null) {
+                showMessage("User not found.");
+                return;
+            }
+            if (user.getRole() != UserRole.MO) {
+                showMessage("Only MO accounts can be approved.");
+                return;
+            }
+
+            userService.approveMoAccount(email);
+            refreshUserTable();
+            showMessage("MO account approved: " + email);
         });
 
-        panel.add(approveMoBtn);
-        panel.add(logoutBtn);
-        setContentPane(panel);
+        disableBtn.addActionListener(e -> {
+            String email = getSelectedEmail();
+            if (email == null) {
+                return;
+            }
+
+            if ("admin@test.com".equalsIgnoreCase(email)) {
+                showMessage("Super admin cannot be disabled.");
+                return;
+            }
+
+            userService.disableAccount(email);
+            refreshUserTable();
+            showMessage("Account disabled: " + email);
+        });
+
+        reactivateBtn.addActionListener(e -> {
+            String email = getSelectedEmail();
+            if (email == null) {
+                return;
+            }
+
+            userService.updateAccountStatus(email, AccountStatus.ACTIVE);
+            refreshUserTable();
+            showMessage("Account reactivated: " + email);
+        });
+
+        resetPwdBtn.addActionListener(e -> {
+            String email = getSelectedEmail();
+            if (email == null) {
+                return;
+            }
+
+            String newPassword = JOptionPane.showInputDialog(this, "Enter new password for " + email);
+            if (newPassword == null || newPassword.isBlank()) {
+                return;
+            }
+
+            userService.resetPasswordByAdmin(email, newPassword.trim());
+            showMessage("Password reset completed for: " + email);
+        });
+
+        buttonPanel.add(refreshBtn);
+        buttonPanel.add(approveBtn);
+        buttonPanel.add(disableBtn);
+        buttonPanel.add(reactivateBtn);
+        buttonPanel.add(resetPwdBtn);
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private JPanel createDataPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        datasetCombo = new JComboBox<>(new String[]{
+                "Users",
+                "TA Profiles",
+                "Jobs",
+                "Applications",
+                "CV Infos",
+                "Offers",
+                "Notifications"
+        });
+
+        JButton loadBtn = new JButton("Load Dataset");
+        loadBtn.addActionListener(e -> refreshDataTable());
+
+        JButton exportBtn = new JButton("Export CSV");
+        exportBtn.addActionListener(e -> exportCurrentDataset());
+
+        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        top.add(new JLabel("Dataset: "));
+        top.add(datasetCombo);
+        top.add(loadBtn);
+        top.add(exportBtn);
+
+        dataTableModel = new DefaultTableModel();
+        dataTable = new JTable(dataTableModel);
+
+        panel.add(top, BorderLayout.NORTH);
+        panel.add(new JScrollPane(dataTable), BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createCyclePanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel tip = new JLabel("Datetime format example: 2026-04-07T09:00:00");
+        tip.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        cycleStartField = new JTextField();
+        cycleEndField = new JTextField();
+
+        JButton saveBtn = new JButton("Save Application Cycle");
+        saveBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        saveBtn.addActionListener(e -> saveApplicationCycle());
+
+        panel.add(new JLabel("Application Start"));
+        panel.add(cycleStartField);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(new JLabel("Application End"));
+        panel.add(cycleEndField);
+        panel.add(Box.createVerticalStrut(12));
+        panel.add(tip);
+        panel.add(Box.createVerticalStrut(16));
+        panel.add(saveBtn);
+
+        return panel;
+    }
+
+    /**
+     * Reloads all users into the table.
+     */
+    private void refreshUserTable() {
+        userTableModel.setRowCount(0);
+        for (User user : userService.listAllUsers()) {
+            userTableModel.addRow(new Object[]{
+                    user.getUserId(),
+                    user.getEmail(),
+                    user.getRole(),
+                    user.getStatus(),
+                    user.getLastLogin()
+            });
+        }
+    }
+
+    /**
+     * Reloads the selected dataset into the data table.
+     */
+    private void refreshDataTable() {
+        String selected = datasetCombo == null ? "Users" : (String) datasetCombo.getSelectedItem();
+        if (selected == null) {
+            selected = "Users";
+        }
+
+        switch (selected) {
+            case "Users" -> loadGenericTable(
+                    new String[]{"User ID", "Email", "Role", "Status", "Last Login"},
+                    userService.listAllUsers().stream()
+                            .map(u -> new Object[]{
+                                    u.getUserId(),
+                                    u.getEmail(),
+                                    u.getRole(),
+                                    u.getStatus(),
+                                    u.getLastLogin()
+                            })
+                            .toList()
+            );
+            case "TA Profiles" -> loadGenericTable(
+                    new String[]{"TA ID", "Email", "Name", "Major", "Year", "Hours"},
+                    taProfileDAO.findAll().stream()
+                            .map(this::toTaProfileRow)
+                            .toList()
+            );
+            case "Jobs" -> loadGenericTable(
+                    new String[]{"Job ID", "MO User ID", "Module", "Title", "Hours", "Status"},
+                    moJobDAO.findAll().stream()
+                            .map(this::toJobRow)
+                            .toList()
+            );
+            case "Applications" -> loadGenericTable(
+                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At", "CV ID"},
+                    applicationDAO.findAll().stream()
+                            .map(this::toApplicationRow)
+                            .toList()
+            );
+            case "CV Infos" -> loadGenericTable(
+                    new String[]{"CV ID", "TA ID", "TA Email", "CV Name", "File Path", "Updated At"},
+                    cvDao.findAll().stream()
+                            .map(this::toCvRow)
+                            .toList()
+            );
+            case "Offers" -> loadGenericTable(
+                    new String[]{"Offer ID", "Application ID", "TA User ID", "Module", "Hours", "Status"},
+                    offerDAO.findAll().stream()
+                            .map(this::toOfferRow)
+                            .toList()
+            );
+            case "Notifications" -> loadGenericTable(
+                    new String[]{"Notification ID", "Recipient User ID", "Title", "Type", "Read", "Created At"},
+                    notificationDAO.findAll().stream()
+                            .map(this::toNotificationRow)
+                            .toList()
+            );
+            default -> loadGenericTable(
+                    new String[]{"Info"},
+                    java.util.Collections.singletonList(new Object[]{"No dataset selected"})
+            );
+        }
+    }
+
+    private Object[] toTaProfileRow(TAProfile profile) {
+        String fullName = profile.getFullName();
+        String year = profile.getCurrentYear() == null ? "" : profile.getCurrentYear().getEnglishName();
+        return new Object[]{
+                profile.getTaId(),
+                profile.getEmail(),
+                fullName == null ? "" : fullName,
+                profile.getMajor(),
+                year,
+                profile.getAvailableWorkingHours()
+        };
+    }
+
+    private Object[] toJobRow(MOJob job) {
+        return new Object[]{
+                job.getJobId(),
+                job.getMoUserId(),
+                job.getModuleCode(),
+                job.getTitle(),
+                job.getWeeklyHours(),
+                job.getStatus()
+        };
+    }
+
+    private Object[] toApplicationRow(TAApplication application) {
+        return new Object[]{
+                application.getApplicationId(),
+                application.getTaUserId(),
+                application.getJobId(),
+                application.getStatus(),
+                application.getAppliedAt(),
+                application.getCvId()
+        };
+    }
+
+    private Object[] toCvRow(CVInfo cv) {
+        return new Object[]{
+                cv.getCvId(),
+                cv.getTaId(),
+                cv.getTaEmail(),
+                cv.getCvName(),
+                cv.getFilePath(),
+                cv.getUpdatedAt()
+        };
+    }
+
+    private Object[] toOfferRow(MOOffer offer) {
+        return new Object[]{
+                offer.getOfferId(),
+                offer.getApplicationId(),
+                offer.getTaUserId(),
+                offer.getModuleCode(),
+                offer.getOfferedHours(),
+                offer.getStatus()
+        };
+    }
+
+    private Object[] toNotificationRow(NotificationMessage notification) {
+        return new Object[]{
+                notification.getNotificationId(),
+                notification.getRecipientUserId(),
+                notification.getTitle(),
+                notification.getType(),
+                notification.isRead(),
+                notification.getCreatedAt()
+        };
+    }
+
+    /**
+     * Loads rows into the generic data table.
+     */
+    private void loadGenericTable(String[] columns, List<Object[]> rows) {
+        dataTableModel.setDataVector(new Object[0][0], columns);
+        for (Object[] row : rows) {
+            dataTableModel.addRow(row);
+        }
+    }
+
+    /**
+     * Exports the current dataset to a CSV file.
+     */
+    private void exportCurrentDataset() {
+        String selected = (String) datasetCombo.getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+
+        try {
+            Path filePath = switch (selected) {
+                case "Users" -> CsvExportUtil.exportUsers("users.csv", userService.listAllUsers());
+                case "TA Profiles" -> CsvExportUtil.exportObjects("ta_profiles.csv", taProfileDAO.findAll());
+                case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
+                case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
+                case "CV Infos" -> CsvExportUtil.exportObjects("ta_cvs.csv", cvDao.findAll());
+                case "Offers" -> CsvExportUtil.exportObjects("offers.csv", offerDAO.findAll());
+                case "Notifications" -> CsvExportUtil.exportObjects("notifications.csv", notificationDAO.findAll());
+                default -> null;
+            };
+
+            if (filePath != null) {
+                showMessage("CSV exported successfully:\n" + filePath.toAbsolutePath());
+            }
+        } catch (Exception ex) {
+            showMessage("Export failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Loads saved application cycle values into the form.
+     */
+    private void loadCycleFields() {
+        var config = systemConfigService.getConfig();
+        cycleStartField.setText(config.getApplicationStart() == null ? "" : config.getApplicationStart().toString());
+        cycleEndField.setText(config.getApplicationEnd() == null ? "" : config.getApplicationEnd().toString());
+    }
+
+    /**
+     * Saves the application cycle to system_config.json.
+     */
+    private void saveApplicationCycle() {
+        try {
+            LocalDateTime start = LocalDateTime.parse(cycleStartField.getText().trim());
+            LocalDateTime end = LocalDateTime.parse(cycleEndField.getText().trim());
+
+            systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
+            showMessage("Application cycle saved successfully.");
+        } catch (DateTimeParseException ex) {
+            showMessage("Invalid datetime format. Use format like 2026-04-07T09:00:00");
+        } catch (Exception ex) {
+            showMessage("Save failed: " + ex.getMessage());
+        }
+    }
+
+    /**
+     * Returns the email from the selected row.
+     */
+    private String getSelectedEmail() {
+        int row = userTable.getSelectedRow();
+        if (row < 0) {
+            showMessage("Please select a user first.");
+            return null;
+        }
+        Object email = userTableModel.getValueAt(row, 1);
+        return email == null ? null : email.toString();
+    }
+
+    private void showMessage(String message) {
+        JOptionPane.showMessageDialog(this, message);
     }
 }

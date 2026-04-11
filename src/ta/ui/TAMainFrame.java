@@ -5,11 +5,6 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -17,58 +12,61 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
-import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.JTableHeader;
 
 import auth.LoginFrame;
-import common.entity.MOJob;
 import common.entity.TA;
 import common.entity.User;
 import common.service.NotificationService;
 import common.ui.BaseFrame;
 import common.ui.NotificationPopup;
 import ta.controller.TAApplicationController;
-import ta.controller.TAOfferController;
-import ta.controller.TAProfileController;
 import ta.controller.TAAuthController;
-import ta.entity.TAApplication;
-import ta.ui.components.StatusCellRenderer;
 
-/**
- * TA 主界面 - Dashboard
- * 
- * @author Can Chen
- * @version 3.1 - 使用公共 StatusCellRenderer
- */
+
 public class TAMainFrame extends BaseFrame {
     
     private final TA ta;
     
-    private final TAProfileController profileController;
     private final TAApplicationController applicationController;
-    private final TAOfferController offerController;
     private final TAAuthController authController;
     private final NotificationService notificationService;
-
+    
+    // 面板组件
+    private JPanel contentPanel;
+    private java.awt.CardLayout cardLayout;
+    
+    // 各个功能面板
+    private TADashboardPanel dashboardPanel;
+    private TACourseCatalogPanel courseCatalogPanel;
+    private TAApplicationsPanel applicationsPanel;
+    private TAProfilePanel profilePanel;
+    private TAWorkloadPanel workloadPanel;
+    
+    // 导航按钮
+    private JButton dashboardBtn;
+    private JButton courseCatalogBtn;
+    private JButton applicationsBtn;
+    private JButton profileBtn;
+    private JButton workloadBtn;
+    
+    // 颜色常量
     private static final Color SIDEBAR_BG = new Color(30, 35, 45);
-    private static final Color ACCEPTED_COLOR = new Color(34, 197, 94);
-    private static final Color PENDING_COLOR = new Color(234, 179, 8);
-    private static final Color REJECTED_COLOR = new Color(239, 68, 68);
-    private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
-    private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
+    private static final Color NAV_ACTIVE_BG = new Color(37, 99, 235);
+    private static final Color NAV_HOVER_BG = new Color(55, 65, 81);
+    private static final Color NAV_ACTIVE_FG = Color.WHITE;
+    private static final Color NAV_INACTIVE_FG = new Color(156, 163, 175);
+    
+    // 当前选中的按钮
+    private JButton currentActiveBtn = null;
 
     public TAMainFrame(User user) {
         super("TA Recruitment System - Dashboard", 1200, 750);
         this.ta = (TA) user;
         
-        this.profileController = new TAProfileController();
         this.applicationController = new TAApplicationController();
-        this.offerController = new TAOfferController();
         this.authController = new TAAuthController();
         this.notificationService = new NotificationService();
         
@@ -90,323 +88,312 @@ public class TAMainFrame extends BaseFrame {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(SIDEBAR_BG);
-        sidebar.setPreferredSize(new Dimension(260, getHeight()));
-        sidebar.setBorder(new EmptyBorder(24, 20, 24, 20));
+        sidebar.setPreferredSize(new Dimension(280, getHeight()));
+        sidebar.setBorder(new EmptyBorder(28, 20, 28, 20));
 
+        // Logo 区域
+        JPanel logoPanel = new JPanel();
+        logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
+        logoPanel.setBackground(SIDEBAR_BG);
+        logoPanel.setAlignmentX(LEFT_ALIGNMENT);
+        
         JLabel logoLabel = new JLabel("TA Recruit");
-        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
         logoLabel.setForeground(Color.WHITE);
         logoLabel.setAlignmentX(LEFT_ALIGNMENT);
-        sidebar.add(logoLabel);
-        sidebar.add(Box.createVerticalStrut(32));
+        
+        JLabel logoSubLabel = new JLabel("Teaching Assistant System");
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setForeground(new Color(107, 114, 128));
+        logoSubLabel.setAlignmentX(LEFT_ALIGNMENT);
+        
+        logoPanel.add(logoLabel);
+        logoPanel.add(Box.createVerticalStrut(4));
+        logoPanel.add(logoSubLabel);
+        
+        sidebar.add(logoPanel);
+        sidebar.add(Box.createVerticalStrut(36));
 
-        sidebar.add(createNavButton("Dashboard", true));
-        sidebar.add(Box.createVerticalStrut(8));
-        sidebar.add(createNavButton("Course Catalog", false));
-        sidebar.add(Box.createVerticalStrut(8));
-        sidebar.add(createNavButton("My Applications", false));
-        sidebar.add(Box.createVerticalStrut(8));
-        sidebar.add(createNavButton("My Profile", false));
-        sidebar.add(Box.createVerticalStrut(8));
-        sidebar.add(createNavButton("Workload Tracking", false));
+        // 导航按钮 - 使用类似 LoginFrame 的 Tab 风格
+        dashboardBtn = createNavButton("Dashboard", "🏠");
+        courseCatalogBtn = createNavButton("Course Catalog", "📚");
+        applicationsBtn = createNavButton("My Applications", "📝");
+        profileBtn = createNavButton("My Profile", "👤");
+        workloadBtn = createNavButton("Workload Tracking", "⏱️");
+        
+        sidebar.add(dashboardBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(courseCatalogBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(applicationsBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(profileBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(workloadBtn);
 
         sidebar.add(Box.createVerticalGlue());
 
-        sidebar.add(new JSeparator());
-        sidebar.add(Box.createVerticalStrut(16));
+        // 分隔线
+        JSeparator separator = new JSeparator();
+        separator.setForeground(new Color(55, 65, 81));
+        separator.setMaximumSize(new Dimension(240, 1));
+        separator.setAlignmentX(LEFT_ALIGNMENT);
+        sidebar.add(separator);
+        sidebar.add(Box.createVerticalStrut(20));
+
+        // 底部用户信息
+        JPanel userPanel = new JPanel();
+        userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
+        userPanel.setBackground(SIDEBAR_BG);
+        userPanel.setAlignmentX(LEFT_ALIGNMENT);
         
         String displayName = authController.getDisplayName(ta);
         JLabel userLabel = new JLabel(displayName);
-        userLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        userLabel.setForeground(new Color(156, 163, 175));
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setForeground(Color.WHITE);
         userLabel.setAlignmentX(LEFT_ALIGNMENT);
-        sidebar.add(userLabel);
         
         JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
-        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         roleLabel.setForeground(new Color(107, 114, 128));
         roleLabel.setAlignmentX(LEFT_ALIGNMENT);
-        sidebar.add(roleLabel);
         
+        userPanel.add(userLabel);
+        userPanel.add(Box.createVerticalStrut(4));
+        userPanel.add(roleLabel);
+        
+        sidebar.add(userPanel);
         sidebar.add(Box.createVerticalStrut(16));
         
-        JButton logoutBtn = new JButton("Sign Out");
-        logoutBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        logoutBtn.setForeground(new Color(239, 68, 68));
-        logoutBtn.setBackground(SIDEBAR_BG);
-        logoutBtn.setBorderPainted(false);
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        logoutBtn.setAlignmentX(LEFT_ALIGNMENT);
-        logoutBtn.addActionListener(e -> {
-            new LoginFrame().setVisible(true);
-            dispose();
-        });
+        // 退出按钮
+        JButton logoutBtn = createLogoutButton();
         sidebar.add(logoutBtn);
+        
+        // 设置默认选中 Dashboard
+        setActiveButton(dashboardBtn);
 
         return sidebar;
     }
-
-    private JButton createNavButton(String text, boolean isActive) {
-        JButton button = new JButton(text);
+    
+    /**
+     * 创建导航按钮 - 类似 LoginFrame 的 Tab 风格
+     */
+    private JButton createNavButton(String text, String icon) {
+        JButton button = new JButton(icon + "  " + text);
+        button.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        button.setHorizontalAlignment(SwingConstants.LEFT);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setBackground(SIDEBAR_BG);
+        button.setForeground(NAV_INACTIVE_FG);
+        button.setMaximumSize(new Dimension(240, 48));
+        button.setPreferredSize(new Dimension(240, 48));
+        button.setMinimumSize(new Dimension(240, 48));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        
+        // 添加悬停效果
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                if (button != currentActiveBtn) {
+                    button.setBackground(NAV_HOVER_BG);
+                }
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                if (button != currentActiveBtn) {
+                    button.setBackground(SIDEBAR_BG);
+                }
+            }
+        });
+        
+        button.addActionListener(e -> {
+            switchPanel(text);
+            setActiveButton(button);
+        });
+        
+        return button;
+    }
+    
+    /**
+     * 创建退出按钮
+     */
+    private JButton createLogoutButton() {
+        JButton button = new JButton("🚪  Sign Out");
         button.setFont(new Font("SansSerif", Font.PLAIN, 14));
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setBackground(SIDEBAR_BG);
+        button.setForeground(new Color(239, 68, 68));
+        button.setMaximumSize(new Dimension(240, 44));
+        button.setPreferredSize(new Dimension(240, 44));
+        button.setMinimumSize(new Dimension(240, 44));
+        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
         
-        if (isActive) {
-            button.setForeground(Color.WHITE);
-            button.setBackground(new Color(59, 130, 246, 50));
-        } else {
-            button.setForeground(new Color(156, 163, 175));
-            button.setBackground(SIDEBAR_BG);
-        }
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(NAV_HOVER_BG);
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(SIDEBAR_BG);
+            }
+        });
         
         button.addActionListener(e -> {
-            switch (text) {
-                case "My Profile":
-                    new TAProfileFrame(ta).setVisible(true);
-                    dispose();
-                    break;
-                case "My Applications":
-                    new TAApplicationsFrame(ta).setVisible(true);
-                    dispose();
-                    break;
-                case "Course Catalog":
-                    new TACourseCatalogFrame(ta).setVisible(true);
-                    dispose();
-                    break;
-                case "Workload Tracking":
-                    new TAWorkloadFrame(ta).setVisible(true);
-                    dispose();
-                    break;
-                default:
-                    break;
-            }
+            new LoginFrame().setVisible(true);
+            dispose();
         });
         
         return button;
     }
-
-    private JScrollPane createMainContent() {
-        JPanel content = new JPanel();
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.setBackground(new Color(248, 250, 252));
-        content.setBorder(new EmptyBorder(30, 35, 30, 35));
-
-        content.add(createWelcomeSection());
-        content.add(Box.createVerticalStrut(25));
-        content.add(createStatsCards());
-        content.add(Box.createVerticalStrut(25));
-        content.add(createApplicationsSection());
-        content.add(Box.createVerticalStrut(20));
-
-        JScrollPane scrollPane = new JScrollPane(content);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+    
+    /**
+     * 设置激活按钮样式
+     */
+    private void setActiveButton(JButton button) {
+        // 重置所有按钮样式
+        JButton[] buttons = {dashboardBtn, courseCatalogBtn, applicationsBtn, profileBtn, workloadBtn};
+        for (JButton btn : buttons) {
+            if (btn != null) {
+                btn.setBackground(SIDEBAR_BG);
+                btn.setForeground(NAV_INACTIVE_FG);
+                btn.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+            }
+        }
         
-        return scrollPane;
+        // 设置当前按钮为激活状态
+        currentActiveBtn = button;
+        if (button != null) {
+            button.setBackground(NAV_ACTIVE_BG);
+            button.setForeground(NAV_ACTIVE_FG);
+            button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        }
     }
-
-    private JPanel createWelcomeSection() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setOpaque(false);
-
-        String displayName = authController.getDisplayName(ta);
+    
+    /**
+     * 切换到指定面板
+     */
+    public void switchPanel(String panelName) {
+        String cardName = "";
         
+        switch (panelName) {
+            case "Dashboard":
+                cardName = "DASHBOARD";
+                break;
+            case "Course Catalog":
+                cardName = "COURSE_CATALOG";
+                break;
+            case "My Applications":
+                cardName = "APPLICATIONS";
+                break;
+            case "My Profile":
+                cardName = "PROFILE";
+                break;
+            case "Workload Tracking":
+                cardName = "WORKLOAD";
+                break;
+            default:
+                return;
+        }
+        
+        // 切换卡片
+        if (cardLayout != null && contentPanel != null) {
+            cardLayout.show(contentPanel, cardName);
+        }
+        
+        // 刷新对应面板数据
+        refreshPanel(cardName);
+    }
+    
+    /**
+     * 切换到 Profile 面板
+     */
+    public void switchToProfile() {
+        switchPanel("My Profile");
+        setActiveButton(profileBtn);
+    }
+    
+    private void refreshPanel(String panelName) {
+        switch (panelName) {
+            case "DASHBOARD":
+                if (dashboardPanel != null) dashboardPanel.refresh();
+                break;
+            case "COURSE_CATALOG":
+                if (courseCatalogPanel != null) courseCatalogPanel.refresh();
+                break;
+            case "APPLICATIONS":
+                if (applicationsPanel != null) applicationsPanel.refresh();
+                break;
+            case "PROFILE":
+                if (profilePanel != null) profilePanel.refresh();
+                break;
+            case "WORKLOAD":
+                if (workloadPanel != null) workloadPanel.refresh();
+                break;
+            default:
+                break;
+        }
+    }
+    
+    private JPanel createMainContent() {
+        JPanel mainContent = new JPanel(new BorderLayout());
+        mainContent.setBackground(new Color(248, 250, 252));
+        
+        // 顶部栏
+        mainContent.add(createTopBar(), BorderLayout.NORTH);
+        
+        // 卡片内容面板
+        cardLayout = new java.awt.CardLayout();
+        contentPanel = new JPanel(cardLayout);
+        contentPanel.setBackground(new Color(248, 250, 252));
+        
+        // 初始化各个面板
+        dashboardPanel = new TADashboardPanel(ta);
+        courseCatalogPanel = new TACourseCatalogPanel(ta);
+        applicationsPanel = new TAApplicationsPanel(ta);
+        profilePanel = new TAProfilePanel(ta);
+        workloadPanel = new TAWorkloadPanel(ta);
+        
+        contentPanel.add(dashboardPanel, "DASHBOARD");
+        contentPanel.add(courseCatalogPanel, "COURSE_CATALOG");
+        contentPanel.add(applicationsPanel, "APPLICATIONS");
+        contentPanel.add(profilePanel, "PROFILE");
+        contentPanel.add(workloadPanel, "WORKLOAD");
+        
+        // 默认显示Dashboard
+        cardLayout.show(contentPanel, "DASHBOARD");
+        
+        mainContent.add(contentPanel, BorderLayout.CENTER);
+        
+        return mainContent;
+    }
+    
+    private JPanel createTopBar() {
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(Color.WHITE);
+        topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
+        
+        // 欢迎语
+        String displayName = authController.getDisplayName(ta);
         JLabel welcomeLabel = new JLabel("Welcome, " + displayName);
-        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 28));
+        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         welcomeLabel.setForeground(new Color(30, 35, 45));
-
-        JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
-        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        roleLabel.setForeground(new Color(107, 114, 128));
-
-        JPanel textPanel = new JPanel();
-        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-        textPanel.setOpaque(false);
-        textPanel.add(welcomeLabel);
-        textPanel.add(roleLabel);
-
+        
+        // 通知按钮
         int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
         JButton notifyBtn = new JButton("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
         notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        notifyBtn.setBackground(new Color(248, 250, 252));
+        notifyBtn.setBackground(Color.WHITE);
         notifyBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         notifyBtn.setFocusPainted(false);
         notifyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         notifyBtn.addActionListener(e -> 
                 NotificationPopup.showUnreadNotifications(this, ta, notificationService));
-
-        panel.add(textPanel, BorderLayout.WEST);
-        panel.add(notifyBtn, BorderLayout.EAST);
-
-        return panel;
-    }
-
-    private JPanel createStatsCards() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setOpaque(false);
         
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.weightx = 1.0;
-        gbc.insets = new Insets(0, 0, 0, 15);
-
-        TAApplicationController.ApplicationStats stats = 
-                applicationController.getApplicationStats(ta.getUserId());
-
-        gbc.gridx = 0;
-        panel.add(createStatCard("✅", "Accepted", String.valueOf(stats.accepted), ACCEPTED_COLOR), gbc);
+        topBar.add(welcomeLabel, BorderLayout.WEST);
+        topBar.add(notifyBtn, BorderLayout.EAST);
         
-        gbc.gridx = 1;
-        panel.add(createStatCard("⏳", "Pending", String.valueOf(stats.pending), PENDING_COLOR), gbc);
-        
-        gbc.gridx = 2;
-        panel.add(createStatCard("❌", "Rejected", String.valueOf(stats.rejected), REJECTED_COLOR), gbc);
-        
-        gbc.gridx = 3;
-        gbc.insets = new Insets(0, 0, 0, 0);
-        panel.add(createStatCard("📋", "Total", String.valueOf(stats.getTotal()), PRIMARY_BLUE), gbc);
-
-        return panel;
-    }
-
-    private JPanel createStatCard(String emoji, String title, String value, Color color) {
-        JPanel card = new JPanel();
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 224, 230), 1),
-                new EmptyBorder(18, 20, 18, 20)
-        ));
-
-        JLabel emojiLabel = new JLabel(emoji);
-        emojiLabel.setFont(new Font("SansSerif", Font.PLAIN, 24));
-        emojiLabel.setAlignmentX(LEFT_ALIGNMENT);
-        
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 32));
-        valueLabel.setForeground(color);
-        valueLabel.setAlignmentX(LEFT_ALIGNMENT);
-        
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        titleLabel.setForeground(new Color(107, 114, 128));
-        titleLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        card.add(emojiLabel);
-        card.add(Box.createVerticalStrut(8));
-        card.add(valueLabel);
-        card.add(Box.createVerticalStrut(4));
-        card.add(titleLabel);
-
-        return card;
-    }
-
-    private JPanel createApplicationsSection() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(220, 224, 230), 1),
-                new EmptyBorder(20, 20, 20, 20)
-        ));
-
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setOpaque(false);
-        
-        JLabel titleLabel = new JLabel("Recent Applications");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        titleLabel.setForeground(new Color(30, 35, 45));
-        
-        JButton viewAllBtn = new JButton("View All →");
-        viewAllBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        viewAllBtn.setForeground(PRIMARY_BLUE);
-        viewAllBtn.setBackground(Color.WHITE);
-        viewAllBtn.setBorderPainted(false);
-        viewAllBtn.setFocusPainted(false);
-        viewAllBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        viewAllBtn.addActionListener(e -> {
-            new TAApplicationsFrame(ta).setVisible(true);
-            dispose();
-        });
-        
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        headerPanel.add(viewAllBtn, BorderLayout.EAST);
-        
-        panel.add(headerPanel, BorderLayout.NORTH);
-        
-        int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
-        int maxApps = applicationController.getMaxActiveApplications();
-        JLabel limitLabel = new JLabel("You can only have " + maxApps + " active applications at once. " +
-                (remainingSlots > 0 ? remainingSlots + " slots remaining." : "No slots remaining."));
-        limitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        limitLabel.setForeground(remainingSlots > 0 ? new Color(107, 114, 128) : new Color(239, 68, 68));
-        limitLabel.setBorder(new EmptyBorder(8, 0, 16, 0));
-        panel.add(limitLabel, BorderLayout.CENTER);
-        
-        panel.add(createApplicationsTable(), BorderLayout.SOUTH);
-
-        return panel;
-    }
-
-    private JScrollPane createApplicationsTable() {
-        String[] columns = {"Course", "Status", "Applied", "Feedback"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        List<TAApplication> applications = applicationController.getMyApplications(ta.getUserId());
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-        int displayCount = Math.min(applications.size(), 5);
-        for (int i = 0; i < displayCount; i++) {
-            TAApplication app = applications.get(i);
-            String status = applicationController.getDisplayStatus(app);
-            String appliedAt = app.getAppliedAt() != null ? app.getAppliedAt().format(formatter) : "";
-            String feedback = applicationController.getFeedbackMessage(app);
-            String courseName = getCourseName(app.getJobId());
-            
-            model.addRow(new Object[]{courseName, status, appliedAt, feedback});
-        }
-
-        if (applications.isEmpty()) {
-            model.addRow(new Object[]{"—", "—", "—", "No applications yet"});
-        }
-
-        JTable table = new JTable(model);
-        table.setRowHeight(45);
-        table.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        table.setShowGrid(false);
-        table.setIntercellSpacing(new Dimension(0, 0));
-        
-        // 使用公共的 StatusCellRenderer
-        table.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
-        
-        JTableHeader header = table.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 13));
-        header.setForeground(new Color(107, 114, 128));
-        header.setBackground(TABLE_HEADER_BG);
-        header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(null);
-        scrollPane.setPreferredSize(new Dimension(720, 220));
-
-        return scrollPane;
-    }
-
-    private String getCourseName(Long jobId) {
-        List<MOJob> jobs = applicationController.getPublishedJobs();
-        for (MOJob job : jobs) {
-            if (job.getJobId().equals(jobId)) {
-                return job.getModuleCode() + " - " + job.getTitle();
-            }
-        }
-        return "Course #" + jobId;
+        return topBar;
     }
 }

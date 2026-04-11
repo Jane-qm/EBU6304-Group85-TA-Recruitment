@@ -20,6 +20,26 @@ import common.entity.UserRole;
  * 
  * @author Can Chen
  * @version 2.0
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added strict super-admin validation support
+ * - Improved email normalization during user updates
+ *
+ * @version 2.2
+ * @contributor Jiaze Wang
+ * @update
+ * - Added admin-oriented account lifecycle management methods
+ * - Added user listing support for admin operations
+ * - Added account status update, approval, disable, and password reset methods
+ *
+ * @version 2.3
+ * @contributor Jiaze Wang
+ * @update
+ * - Fixed duplicated methods and broken class structure after merge
+ * - Kept legacy helper methods used by existing panels
+ * - Restored a compilable and compatible UserService implementation
  */
 public class UserService {
     
@@ -84,7 +104,7 @@ public class UserService {
             user.setStatus(AccountStatus.ACTIVE);
         }
         usersByEmail.put(normalizedEmail, user);
-        saveToFile();  // 保存到文件
+        saveToFile();
         return user;
     }
 
@@ -98,7 +118,7 @@ public class UserService {
             return null;
         }
         user.setLastLogin(LocalDateTime.now());
-        saveToFile();  // 更新最后登录时间后保存
+        saveToFile();
         return user;
     }
 
@@ -125,7 +145,7 @@ public class UserService {
             throw new IllegalArgumentException("Email is not registered.");
         }
         user.setPassword(newPassword);
-        saveToFile();  // 保存到文件
+        saveToFile();
     }
 
     public void saveUser(User user) {
@@ -185,25 +205,116 @@ public class UserService {
     }
 
     /**
- * 根据 ID 查找用户
- */
-public User findById(Long userId) {
-    for (User user : usersByEmail.values()) {
-        if (user.getUserId() != null && user.getUserId().equals(userId)) {
-            return user;
+     * 根据 ID 查找用户
+     */
+    public User findById(Long userId) {
+        for (User user : usersByEmail.values()) {
+            if (user.getUserId() != null && user.getUserId().equals(userId)) {
+                return user;
+            }
         }
+        return null;
     }
-    return null;
-}
 
-/**
- * 更新用户信息
- */
-public void updateUser(User user) {
-    if (user == null || user.getEmail() == null) {
-        return;
+    /**
+     * 更新用户信息
+     */
+    public void updateUser(User user) {
+        if (user == null || user.getEmail() == null) {
+            return;
+        }
+        usersByEmail.put(normalizeEmail(user.getEmail()), user);
+        saveToFile();
     }
-    usersByEmail.put(user.getEmail(), user);
-    saveToFile();
-}
+
+    /**
+     * 【新增】：返回所有用户列表
+     * 解决 MOApplicantReviewPanel 报 listAll() 找不到的问题
+     */
+    public List<User> listAll() {
+        return new java.util.ArrayList<>(usersByEmail.values());
+    }
+
+    /**
+     * 【新增】：根据用户 ID 获取用户对象（更高效的版本）
+     * 方便在 ReviewPanel 中直接通过 ID 获取 TA 的姓名和邮箱
+     */
+    public User getUserById(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        for (User user : usersByEmail.values()) {
+            if (userId.equals(user.getUserId())) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Validates the strict super-admin rule.
+     * Only admin@test.com with ACTIVE status can enter the admin portal.
+     */
+    public boolean isStrictAdmin(User user) {
+        return user != null
+                && user.getRole() == UserRole.ADMIN
+                && "admin@test.com".equalsIgnoreCase(user.getEmail())
+                && user.getStatus() == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * Returns all users sorted by user ID.
+     */
+    public List<User> listAllUsers() {
+        return usersByEmail.values().stream()
+                .sorted((a, b) -> {
+                    Long aId = a.getUserId() == null ? 0L : a.getUserId();
+                    Long bId = b.getUserId() == null ? 0L : b.getUserId();
+                    return aId.compareTo(bId);
+                })
+                .toList();
+    }
+
+    /**
+     * Updates account status.
+     */
+    public void updateAccountStatus(String email, AccountStatus newStatus) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(newStatus);
+        saveUser(user);
+    }
+
+    /**
+     * Approves an MO account.
+     */
+    public void approveMoAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null || user.getRole() != UserRole.MO) {
+            throw new IllegalArgumentException("MO account not found: " + email);
+        }
+        user.setStatus(AccountStatus.ACTIVE);
+        saveUser(user);
+    }
+
+    /**
+     * Disables an account.
+     */
+    public void disableAccount(String email) {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + email);
+        }
+        user.setStatus(AccountStatus.DISABLED);
+        saveUser(user);
+    }
+
+    /**
+     * Resets a user's password as an administrator action.
+     */
+    public void resetPasswordByAdmin(String email, String newPassword) {
+        updatePassword(email, newPassword);
+    }
 }

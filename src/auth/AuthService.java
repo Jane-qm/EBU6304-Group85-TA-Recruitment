@@ -1,13 +1,31 @@
 package auth;
 
-import common.entity.AccountStatus;
 import common.entity.User;
 import common.entity.UserRole;
 import common.service.UserService;
+import ta.service.TAProfileService;
 
+/**
+ * Authentication service.
+ * Handles registration, login, password reset, and account checks.
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Refined registration flow to keep role-based account status logic inside UserService
+ * - Removed duplicated status override during registration
+ * - Kept authentication responsibilities focused on validation and routing support
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Initialized a blank TA profile immediately after TA registration
+ * - Reduced the chance of stale profile data being shown for newly registered TA accounts
+ */
 public class AuthService {
 
     private static final UserService USER_SERVICE = new UserService();
+    private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
 
     /** School email suffix enforced on registration only (demo accounts may use other domains for login). */
     private static final String UNIVERSITY_DOMAIN = "@qmul.ac.uk";
@@ -20,9 +38,15 @@ public class AuthService {
             throw new IllegalArgumentException(
                     "Only university email is allowed (e.g. user" + UNIVERSITY_DOMAIN + ").");
         }
+
+        // Keep role-based status logic inside UserService.
         User user = USER_SERVICE.register(normalized, password, role);
-        user.setStatus(AccountStatus.PENDING);
-        USER_SERVICE.saveUser(user);
+
+        // Create a blank TA profile as soon as a TA account is created.
+        if (user != null && user.getRole() == UserRole.TA) {
+            TA_PROFILE_SERVICE.initializeProfile(user.getUserId(), user.getEmail());
+        }
+
         return user;
     }
 
@@ -33,7 +57,7 @@ public class AuthService {
     }
 
     public boolean isAccountValid(User user) {
-        return user != null && user.getStatus() == AccountStatus.ACTIVE;
+        return user != null && user.getStatus() == common.entity.AccountStatus.ACTIVE;
     }
 
     public String getAccountStatusMessage(User user) {
@@ -80,6 +104,9 @@ public class AuthService {
     private static void validatePassword(String password) {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Password must not be empty.");
+        }
+        if (password.length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters.");
         }
     }
 }

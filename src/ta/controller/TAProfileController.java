@@ -7,7 +7,14 @@ import common.entity.User;
 import ta.entity.TAProfile;
 import ta.service.TAProfileService;
 
-
+/**
+ * TA profile controller.
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Switched UI profile loading to the reconciled service method based on current user identity
+ */
 public class TAProfileController {
     
     private final TAProfileService profileService;
@@ -23,11 +30,7 @@ public class TAProfileController {
         if (user == null || user.getUserId() == null) {
             return null;
         }
-        TAProfile profile = profileService.getProfileByTaId(user.getUserId());
-        if (profile == null) {
-            profile = new TAProfile(user.getUserId(), user.getEmail());
-        }
-        return profile;
+        return profileService.getProfileByUser(user);
     }
     
     /**

@@ -15,23 +15,43 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+/**
+ * Central JSON persistence manager.
+ * Responsible for initializing and reading/writing all JSON files under the data directory.
+ *
+ * @version 2.0
+ * @contributor Jiaze Wang
+ * @update
+ * - Added support for object-based JSON persistence
+ * - Added system_config.json initialization and read/write support
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Restored missing file constants for compatibility with existing DAO classes
+ * - Fixed base file initialization for list stores and system_config.json
+ * - Kept ta_cvs.json and data/cvs/ directory initialization aligned with TA CV storage
+ */
 public class JsonPersistenceManager {
     public static final String USERS_FILE = "users.json";
+    public static final String TA_PROFILES_FILE = "ta_profiles.json";
     public static final String MO_JOBS_FILE = "mo_jobs.json";
     public static final String TA_APPLICATIONS_FILE = "ta_applications.json";
+    public static final String CV_INFOS_FILE = "cv_infos.json";
     public static final String MO_OFFERS_FILE = "mo_offers.json";
     public static final String NOTIFICATIONS_FILE = "notifications.json";
-    /** CV 元数据列表（与 {@code ta.dao.CVDao} 使用的路径一致，相对 {@code data/}） */
     public static final String TA_CVS_FILE = "ta_cvs.json";
+    public static final String SYSTEM_CONFIG_FILE = "system_config.json";
 
-    // 注意：以下文件已移除，使用独立模块的 DAO：
-    // - TA_PROFILES_FILE: 使用 ta.dao.TAProfileDAO (文件: data/ta_profiles.json)
-    // - CV_INFOS_FILE: 使用 ta.dao.CVDao (文件: data/ta_cvs.json)
-
+    /**
+     * Compatibility alias kept because some older code still refers to ALL_FILES.
+     */
     private static final List<String> ALL_FILES = Arrays.asList(
             USERS_FILE,
+            TA_PROFILES_FILE,
             MO_JOBS_FILE,
             TA_APPLICATIONS_FILE,
+            CV_INFOS_FILE,
             MO_OFFERS_FILE,
             NOTIFICATIONS_FILE,
             TA_CVS_FILE
@@ -50,13 +70,20 @@ public class JsonPersistenceManager {
     public void initializeBaseFiles() {
         try {
             Files.createDirectories(dataDirectory);
+
             Path cvsDir = dataDirectory.resolve("cvs");
             Files.createDirectories(cvsDir);
+
             for (String file : ALL_FILES) {
                 Path path = dataDirectory.resolve(file);
                 if (!Files.exists(path)) {
                     Files.writeString(path, "[]", StandardCharsets.UTF_8);
                 }
+            }
+
+            Path configPath = dataDirectory.resolve(SYSTEM_CONFIG_FILE);
+            if (!Files.exists(configPath)) {
+                Files.writeString(configPath, "{}", StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
             throw new IllegalStateException("Failed to initialize JSON data files.", e);
@@ -79,6 +106,18 @@ public class JsonPersistenceManager {
 
     public void writeList(String fileName, List<?> values) {
         writeRaw(fileName, GsonUtils.toJson(values == null ? List.of() : values));
+    }
+
+    public <T> T readObject(String fileName, Class<T> clazz) {
+        String json = readRaw(fileName);
+        if (!GsonUtils.isValidJson(json)) {
+            throw new IllegalStateException("Invalid JSON format in file: " + fileName);
+        }
+        return GsonUtils.fromJson(json, clazz);
+    }
+
+    public void writeObject(String fileName, Object value) {
+        writeRaw(fileName, GsonUtils.toJson(value == null ? Map.of() : value));
     }
 
     public <K, V> Map<K, V> loadMapFromFile(String fileName, Class<V> valueClass, Function<V, K> keyExtractor) {
@@ -115,7 +154,11 @@ public class JsonPersistenceManager {
         Path path = dataDirectory.resolve(fileName);
         try {
             if (!Files.exists(path)) {
-                Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                if (SYSTEM_CONFIG_FILE.equals(fileName)) {
+                    Files.writeString(path, "{}", StandardCharsets.UTF_8);
+                } else {
+                    Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                }
             }
             return Files.readString(path, StandardCharsets.UTF_8);
         } catch (IOException e) {

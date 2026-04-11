@@ -26,3 +26,5 @@ Thumbs.db
 # --- 注意事项 ---
 # 不要忽略 .txt, .csv, .json 或 .xml 文件！
 # 因为根据要求，这些是你们存储数据的地方
+target/
+Group85/

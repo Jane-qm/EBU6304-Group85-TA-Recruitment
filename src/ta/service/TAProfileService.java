@@ -14,6 +14,13 @@ import ta.entity.TAProfile;
  * 
  * @author Can Chen
  * @version 2.0 - 移除对 TA 对象的冗余同步
+ *
+ * @version 2.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Reconciled profile lookup by taId and email for newly registered TA accounts
+ * - Created a fresh profile when an old taId record belonged to a different email
+ * - Kept profile initialization compatible with the current TA-only profile model
  */
 public class TAProfileService {
     
@@ -46,7 +53,36 @@ public class TAProfileService {
         if (user == null || user.getUserId() == null) {
             return null;
         }
-        return profileDAO.findByTaId(user.getUserId());
+
+        TAProfile profileById = profileDAO.findByTaId(user.getUserId());
+        if (profileById != null) {
+            if (user.getEmail() != null
+                    && profileById.getEmail() != null
+                    && !user.getEmail().equalsIgnoreCase(profileById.getEmail())) {
+                // The taId points to an old profile from another account. Replace it with a clean one.
+                TAProfile freshProfile = new TAProfile(user.getUserId(), user.getEmail());
+                profileDAO.save(freshProfile);
+                return freshProfile;
+            }
+
+            if ((profileById.getEmail() == null || profileById.getEmail().isBlank()) && user.getEmail() != null) {
+                profileById.setEmail(user.getEmail());
+                profileDAO.save(profileById);
+            }
+            return profileById;
+        }
+
+        TAProfile profileByEmail = profileDAO.findByEmail(user.getEmail());
+        if (profileByEmail != null) {
+            if (profileByEmail.getTaId() == null || !user.getUserId().equals(profileByEmail.getTaId())) {
+                profileDAO.delete(profileByEmail.getTaId());
+                profileByEmail.setTaId(user.getUserId());
+                profileDAO.save(profileByEmail);
+            }
+            return profileByEmail;
+        }
+
+        return initializeProfile(user.getUserId(), user.getEmail());
     }
     
     /**
@@ -67,6 +103,9 @@ public class TAProfileService {
         // 验证数据
         validateProfile(profile);
         
+        // Keep the email aligned with the current logged-in TA account.
+        profile.setEmail(user.getEmail());
+
         // 保存资料
         profile.saveProfile();
         profileDAO.save(profile);
@@ -172,6 +211,25 @@ public class TAProfileService {
     public TAProfile initializeProfile(Long taId, String email) {
         if (taId == null || email == null) {
             throw new IllegalArgumentException("TA ID and email cannot be null");
+        }
+
+        TAProfile existing = profileDAO.findByTaId(taId);
+        if (existing != null) {
+            if (existing.getEmail() == null || existing.getEmail().isBlank()) {
+                existing.setEmail(email);
+                profileDAO.save(existing);
+            }
+            return existing;
+        }
+
+        TAProfile existingByEmail = profileDAO.findByEmail(email);
+        if (existingByEmail != null) {
+            if (!taId.equals(existingByEmail.getTaId())) {
+                profileDAO.delete(existingByEmail.getTaId());
+                existingByEmail.setTaId(taId);
+                profileDAO.save(existingByEmail);
+            }
+            return existingByEmail;
         }
         
         TAProfile profile = new TAProfile(taId, email);

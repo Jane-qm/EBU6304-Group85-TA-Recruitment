@@ -25,6 +25,12 @@ import ta.entity.TAProfile;
  * 
  * @author Can Chen
  * @version 1.0
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Reconciled TA profile save behavior when taId/email mappings change
+ * - Prevented stale email index entries from pointing to old profile data
  */
 public class TAProfileDAO {
     
@@ -126,11 +132,28 @@ public class TAProfileDAO {
         if (profile == null || profile.getTaId() == null) {
             return;
         }
-        
-        profilesByTaId.put(profile.getTaId(), profile);
-        if (profile.getEmail() != null) {
-            profilesByEmail.put(profile.getEmail().toLowerCase(), profile);
+
+        TAProfile existingById = profilesByTaId.get(profile.getTaId());
+        if (existingById != null && existingById.getEmail() != null) {
+            String oldEmailKey = existingById.getEmail().toLowerCase();
+            String newEmailKey = profile.getEmail() == null ? null : profile.getEmail().toLowerCase();
+            if (newEmailKey == null || !oldEmailKey.equals(newEmailKey)) {
+                profilesByEmail.remove(oldEmailKey);
+            }
         }
+
+        if (profile.getEmail() != null) {
+            String newEmailKey = profile.getEmail().toLowerCase();
+            TAProfile existingByEmail = profilesByEmail.get(newEmailKey);
+            if (existingByEmail != null
+                    && existingByEmail.getTaId() != null
+                    && !existingByEmail.getTaId().equals(profile.getTaId())) {
+                profilesByTaId.remove(existingByEmail.getTaId());
+            }
+            profilesByEmail.put(newEmailKey, profile);
+        }
+
+        profilesByTaId.put(profile.getTaId(), profile);
         saveAll();
     }
     
