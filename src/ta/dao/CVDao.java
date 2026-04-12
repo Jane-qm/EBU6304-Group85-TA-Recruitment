@@ -264,15 +264,21 @@ public class CVDao {
     }
 
     /**
-     * 保存 CV 文件到磁盘
+     * 保存 CV 文件到磁盘（扩展名与原始文件名一致，便于打开与类型校验一致）。
      */
-    public String saveCVFile(Long taId, String cvName, byte[] data) {
+    public String saveCVFile(Long taId, String cvName, String originalFileName, byte[] data) {
         try {
             String timestamp = java.time.LocalDateTime.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             String safeName = cvName.replaceAll("[^a-zA-Z0-9_-]", "_");
-            String fileName = "ta_" + taId + "_" + safeName + "_" + timestamp + ".pdf";
-            Path filePath = Path.of(CV_DIR, fileName);
+            String ext = CVInfo.getFileExtension(originalFileName);
+            if (ext == null || ext.isBlank()) {
+                ext = "pdf";
+            }
+            String fileName = "ta_" + taId + "_" + safeName + "_" + timestamp + "." + ext;
+            Path dir = Path.of(CV_DIR).normalize();
+            Files.createDirectories(dir);
+            Path filePath = dir.resolve(fileName).normalize();
             Files.write(filePath, data);
             return filePath.toString().replace("\\", "/");
         } catch (IOException e) {

@@ -28,6 +28,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
@@ -599,12 +600,18 @@ public class TAProfilePanel extends JPanel {
         return panel;
     }
     
+    private java.awt.Component fileChooserParent() {
+        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+        return w != null ? w : this;
+    }
+
     private void uploadCV() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Select CV File");
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
         fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files - PDF, DOC, DOCX", "pdf", "doc", "docx"));
 
-        int result = fileChooser.showOpenDialog(this);
+        int result = fileChooser.showOpenDialog(fileChooserParent());
         if (result != JFileChooser.APPROVE_OPTION) {
             return;
         }
@@ -618,8 +625,8 @@ public class TAProfilePanel extends JPanel {
             defaultName = defaultName.substring(0, dotIndex);
         }
         
-        String cvName = JOptionPane.showInputDialog(this, 
-            "Enter a name for this CV:", 
+        String cvName = JOptionPane.showInputDialog(fileChooserParent(),
+            "Enter a name for this CV:",
             defaultName,
             JOptionPane.QUESTION_MESSAGE);
         

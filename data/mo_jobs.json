@@ -3,8 +3,8 @@
     "jobId": 2001,
     "moUserId": 100002,
     "moduleCode": "EBU6304",
-    "title": "Teaching Assistant",
-    "description": "Support labs and coursework marking.",
+    "title": "Software Engineering",
+    "description": "TA support for software engineering labs, coursework marking, and tutorials.",
     "requiredSkills": [],
     "weeklyHours": 6,
     "status": "OPEN",
@@ -13,9 +13,9 @@
   {
     "jobId": 2002,
     "moUserId": 100007,
-    "moduleCode": "EBU6304",
-    "title": "Teaching Assistant",
-    "description": "Support labs and coursework marking.",
+    "moduleCode": "EBU6306",
+    "title": "Microprocessor Systems",
+    "description": "TA support for microprocessor architecture labs and assembly/C programming exercises.",
     "requiredSkills": [],
     "weeklyHours": 6,
     "status": "OPEN",
@@ -24,9 +24,9 @@
   {
     "jobId": 2003,
     "moUserId": 100007,
-    "moduleCode": "EBU6304",
-    "title": "Teaching Assistant",
-    "description": "Support labs and coursework marking.",
+    "moduleCode": "EBU6307",
+    "title": "Computer Networks",
+    "description": "TA support for networking labs, assignments, and practical sessions.",
     "requiredSkills": [],
     "weeklyHours": 6,
     "status": "OPEN",
@@ -62,7 +62,7 @@
     "description": "Skills: 3\nHeadcount: 3\nDeadline: 2026-04-13\nDetails: 3",
     "requiredSkills": [],
     "weeklyHours": 3,
-    "status": "OPEN",
+    "status": "WITHDRAWN",
     "createdAt": "2026-04-11T21:12:28.6558843"
   },
   {
@@ -73,7 +73,7 @@
     "description": "Skills: 11\nHeadcount: 1\nDeadline: 2026-04-13\nDetails: 1",
     "requiredSkills": [],
     "weeklyHours": 1,
-    "status": "OPEN",
+    "status": "WITHDRAWN",
     "createdAt": "2026-04-11T21:44:49.8417463"
   }
 ]

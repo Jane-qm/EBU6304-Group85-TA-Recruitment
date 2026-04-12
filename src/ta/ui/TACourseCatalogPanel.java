@@ -27,6 +27,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
@@ -403,15 +404,22 @@ public class TACourseCatalogPanel extends JPanel {
         
         uploadNewBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
             fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files", "pdf", "doc", "docx"));
-            
-            int result = fileChooser.showOpenDialog(this);
+            java.awt.Window owner = SwingUtilities.getWindowAncestor(this);
+            int result = fileChooser.showOpenDialog(owner != null ? owner : this);
             if (result == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
                 String fileName = file.getName();
-                String cvName = JOptionPane.showInputDialog(this, "Enter a name for this CV:", 
-                        "CV Name", JOptionPane.QUESTION_MESSAGE);
-                
+                String defaultCvName = fileName;
+                int dot = defaultCvName.lastIndexOf('.');
+                if (dot > 0) {
+                    defaultCvName = defaultCvName.substring(0, dot);
+                }
+                java.awt.Component dlgParent = owner != null ? owner : this;
+                String cvName = JOptionPane.showInputDialog(dlgParent, "Enter a name for this CV:",
+                        defaultCvName);
+
                 if (cvName == null || cvName.trim().isEmpty()) {
                     showWarning("CV name is required");
                     return;

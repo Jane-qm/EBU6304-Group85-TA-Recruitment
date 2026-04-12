@@ -58,7 +58,7 @@ public class CVService {
         }
         
         // 保存文件
-        String filePath = cvDao.saveCVFile(taId, cvName, fileData);
+        String filePath = cvDao.saveCVFile(taId, cvName, originalFileName, fileData);
         if (filePath == null) {
             throw new RuntimeException("Failed to save CV file");
         }
