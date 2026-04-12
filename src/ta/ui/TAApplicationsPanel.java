@@ -94,28 +94,17 @@ public class TAApplicationsPanel extends JPanel {
         panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(new EmptyBorder(0, 30, 30, 30));
         
-        int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
-        int maxApps = applicationController.getMaxActiveApplications();
-        JLabel limitLabel = new JLabel("You can only have " + maxApps + " active applications at once. " +
-                (remainingSlots > 0 ? remainingSlots + " slots remaining." : "No slots remaining."));
-        limitLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        limitLabel.setForeground(remainingSlots > 0 ? new Color(107, 114, 128) : new Color(239, 68, 68));
-        limitLabel.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(limitLabel);
-        panel.add(Box.createVerticalStrut(16));
-        
         panel.add(createApplicationsTable());
         
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setBorder(null);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getHorizontalScrollBar().setEnabled(false);  // 禁用水平滚动
+        scrollPane.getHorizontalScrollBar().setEnabled(false);
         
         return scrollPane;
     }
     
     private JScrollPane createApplicationsTable() {
-        // 列：课程、状态、申请日期、详情、操作1、操作2
         String[] columns = {"Course", "Status", "Applied Date", "", "", ""};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -131,12 +120,12 @@ public class TAApplicationsPanel extends JPanel {
         applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
         applicationsTable.setShowGrid(false);
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
-        applicationsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);  // 自动调整列宽
+        applicationsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         
         applicationsTable.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
-        applicationsTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());  // Detail
-        applicationsTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());  // Action 1
-        applicationsTable.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());  // Action 2
+        applicationsTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
+        applicationsTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
+        applicationsTable.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());
         
         applicationsTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -147,16 +136,16 @@ public class TAApplicationsPanel extends JPanel {
                 if (row < applications.size()) {
                     TAApplication app = applications.get(row);
                     
-                    if (col == 3) {  // Detail 列
+                    if (col == 3) {
                         showApplicationDetailDialog(app);
-                    } else if (col == 4) {  // Action 1 列
+                    } else if (col == 4) {
                         String action = (String) applicationsTable.getValueAt(row, 4);
                         if ("Cancel".equals(action)) {
                             handleCancelApplication(app);
                         } else if ("Accept".equals(action)) {
                             handleAcceptOffer(app);
                         }
-                    } else if (col == 5) {  // Action 2 列
+                    } else if (col == 5) {
                         String action = (String) applicationsTable.getValueAt(row, 5);
                         if ("Reject".equals(action)) {
                             handleRejectOffer(app);
@@ -172,18 +161,17 @@ public class TAApplicationsPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
-        // 设置列宽比例（总和为 100%）
-        applicationsTable.getColumnModel().getColumn(0).setPreferredWidth(350);  // Course - 较宽
-        applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(100);  // Status
-        applicationsTable.getColumnModel().getColumn(2).setPreferredWidth(100);  // Applied Date
-        applicationsTable.getColumnModel().getColumn(3).setPreferredWidth(60);   // Detail
-        applicationsTable.getColumnModel().getColumn(4).setPreferredWidth(70);   // Action 1
-        applicationsTable.getColumnModel().getColumn(5).setPreferredWidth(70);   // Action 2
+        applicationsTable.getColumnModel().getColumn(0).setPreferredWidth(350);
+        applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        applicationsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
+        applicationsTable.getColumnModel().getColumn(3).setPreferredWidth(60);
+        applicationsTable.getColumnModel().getColumn(4).setPreferredWidth(70);
+        applicationsTable.getColumnModel().getColumn(5).setPreferredWidth(70);
 
         JScrollPane scrollPane = new JScrollPane(applicationsTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         scrollPane.setPreferredSize(new Dimension(800, 400));
-        scrollPane.getHorizontalScrollBar().setEnabled(false);  // 禁用水平滚动条
+        scrollPane.getHorizontalScrollBar().setEnabled(false);
 
         return scrollPane;
     }
@@ -218,10 +206,8 @@ public class TAApplicationsPanel extends JPanel {
             JOptionPane.QUESTION_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            // 1. 接受 Offer
             boolean success = offerController.acceptOfferWithFeedback(offer.getOfferId(), null);
             if (success) {
-                // 2. 更新申请状态为 HIRED
                 app.setStatus(ApplicationStatus.HIRED);
                 applicationService.createOrUpdate(app);
                 
@@ -256,10 +242,8 @@ public class TAApplicationsPanel extends JPanel {
             JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            // 1. 拒绝 Offer
             boolean success = offerController.rejectOfferWithFeedback(offer.getOfferId(), null);
             if (success) {
-                // 2. 更新申请状态为 REJECTED
                 app.setStatus(ApplicationStatus.REJECTED);
                 applicationService.createOrUpdate(app);
                 
@@ -415,7 +399,6 @@ public class TAApplicationsPanel extends JPanel {
             String appliedAt = app.getAppliedAt() != null ? app.getAppliedAt().format(formatter) : "";
             String courseName = applicationController.getCourseName(app.getJobId());
             
-            // 缩短课程名称显示，避免列过宽
             if (courseName.length() > 45) {
                 courseName = courseName.substring(0, 42) + "...";
             }
@@ -423,17 +406,13 @@ public class TAApplicationsPanel extends JPanel {
             String action1 = "—";
             String action2 = "—";
             
-            // 判断显示什么按钮
             if (ApplicationStatus.isCancellable(app.getStatus())) {
-                // 待审核/候补状态：显示取消按钮
                 action1 = "Cancel";
                 action2 = "—";
             } else {
-                // 检查是否有对应的 SENT 状态 Offer
                 boolean hasSentOffer = offers.stream().anyMatch(o -> 
                     app.getApplicationId().equals(o.getApplicationId()) && "SENT".equals(o.getStatus()));
                 if (hasSentOffer) {
-                    // 有 Offer：显示接受和拒绝按钮
                     action1 = "Accept";
                     action2 = "Reject";
                 }

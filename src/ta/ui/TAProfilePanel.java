@@ -49,6 +49,11 @@ import ta.service.CVService;
  * @update
  * - Added a Major input field to match the TAProfile entity and admin data table
  * - Saved Major together with the rest of the TA profile fields
+ *
+ * @version 2.2
+ * @update
+ * - Modified CV management to support multiple CVs display and management
+ * - Added CV list view with View, Set Default, Delete buttons for each CV
  */
 public class TAProfilePanel extends JPanel {
     
@@ -70,15 +75,15 @@ public class TAProfilePanel extends JPanel {
     private JTextField majorField;
     private JComboBox<String> studentTypeCombo;
     private JComboBox<String> yearCombo;
-    private JComboBox<String> campusCombo;  // 新增校区选择
+    private JComboBox<String> campusCombo;
     private JTextArea experienceArea;
     private JPanel skillTagsPanel;
     private JSpinner hoursSpinner;
     private List<String> skillTags;
     
-    // CV 相关组件
+    // CV 相关组件 - 改为列表
     private JPanel cvInfoPanel;
-    private CVInfo currentCV;
+    private List<CVInfo> cvList;
     
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
     private static final Color LABEL_FOREGROUND = new Color(55, 65, 81);
@@ -88,6 +93,7 @@ public class TAProfilePanel extends JPanel {
         this.profileController = new TAProfileController();
         this.cvService = new CVService();
         this.skillTags = new ArrayList<>();
+        this.cvList = new ArrayList<>();
         
         loadProfile();
         
@@ -104,7 +110,17 @@ public class TAProfilePanel extends JPanel {
             skillTags = new ArrayList<>(profile.getSkillTags());
         }
         
-        currentCV = cvService.getDefaultCV(ta.getUserId());
+        // 获取所有 CV 列表
+        refreshCVList();
+    }
+    
+    private void refreshCVList() {
+        cvService.refreshCVs(ta.getUserId());
+        cvList = cvService.getAllCVs(ta.getUserId());
+        if (cvList == null) {
+            cvList = new ArrayList<>();
+        }
+        System.out.println("刷新 CV 列表，共 " + cvList.size() + " 个 CV");
     }
     
     private void initUI() {
@@ -334,24 +350,19 @@ public class TAProfilePanel extends JPanel {
         uploadArea.setBackground(new Color(250, 251, 252));
         uploadArea.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(220, 224, 230)),
-                new EmptyBorder(30, 30, 30, 30)
+                new EmptyBorder(20, 20, 20, 20)
         ));
         
         JLabel iconLabel = new JLabel("📄");
         iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 48));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        JLabel dragLabel = new JLabel("Drag & drop your CV here");
+        JLabel dragLabel = new JLabel("Upload your CV here");
         dragLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         dragLabel.setForeground(new Color(55, 65, 81));
         dragLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
-        JLabel orLabel = new JLabel("or");
-        orLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        orLabel.setForeground(new Color(107, 114, 128));
-        orLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        
-        JButton browseBtn = new JButton("Click to browse");
+        JButton browseBtn = new JButton("Click to upload");
         browseBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         browseBtn.setForeground(Color.WHITE);
         browseBtn.setBackground(PRIMARY_BLUE);
@@ -371,15 +382,13 @@ public class TAProfilePanel extends JPanel {
         uploadArea.add(iconLabel);
         uploadArea.add(Box.createVerticalStrut(15));
         uploadArea.add(dragLabel);
-        uploadArea.add(Box.createVerticalStrut(8));
-        uploadArea.add(orLabel);
         uploadArea.add(Box.createVerticalStrut(12));
         uploadArea.add(browseBtn);
         uploadArea.add(formatLabel);
         
         card.add(uploadArea, BorderLayout.CENTER);
         
-        // CV 信息区域
+        // CV 信息区域 - 显示所有 CV 列表
         cvInfoPanel = new JPanel(new BorderLayout());
         cvInfoPanel.setBackground(Color.WHITE);
         cvInfoPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
@@ -393,54 +402,120 @@ public class TAProfilePanel extends JPanel {
     private void updateCVInfoDisplay() {
         cvInfoPanel.removeAll();
         
-        if (currentCV != null) {
-            JLabel cvFileNameLabel = new JLabel("Current: " + currentCV.getCvName() + " (" + currentCV.getFileSizeDisplay() + ")");
-            cvFileNameLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-            
-            JLabel cvUploadTimeLabel = new JLabel("Uploaded: " + currentCV.getUploadedAtDisplay());
-            cvUploadTimeLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            cvUploadTimeLabel.setForeground(new Color(107, 114, 128));
-            
-            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-            buttonPanel.setBackground(Color.WHITE);
-            
-            JButton viewCVBtn = new JButton("View");
-            viewCVBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            viewCVBtn.setBackground(PRIMARY_BLUE);
-            viewCVBtn.setForeground(Color.WHITE);
-            viewCVBtn.setBorderPainted(false);
-            viewCVBtn.setFocusPainted(false);
-            viewCVBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            viewCVBtn.addActionListener(e -> viewCV());
-            
-            JButton deleteCVBtn = new JButton("Delete");
-            deleteCVBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
-            deleteCVBtn.setForeground(new Color(220, 38, 38));
-            deleteCVBtn.setBackground(Color.WHITE);
-            deleteCVBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 38, 38)));
-            deleteCVBtn.setFocusPainted(false);
-            deleteCVBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            deleteCVBtn.addActionListener(e -> deleteCV());
-            
-            buttonPanel.add(viewCVBtn);
-            buttonPanel.add(deleteCVBtn);
-            
-            JPanel infoTextPanel = new JPanel(new GridLayout(2, 1));
-            infoTextPanel.setOpaque(false);
-            infoTextPanel.add(cvFileNameLabel);
-            infoTextPanel.add(cvUploadTimeLabel);
-            
-            cvInfoPanel.add(infoTextPanel, BorderLayout.WEST);
-            cvInfoPanel.add(buttonPanel, BorderLayout.EAST);
-        } else {
-            JLabel noCVLabel = new JLabel("No CV uploaded yet");
+        if (cvList == null || cvList.isEmpty()) {
+            JLabel noCVLabel = new JLabel("No CV uploaded yet. Click the button above to upload.");
             noCVLabel.setFont(new Font("SansSerif", Font.ITALIC, 13));
             noCVLabel.setForeground(new Color(107, 114, 128));
             cvInfoPanel.add(noCVLabel, BorderLayout.WEST);
+        } else {
+            // 创建 CV 列表面板
+            JPanel cvListPanel = new JPanel();
+            cvListPanel.setLayout(new BoxLayout(cvListPanel, BoxLayout.Y_AXIS));
+            cvListPanel.setBackground(Color.WHITE);
+            
+            JLabel listTitle = new JLabel("My CVs (" + cvList.size() + ")");
+            listTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
+            listTitle.setForeground(LABEL_FOREGROUND);
+            listTitle.setAlignmentX(LEFT_ALIGNMENT);
+            cvListPanel.add(listTitle);
+            cvListPanel.add(Box.createVerticalStrut(10));
+            
+            for (CVInfo cv : cvList) {
+                JPanel cvItemPanel = createCVItemPanel(cv);
+                cvListPanel.add(cvItemPanel);
+                cvListPanel.add(Box.createVerticalStrut(8));
+            }
+            
+            JScrollPane scrollPane = new JScrollPane(cvListPanel);
+            scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+            scrollPane.setPreferredSize(new Dimension(450, 200));
+            scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+            cvInfoPanel.add(scrollPane, BorderLayout.CENTER);
         }
         
         cvInfoPanel.revalidate();
         cvInfoPanel.repaint();
+    }
+    
+    /**
+     * 创建单个 CV 项的面板
+     */
+    private JPanel createCVItemPanel(CVInfo cv) {
+        JPanel panel = new JPanel(new BorderLayout(10, 0));
+        panel.setBackground(new Color(248, 250, 252));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(220, 224, 230)),
+                new EmptyBorder(10, 12, 10, 12)
+        ));
+        
+        // CV 信息
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setOpaque(false);
+        
+        JPanel namePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        namePanel.setOpaque(false);
+        
+        JLabel nameLabel = new JLabel(cv.getCvName());
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        namePanel.add(nameLabel);
+        
+        if (cv.isDefault()) {
+            JLabel defaultLabel = new JLabel("  [Default]");
+            defaultLabel.setFont(new Font("SansSerif", Font.BOLD, 11));
+            defaultLabel.setForeground(PRIMARY_BLUE);
+            namePanel.add(defaultLabel);
+        }
+        infoPanel.add(namePanel);
+        
+        infoPanel.add(Box.createVerticalStrut(4));
+        
+        JLabel detailLabel = new JLabel(cv.getFileSizeDisplay() + " · Uploaded: " + cv.getUploadedAtDisplay());
+        detailLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        detailLabel.setForeground(new Color(107, 114, 128));
+        infoPanel.add(detailLabel);
+        
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttonPanel.setOpaque(false);
+        
+        JButton viewBtn = new JButton("View");
+        viewBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        viewBtn.setBackground(PRIMARY_BLUE);
+        viewBtn.setForeground(Color.WHITE);
+        viewBtn.setBorderPainted(false);
+        viewBtn.setFocusPainted(false);
+        viewBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        viewBtn.addActionListener(e -> viewCV(cv));
+        
+        JButton setDefaultBtn = new JButton("Set Default");
+        setDefaultBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        setDefaultBtn.setBackground(Color.WHITE);
+        setDefaultBtn.setForeground(PRIMARY_BLUE);
+        setDefaultBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_BLUE));
+        setDefaultBtn.setFocusPainted(false);
+        setDefaultBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        setDefaultBtn.addActionListener(e -> setDefaultCV(cv));
+        
+        JButton deleteBtn = new JButton("Delete");
+        deleteBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        deleteBtn.setForeground(new Color(220, 38, 38));
+        deleteBtn.setBackground(Color.WHITE);
+        deleteBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 38, 38)));
+        deleteBtn.setFocusPainted(false);
+        deleteBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        deleteBtn.addActionListener(e -> deleteCV(cv));
+        
+        buttonPanel.add(viewBtn);
+        if (!cv.isDefault()) {
+            buttonPanel.add(setDefaultBtn);
+        }
+        buttonPanel.add(deleteBtn);
+        
+        panel.add(infoPanel, BorderLayout.CENTER);
+        panel.add(buttonPanel, BorderLayout.EAST);
+        
+        return panel;
     }
     
     private void updateSkillTagsDisplay() {
@@ -527,7 +602,7 @@ public class TAProfilePanel extends JPanel {
     private void uploadCV() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Select CV File");
-        fileChooser.setFileFilter(new FileNameExtensionFilter("PDF or Word Documents", "pdf", "doc", "docx"));
+        fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files - PDF, DOC, DOCX", "pdf", "doc", "docx"));
 
         int result = fileChooser.showOpenDialog(this);
         if (result != JFileChooser.APPROVE_OPTION) {
@@ -535,9 +610,26 @@ public class TAProfilePanel extends JPanel {
         }
 
         File selectedFile = fileChooser.getSelectedFile();
+        
+        // 弹出命名窗口
+        String defaultName = selectedFile.getName();
+        int dotIndex = defaultName.lastIndexOf(".");
+        if (dotIndex > 0) {
+            defaultName = defaultName.substring(0, dotIndex);
+        }
+        
+        String cvName = JOptionPane.showInputDialog(this, 
+            "Enter a name for this CV:", 
+            defaultName,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (cvName == null || cvName.trim().isEmpty()) {
+            showWarning("CV name is required");
+            return;
+        }
+        
         try {
             byte[] fileData = Files.readAllBytes(selectedFile.toPath());
-            String cvName = selectedFile.getName();
             String description = "Uploaded from TA profile panel";
 
             String taName = profile.getFullName();
@@ -545,38 +637,42 @@ public class TAProfilePanel extends JPanel {
                 taName = ta.getEmail();
             }
 
-            currentCV = cvService.uploadCV(
+            cvService.uploadCV(
                     ta.getUserId(),
                     ta.getEmail(),
                     taName,
-                    cvName,
+                    cvName.trim(),
                     description,
                     selectedFile.getName(),
                     fileData
             );
+            
             showInfo("CV uploaded successfully!");
-            updateCVInfoDisplay();
+            refresh();
+            
+        } catch (IllegalArgumentException e) {
+            showWarning(e.getMessage());
         } catch (Exception e) {
             showError("Failed to upload CV: " + e.getMessage());
         }
     }
     
-    private void viewCV() {
-        if (currentCV == null) {
+    private void viewCV(CVInfo cv) {
+        if (cv == null) {
             showWarning("No CV available.");
             return;
         }
 
         try {
-            byte[] fileData = cvService.downloadCV(ta.getUserId(), currentCV.getCvId());
+            byte[] fileData = cvService.downloadCV(ta.getUserId(), cv.getCvId());
             if (fileData == null || fileData.length == 0) {
                 showError("Failed to read CV file.");
                 return;
             }
 
-            String extension = currentCV.getOriginalFileName() != null
-                    && currentCV.getOriginalFileName().contains(".")
-                    ? currentCV.getOriginalFileName().substring(currentCV.getOriginalFileName().lastIndexOf('.') + 1)
+            String extension = cv.getOriginalFileName() != null
+                    && cv.getOriginalFileName().contains(".")
+                    ? cv.getOriginalFileName().substring(cv.getOriginalFileName().lastIndexOf('.') + 1)
                     : "pdf";
 
             File tempFile = File.createTempFile("cv_", "." + extension);
@@ -597,63 +693,105 @@ public class TAProfilePanel extends JPanel {
         }
     }
     
-    private void deleteCV() {
-        if (currentCV == null) {
-            return;
-        }
+    private void setDefaultCV(CVInfo cv) {
+        if (cv == null) return;
         
         int confirm = JOptionPane.showConfirmDialog(this, 
-            "Are you sure you want to delete this CV?", "Confirm Delete", 
+            "Set \"" + cv.getCvName() + "\" as your default CV?\n\n" +
+            "This CV will be automatically selected when you apply for positions.",
+            "Set Default CV", 
             JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            boolean deleted = cvService.deleteCV(ta.getUserId(), currentCV.getCvId());
+            boolean success = cvService.setDefaultCV(ta.getUserId(), cv.getCvId());
+            if (success) {
+                showInfo("Default CV updated successfully!");
+                refresh();
+            } else {
+                showError("Failed to set default CV");
+            }
+        }
+    }
+    
+    private void deleteCV(CVInfo cv) {
+        if (cv == null) return;
+        
+        String warningMsg = cv.isDefault() 
+            ? "This is your default CV. Are you sure you want to delete it?\n" +
+              "Another CV will be automatically set as default."
+            : "Are you sure you want to delete \"" + cv.getCvName() + "\"?";
+        
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            warningMsg,
+            "Confirm Delete", 
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            boolean deleted = cvService.deleteCV(ta.getUserId(), cv.getCvId());
             if (deleted) {
-                currentCV = null;
                 showInfo("CV deleted successfully");
-                updateCVInfoDisplay();
+                refresh();
             } else {
                 showError("Failed to delete CV");
             }
         }
     }
-    
-private void saveProfile() {
-    try {
-        profile.setSurname(surnameField.getText().trim());
-        profile.setForename(forenameField.getText().trim());
-        profile.setChineseName(chineseNameField.getText().trim());
-        profile.setStudentId(studentIdField.getText().trim());
-        profile.setPhone(phoneField.getText().trim());
-        profile.setGender(TAProfile.Gender.fromEnglishName((String) genderCombo.getSelectedItem()));
-        profile.setSchool(schoolField.getText().trim());
-        profile.setSupervisor(supervisorField.getText().trim());
-        profile.setMajor(majorField.getText().trim());
-        profile.setStudentType(TAProfile.StudentType.fromEnglishName((String) studentTypeCombo.getSelectedItem()));
-        profile.setCurrentYear(TAProfile.Year.fromEnglishName((String) yearCombo.getSelectedItem()));
-        profile.setCampus(TAProfile.Campus.fromEnglishName((String) campusCombo.getSelectedItem()));
-        profile.setPreviousExperience(experienceArea.getText().trim());
-        profile.setSkillTags(skillTags);
-        profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
-        
-        profile.saveProfile();
-        boolean success = profileController.saveProfileWithFeedback(profile, null);
-        
-        if (success) {
-            showInfo("Profile saved successfully!");
+
+    private void saveProfile() {
+        try {
+            System.out.println("=== TAProfilePanel.saveProfile ===");
             
-            TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
-            if (mainFrame != null) {
-                mainFrame.refreshAllPanels();
+            // 读取所有字段值
+            String surname = surnameField.getText().trim();
+            String forename = forenameField.getText().trim();
+            String chineseName = chineseNameField.getText().trim();
+            String studentId = studentIdField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String gender = (String) genderCombo.getSelectedItem();
+            String school = schoolField.getText().trim();
+            String supervisor = supervisorField.getText().trim();
+            String major = majorField.getText().trim();
+            String studentType = (String) studentTypeCombo.getSelectedItem();
+            String year = (String) yearCombo.getSelectedItem();
+            String campus = (String) campusCombo.getSelectedItem();
+            
+            // 设置到 profile 对象
+            profile.setSurname(surname);
+            profile.setForename(forename);
+            profile.setChineseName(chineseName);
+            profile.setStudentId(studentId);
+            profile.setPhone(phone);
+            profile.setGender(TAProfile.Gender.fromEnglishName(gender));
+            profile.setSchool(school);
+            profile.setSupervisor(supervisor);
+            profile.setMajor(major);
+            profile.setStudentType(TAProfile.StudentType.fromEnglishName(studentType));
+            profile.setCurrentYear(TAProfile.Year.fromEnglishName(year));
+            profile.setCampus(TAProfile.Campus.fromEnglishName(campus));
+            profile.setPreviousExperience(experienceArea.getText().trim());
+            profile.setSkillTags(skillTags);
+            profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
+            
+            profile.saveProfile();
+            boolean success = profileController.saveProfileWithFeedback(profile, null);
+            
+            if (success) {
+                showInfo("Profile saved successfully!");
+                
+                TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
+                if (mainFrame != null) {
+                    mainFrame.refreshAllPanels();
+                }
+                refresh();
             }
             
-            refresh();
+        } catch (Exception e) {
+            System.out.println("保存异常: " + e.getMessage());
+            e.printStackTrace();
+            showError("Save failed: " + e.getMessage());
         }
-        
-    } catch (Exception e) {
-        showError("Save failed: " + e.getMessage());
     }
-}
     
     private void showWarning(String message) {
         JOptionPane.showMessageDialog(this, message, "Warning", JOptionPane.WARNING_MESSAGE);

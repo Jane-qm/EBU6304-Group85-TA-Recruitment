@@ -27,92 +27,60 @@ public class TAApplicationController {
         this.notificationService = new NotificationService();
     }
     
-    /**
-     * 获取 TA 的所有申请记录
-     */
     public List<TAApplication> getMyApplications(Long taUserId) {
         return applicationService.listByTaUserIdSorted(taUserId);
     }
     
-    /**
-     * 获取活跃申请数量（待审核状态）
-     */
     public int getActiveApplicationCount(Long taUserId) {
         return applicationService.getActiveApplicationCount(taUserId);
     }
     
-    /**
-     * 检查是否可以申请更多职位
-     */
     public boolean canSubmitMoreApplications(Long taUserId) {
         return getActiveApplicationCount(taUserId) < MAX_ACTIVE_APPLICATIONS;
     }
     
-    /**
-     * 获取剩余可申请数量
-     */
     public int getRemainingApplicationSlots(Long taUserId) {
         return MAX_ACTIVE_APPLICATIONS - getActiveApplicationCount(taUserId);
     }
     
-    /**
-     * 获取最大申请数量限制
-     */
     public int getMaxActiveApplications() {
         return MAX_ACTIVE_APPLICATIONS;
     }
     
-    /**
-     * 获取已发布的职位列表
-     */
     public List<MOJob> getPublishedJobs() {
         return jobService.listPublishedJobs();
     }
     
-    /**
-     * 获取可申请的职位
-     * 逻辑：包括未申请过的 + 自行取消的
-     * 不包括：活跃申请（待审核/候补）、被拒绝的申请、已接受/已录用的申请
-     */
-public List<MOJob> getAvailableJobs(Long taUserId) {
-    List<MOJob> allJobs = jobService.listPublishedJobs();
+    public List<MOJob> getAvailableJobs(Long taUserId) {
+        List<MOJob> allJobs = jobService.listPublishedJobs();
+        
+        List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
+        
+        List<Long> excludedJobIds = applications.stream()
+                .filter(a -> {
+                    String status = a.getStatus();
+                    if (ApplicationStatus.isAwaitingReview(status) || 
+                        ApplicationStatus.WAITLISTED.equals(status)) {
+                        return true;
+                    }
+                    if (ApplicationStatus.isRejected(status)) {
+                        return true;
+                    }
+                    if (ApplicationStatus.ACCEPTED.equals(status) || 
+                        ApplicationStatus.HIRED.equals(status)) {
+                        return true;
+                    }
+                    return false;
+                })
+                .map(TAApplication::getJobId)
+                .collect(Collectors.toList());
+        
+        return allJobs.stream()
+                .filter(job -> !excludedJobIds.contains(job.getJobId()))
+                .collect(Collectors.toList());
+    }
     
-    // 获取 TA 所有申请记录
-    List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
-    
-    // 需要排除的 jobId（只排除有有效申请的职位，不管profile是否完整）
-    List<Long> excludedJobIds = applications.stream()
-            .filter(a -> {
-                String status = a.getStatus();
-                // 活跃申请：待审核或候补（不可重新申请）
-                if (ApplicationStatus.isAwaitingReview(status) || 
-                    ApplicationStatus.WAITLISTED.equals(status)) {
-                    return true;
-                }
-                // 被拒绝的申请（不可重新申请）
-                if (ApplicationStatus.isRejected(status)) {
-                    return true;
-                }
-                // 已接受或已录用的申请（不可重新申请）
-                if (ApplicationStatus.ACCEPTED.equals(status) || 
-                    ApplicationStatus.HIRED.equals(status)) {
-                    return true;
-                }
-                return false;
-            })
-            .map(TAApplication::getJobId)
-            .collect(Collectors.toList());
-    
-    return allJobs.stream()
-            .filter(job -> !excludedJobIds.contains(job.getJobId()))
-            .collect(Collectors.toList());
-}
-    
-    /**
-     * 提交申请（带用户反馈、限制检查和 CV 选择）
-     */
     public boolean submitApplicationWithFeedback(Long taUserId, Long jobId, String statement, Long cvId, JFrame parent) {
-        // 检查申请数量限制
         if (!canSubmitMoreApplications(taUserId)) {
             JOptionPane.showMessageDialog(parent, 
                 "You can only have " + MAX_ACTIVE_APPLICATIONS + " active applications at once.\n" +
@@ -139,9 +107,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         }
     }
     
-    /**
-     * 取消申请（带用户反馈）
-     */
     public boolean cancelApplicationWithFeedback(Long applicationId, JFrame parent) {
         TAApplication app = applicationService.findById(applicationId);
         if (app == null) {
@@ -150,7 +115,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
             return false;
         }
 
-        // 检查状态是否可取消
         if (!ApplicationStatus.isCancellable(app.getStatus())) {
             String displayStatus = getDisplayStatus(app);
             JOptionPane.showMessageDialog(parent, 
@@ -160,7 +124,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
             return false;
         }
 
-        // 确认取消
         int confirm = JOptionPane.showConfirmDialog(parent,
             "Are you sure you want to cancel this application?\n\n" +
             "Course: " + getCourseName(app.getJobId()) + "\n" +
@@ -190,9 +153,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         }
     }
     
-    /**
-     * 获取申请统计
-     */
     public ApplicationStats getApplicationStats(Long taUserId) {
         List<TAApplication> applications = applicationService.listByTaUserId(taUserId);
         
@@ -209,23 +169,14 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         return new ApplicationStats(accepted, pending, rejected);
     }
     
-    /**
-     * 获取申请显示状态
-     */
     public String getDisplayStatus(TAApplication application) {
         return ApplicationStatus.getDisplayText(application.getStatus());
     }
     
-    /**
-     * 获取反馈信息
-     */
     public String getFeedbackMessage(TAApplication application) {
         return ApplicationStatus.getFeedbackMessage(application.getStatus());
     }
     
-    /**
-     * 获取课程名称
-     */
     public String getCourseName(Long jobId) {
         List<MOJob> jobs = jobService.listPublishedJobs();
         for (MOJob job : jobs) {
@@ -236,9 +187,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         return "Course #" + jobId;
     }
     
-    /**
-     * 获取课程名称（通过课程代码）
-     */
     public String getCourseNameByModuleCode(String moduleCode) {
         List<MOJob> jobs = jobService.listPublishedJobs();
         for (MOJob job : jobs) {
@@ -249,9 +197,6 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         return moduleCode;
     }
     
-    /**
-     * 根据 JobId 获取 Job 对象
-     */
     public MOJob getJobById(Long jobId) {
         List<MOJob> jobs = jobService.listPublishedJobs();
         for (MOJob job : jobs) {
@@ -262,23 +207,14 @@ public List<MOJob> getAvailableJobs(Long taUserId) {
         return null;
     }
     
-    /**
-     * 构建申请摘要
-     */
     public String buildApplicationSummary(TAApplication application) {
         return applicationService.buildApplicationSummary(application);
     }
     
-    /**
-     * 获取未读通知数量
-     */
     public int getUnreadNotificationCount(Long userId) {
         return notificationService.listUnreadByUser(userId).size();
     }
     
-    /**
-     * 申请统计内部类
-     */
     public static class ApplicationStats {
         public final long accepted;
         public final long pending;
