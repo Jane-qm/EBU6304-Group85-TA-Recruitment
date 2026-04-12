@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "notificationId": 7001,
+    "recipientUserId": 100004,
+    "recipientRole": "TA",
+    "title": "Application Result",
+    "content": "Your application #3003 has been approved.",
+    "type": "APPLICATION_RESULT",
+    "read": true,
+    "createdAt": "2026-04-11T21:14:31.4230134"
+  },
+  {
+    "notificationId": 7002,
+    "recipientUserId": 100004,
+    "recipientRole": "TA",
+    "title": "Application Result",
+    "content": "Your application #3004 has been rejected.",
+    "type": "APPLICATION_RESULT",
+    "read": true,
+    "createdAt": "2026-04-11T21:45:59.8057925"
+  },
+  {
+    "notificationId": 7003,
+    "recipientUserId": 100004,
+    "recipientRole": "TA",
+    "title": "Application Result",
+    "content": "Your application #3004 has been approved.",
+    "type": "APPLICATION_RESULT",
+    "read": true,
+    "createdAt": "2026-04-11T21:46:09.6053071"
+  }
+]

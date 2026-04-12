@@ -24,6 +24,7 @@ import common.ui.BaseFrame;
 import common.ui.NotificationPopup;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
+import ta.controller.TAOfferController;
 
 
 public class TAMainFrame extends BaseFrame {
@@ -32,6 +33,7 @@ public class TAMainFrame extends BaseFrame {
     
     private final TAApplicationController applicationController;
     private final TAAuthController authController;
+    private final TAOfferController offerController;
     private final NotificationService notificationService;
     
     // 面板组件
@@ -68,9 +70,13 @@ public class TAMainFrame extends BaseFrame {
         
         this.applicationController = new TAApplicationController();
         this.authController = new TAAuthController();
+        this.offerController = new TAOfferController();
         this.notificationService = new NotificationService();
         
         initUI();
+        
+        // 登录后检查是否有待处理的 Offer
+    //    checkPendingOffers();
     }
 
     @Override
@@ -82,6 +88,32 @@ public class TAMainFrame extends BaseFrame {
         mainPanel.add(createMainContent(), BorderLayout.CENTER);
 
         setContentPane(mainPanel);
+    }
+    
+    /**
+     * 检查是否有待处理的 Offer
+     */
+    //private void checkPendingOffers() {
+    //    if (offerController.hasPendingOffers(ta.getUserId())) {
+         // 延迟显示，确保 UI 已完全加载
+    //        javax.swing.SwingUtilities.invokeLater(() -> {
+    //            offerController.handlePendingOffers(ta.getUserId(), this, () -> {
+    //                // Offer 处理完成后刷新面板
+    //                refreshAllPanels();
+    //            });
+     //       });
+    //    }
+    //}
+    
+    /**
+     * 刷新所有面板
+     */
+    public void refreshAllPanels() {
+        if (dashboardPanel != null) dashboardPanel.refresh();
+        if (courseCatalogPanel != null) courseCatalogPanel.refresh();
+        if (applicationsPanel != null) applicationsPanel.refresh();
+        if (profilePanel != null) profilePanel.refresh();
+        if (workloadPanel != null) workloadPanel.refresh();
     }
 
     private JPanel createSidebar() {
@@ -114,7 +146,7 @@ public class TAMainFrame extends BaseFrame {
         sidebar.add(logoPanel);
         sidebar.add(Box.createVerticalStrut(36));
 
-        // 导航按钮 - 使用类似 LoginFrame 的 Tab 风格
+        // 导航按钮
         dashboardBtn = createNavButton("Dashboard", "🏠");
         courseCatalogBtn = createNavButton("Course Catalog", "📚");
         applicationsBtn = createNavButton("My Applications", "📝");
@@ -176,7 +208,7 @@ public class TAMainFrame extends BaseFrame {
     }
     
     /**
-     * 创建导航按钮 - 类似 LoginFrame 的 Tab 风格
+     * 创建导航按钮
      */
     private JButton createNavButton(String text, String icon) {
         JButton button = new JButton(icon + "  " + text);
@@ -312,6 +344,38 @@ public class TAMainFrame extends BaseFrame {
     public void switchToProfile() {
         switchPanel("My Profile");
         setActiveButton(profileBtn);
+    }
+    
+    /**
+     * 切换到 Applications 面板
+     */
+    public void switchToApplications() {
+        switchPanel("My Applications");
+        setActiveButton(applicationsBtn);
+    }
+    
+    /**
+     * 切换到 Course Catalog 面板
+     */
+    public void switchToCourseCatalog() {
+        switchPanel("Course Catalog");
+        setActiveButton(courseCatalogBtn);
+    }
+    
+    /**
+     * 切换到 Dashboard 面板
+     */
+    public void switchToDashboard() {
+        switchPanel("Dashboard");
+        setActiveButton(dashboardBtn);
+    }
+    
+    /**
+     * 切换到 Workload 面板
+     */
+    public void switchToWorkload() {
+        switchPanel("Workload Tracking");
+        setActiveButton(workloadBtn);
     }
     
     private void refreshPanel(String panelName) {
