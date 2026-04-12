@@ -29,5 +29,37 @@
     "isDefault": true,
     "uploadedAt": "2026-04-08T14:51:43.252049",
     "updatedAt": "2026-04-08T14:51:43.252049"
+  },
+  {
+    "cvId": 3,
+    "taId": 100009,
+    "taEmail": "zhixuan@qmul.ac.uk",
+    "taName": "guo zhixuan",
+    "cvName": "zhixuan_guo",
+    "originalFileName": "250401毛概视频大纲.docx",
+    "savedFileName": "ta_100009_zhixuan_guo_20260412_143420.pdf",
+    "filePath": "data/cvs/ta_100009_zhixuan_guo_20260412_143420.pdf",
+    "fileType": "DOCX",
+    "fileSize": 420254,
+    "description": "",
+    "isDefault": true,
+    "uploadedAt": "2026-04-12T14:34:20.696658",
+    "updatedAt": "2026-04-12T14:34:20.696664"
+  },
+  {
+    "cvId": 4,
+    "taId": 100009,
+    "taEmail": "zhixuan@qmul.ac.uk",
+    "taName": "guo zhixuan",
+    "cvName": "topic 15 task1-4",
+    "originalFileName": "topic 15 task1-4.docx",
+    "savedFileName": "ta_100009_topic_15_task1-4_20260412_151940.docx",
+    "filePath": "data/cvs/ta_100009_topic_15_task1-4_20260412_151940.docx",
+    "fileType": "DOCX",
+    "fileSize": 19683,
+    "description": "",
+    "isDefault": false,
+    "uploadedAt": "2026-04-12T15:19:40.076266",
+    "updatedAt": "2026-04-12T15:19:40.076274"
   }
 ]
