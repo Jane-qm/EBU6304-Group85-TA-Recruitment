@@ -13,7 +13,7 @@
     "jobId": 2001,
     "cvId": 2,
     "statement": "1",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "appliedAt": "2026-04-08T14:52:24.4553846"
   },
   {
@@ -33,5 +33,23 @@
     "statement": "11",
     "status": "HIRED",
     "appliedAt": "2026-04-11T21:45:14.7112201"
+  },
+  {
+    "applicationId": 3005,
+    "taUserId": 100009,
+    "jobId": 2002,
+    "cvId": 3,
+    "statement": "1st",
+    "status": "SUBMITTED",
+    "appliedAt": "2026-04-12T15:21:15.629269"
+  },
+  {
+    "applicationId": 3006,
+    "taUserId": 100009,
+    "jobId": 2001,
+    "cvId": 3,
+    "statement": "0412",
+    "status": "REJECTED",
+    "appliedAt": "2026-04-12T15:56:55.337341"
   }
 ]

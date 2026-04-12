@@ -60,5 +60,29 @@
     "profileCompleted": true,
     "profileLastUpdated": "2026-04-02T14:35:56.8365059",
     "createdAt": "2026-04-02T14:35:15.5005454"
+  },
+  {
+    "taId": 100009,
+    "email": "zhixuan@qmul.ac.uk",
+    "studentId": "123456",
+    "surname": "guo",
+    "forename": "zhixuan",
+    "chineseName": "",
+    "phone": "12345678901",
+    "gender": "MALE",
+    "school": "international school",
+    "supervisor": "Ling Ma",
+    "studentType": "MASTER",
+    "currentYear": "YEAR_1",
+    "campus": "XITUCHENG",
+    "previousExperience": "good English communication skill",
+    "skillTags": [
+      "java programming"
+    ],
+    "major": "",
+    "availableWorkingHours": 16,
+    "profileCompleted": true,
+    "profileLastUpdated": "2026-04-12T15:56:55.325505",
+    "createdAt": "2026-04-12T14:26:45.660811"
   }
 ]
