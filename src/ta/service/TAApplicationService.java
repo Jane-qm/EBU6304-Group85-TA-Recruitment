@@ -13,6 +13,7 @@ import common.service.NotificationService;
 import ta.dao.TAApplicationDAO;
 import ta.entity.CVInfo;
 import ta.entity.TAApplication;
+import ta.entity.TAProfile;
 
 public class TAApplicationService {
 
@@ -56,9 +57,6 @@ public class TAApplicationService {
         return result;
     }
 
-    /**
-     * 根据申请ID查找
-     */
     public TAApplication findById(Long applicationId) {
         for (TAApplication application : dao.findAll()) {
             if (applicationId != null && applicationId.equals(application.getApplicationId())) {
@@ -68,9 +66,6 @@ public class TAApplicationService {
         return null;
     }
 
-    /**
-     * 获取TA的所有申请（按时间倒序）
-     */
     public List<TAApplication> listByTaUserIdSorted(Long taUserId) {
         List<TAApplication> result = listByTaUserId(taUserId);
         result.sort((a, b) -> {
@@ -81,21 +76,16 @@ public class TAApplicationService {
         return result;
     }
 
-    /**
-     * 获取TA的活跃申请数量（待审核状态 + 候补状态）
-     */
     public int getActiveApplicationCount(Long taUserId) {
         return (int) listByTaUserId(taUserId).stream()
                 .filter(a -> ApplicationStatus.isAwaitingReview(a.getStatus()) || 
-                             ApplicationStatus.WAITLISTED.equals(a.getStatus()))
+                             ApplicationStatus.WAITLISTED.equals(a.getStatus()) ||
+                             ApplicationStatus.HIRED.equals(a.getStatus()))
                 .count();
     }
 
     // ==================== 查询方法 ====================
 
-    /**
-     * MO inbox: 待审核状态
-     */
     public List<TAApplication> listApplicationsAwaitingReview() {
         List<TAApplication> result = new ArrayList<>();
         for (TAApplication application : dao.findAll()) {
@@ -107,11 +97,11 @@ public class TAApplicationService {
     }
 
     // ==================== 申请提交 ====================
+    
 
-    /**
-     * 验证申请资格（个人资料和CV）
-     */
     public void validateApplicationAccess(Long taUserId, Long jobId) {
+        refreshProfileCompletion(taUserId);
+        
         if (!taProfileService.isProfileComplete(taUserId)) {
             throw new IllegalStateException("Please complete your TA profile before applying.");
         }
@@ -124,23 +114,63 @@ public class TAApplicationService {
             throw new IllegalStateException("This position has not been published yet and cannot be viewed or applied for.");
         }
     }
+    
+   /* *private void refreshProfileCompletion(Long taUserId) {
+        TAProfile profile = taProfileService.getProfileByTaId(taUserId);
+        if (profile != null) {
+            profile.saveProfile();
+            taProfileService.saveProfile(profile);
+        }
+    }*/
 
-    /**
-     * 提交申请（带 CV 选择）
-     */
+private void refreshProfileCompletion(Long taUserId) {
+    // 强制从文件重新加载，确保获取最新数据
+    taProfileService.refreshProfile(taUserId);
+    
+    TAProfile profile = taProfileService.getProfileByTaId(taUserId);
+    if (profile != null) {
+        System.out.println("=== refreshProfileCompletion ===");
+        System.out.println("profile.getStudentId(): " + profile.getStudentId());
+        System.out.println("profile.getSurname(): " + profile.getSurname());
+        System.out.println("profile.getForename(): " + profile.getForename());
+        System.out.println("profile.getPhone(): " + profile.getPhone());
+        System.out.println("profile.getEmail(): " + profile.getEmail());
+        System.out.println("profile.isProfileCompleted(): " + profile.isProfileCompleted());
+        
+        profile.saveProfile();
+        taProfileService.saveProfile(profile);
+    } else {
+        System.out.println("警告: refreshProfileCompletion 中 profile 为 null");
+    }
+}
+  /* private void refreshProfileCompletion(Long taUserId) {
+    TAProfile profile = taProfileService.getProfileByTaId(taUserId);
+    if (profile != null) {
+        System.out.println("=== refreshProfileCompletion ===");
+        System.out.println("profile.getStudentId(): " + profile.getStudentId());
+        System.out.println("profile.getSurname(): " + profile.getSurname());
+        System.out.println("profile.getForename(): " + profile.getForename());
+        System.out.println("profile.getPhone(): " + profile.getPhone());
+        System.out.println("profile.getEmail(): " + profile.getEmail());
+        
+        profile.saveProfile();
+        taProfileService.saveProfile(profile);
+    }
+}*/  
     public TAApplication submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
-        // 1. 验证个人资料是否完整
+        refreshProfileCompletion(taUserId);
+        
         if (!taProfileService.isProfileComplete(taUserId)) {
-            throw new IllegalStateException("Please complete your TA profile before applying.");
+            List<String> missing = taProfileService.getMissingFields(taUserId);
+            String missingMsg = missing.isEmpty() ? "" : " Missing: " + String.join(", ", missing);
+            throw new IllegalStateException("Please complete your TA profile before applying." + missingMsg);
         }
         
-        // 2. 验证 CV 是否存在且属于该 TA
         CVInfo selectedCV = cvService.getCVById(taUserId, cvId);
         if (selectedCV == null) {
             throw new IllegalArgumentException("Selected CV not found. Please upload a CV first.");
         }
 
-        // 3. 验证职位是否存在且已发布
         MOJob job = jobService.getPublishedJob(jobId);
         if (job == null) {
             throw new IllegalStateException("This position has not been published yet.");
@@ -148,7 +178,6 @@ public class TAApplicationService {
 
         List<TAApplication> userApplications = listByTaUserId(taUserId);
         
-        // 4. 检查是否已有活跃申请
         boolean hasActiveApplication = userApplications.stream()
                 .anyMatch(a -> jobId.equals(a.getJobId()) && 
                         (ApplicationStatus.isAwaitingReview(a.getStatus()) || 
@@ -157,7 +186,6 @@ public class TAApplicationService {
             throw new IllegalStateException("You already have an active application for this position.");
         }
         
-        // 5. 检查是否曾被拒绝
         boolean wasRejected = userApplications.stream()
                 .anyMatch(a -> jobId.equals(a.getJobId()) && 
                         ApplicationStatus.isRejected(a.getStatus()));
@@ -165,12 +193,25 @@ public class TAApplicationService {
             throw new IllegalStateException("Your previous application for this position was rejected. You cannot reapply.");
         }
 
-        // 6. 检查活跃申请数量限制（最多3个）
+        boolean hasAcceptedOrHired = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        (ApplicationStatus.ACCEPTED.equals(a.getStatus()) || 
+                         ApplicationStatus.HIRED.equals(a.getStatus())));
+        if (hasAcceptedOrHired) {
+            throw new IllegalStateException("You have already been accepted/hired for this position.");
+        }
+
+        boolean hasPendingOffer = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                        ApplicationStatus.ACCEPTED.equals(a.getStatus()));
+        if (hasPendingOffer) {
+            throw new IllegalStateException("You already have a pending offer for this position. Please accept or reject it first.");
+        }
+
         if (getActiveApplicationCount(taUserId) >= 3) {
             throw new IllegalStateException("You can only have 3 active applications at once.");
         }
 
-        // 7. 创建申请
         TAApplication application = new TAApplication();
         application.setTaUserId(taUserId);
         application.setJobId(jobId);
@@ -183,10 +224,6 @@ public class TAApplicationService {
 
     // ==================== 取消申请 ====================
 
-    /**
-     * 取消申请
-     * 只有 PENDING_REVIEW、SUBMITTED 或 WAITLISTED 状态的申请才能取消
-     */
     public TAApplication cancelApplication(Long applicationId) {
         TAApplication application = findById(applicationId);
         if (application == null) {
@@ -203,7 +240,6 @@ public class TAApplicationService {
         application.setStatus(ApplicationStatus.CANCELLED);
         TAApplication saved = dao.save(application);
 
-        // 发送通知给TA
         notificationService.notifyUser(
             saved.getTaUserId(),
             UserRole.TA,
@@ -217,9 +253,6 @@ public class TAApplicationService {
 
     // ==================== MO 审核方法 ====================
 
-    /**
-     * MO将申请设为候补
-     */
     public TAApplication markAsWaitlisted(Long applicationId) {
         TAApplication application = findById(applicationId);
         if (application == null) {
@@ -239,9 +272,6 @@ public class TAApplicationService {
         return saved;
     }
 
-    /**
-     * MO设为已录用（发Offer前）
-     */
     public TAApplication markAsAccepted(Long applicationId) {
         TAApplication application = findById(applicationId);
         if (application == null) {
@@ -252,9 +282,6 @@ public class TAApplicationService {
         return dao.save(application);
     }
 
-    /**
-     * TA接受Offer后设为已录用
-     */
     public TAApplication markAsHired(Long applicationId) {
         TAApplication application = findById(applicationId);
         if (application == null) {
@@ -274,9 +301,6 @@ public class TAApplicationService {
         return saved;
     }
 
-    /**
-     * MO拒绝申请
-     */
     public TAApplication rejectApplication(Long applicationId) {
         TAApplication application = findById(applicationId);
         if (application == null) {

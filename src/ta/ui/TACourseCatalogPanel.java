@@ -2,13 +2,14 @@ package ta.ui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Files;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,16 +38,11 @@ import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
 import ta.controller.TAProfileController;
 import ta.entity.CVInfo;
+import ta.entity.TAProfile;
 import ta.service.CVService;
+import ta.service.TAProfileService;
 import ta.ui.components.ActionButtonRenderer;
 
-/**
- * TA 课程目录面板
- * 显示可申请的课程列表，支持查看详情和提交申请
- * 
- * @author Can Chen
- * @version 1.0
- */
 public class TACourseCatalogPanel extends JPanel {
     
     private final TA ta;
@@ -76,11 +72,9 @@ public class TACourseCatalogPanel extends JPanel {
     }
     
     private void initUI() {
-        // 标题区域
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
         
-        // 内容区域
         JScrollPane contentScroll = createContentPanel();
         add(contentScroll, BorderLayout.CENTER);
     }
@@ -105,18 +99,6 @@ public class TACourseCatalogPanel extends JPanel {
         panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(new EmptyBorder(0, 30, 30, 30));
         
-        // 限制提示
-        int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
-        if (remainingSlots <= 0) {
-            JLabel warningLabel = new JLabel("⚠ You have reached the maximum number of active applications (" 
-                    + applicationController.getMaxActiveApplications() + "). Please wait for decisions before applying for more.");
-            warningLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
-            warningLabel.setForeground(new Color(239, 68, 68));
-            warningLabel.setAlignmentX(LEFT_ALIGNMENT);
-            panel.add(warningLabel);
-            panel.add(Box.createVerticalStrut(16));
-        }
-        
         panel.add(createCoursesTable());
         
         JScrollPane scrollPane = new JScrollPane(panel);
@@ -127,8 +109,7 @@ public class TACourseCatalogPanel extends JPanel {
     }
     
     private JScrollPane createCoursesTable() {
-        // 添加 Detail 和 Apply 两列
-        String[] columns = {"Course", "Hours/Week", "Description", "", ""};
+        String[] columns = {"Course Name", "Module Code", "Hours/Week", "Detail", "Apply"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -144,11 +125,9 @@ public class TACourseCatalogPanel extends JPanel {
         coursesTable.setShowGrid(false);
         coursesTable.setIntercellSpacing(new Dimension(0, 0));
         
-        // 设置渲染器
         coursesTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
         coursesTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
         
-        // 添加鼠标点击事件处理
         coursesTable.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -158,13 +137,17 @@ public class TACourseCatalogPanel extends JPanel {
                 if (row < availableJobs.size()) {
                     MOJob job = availableJobs.get(row);
                     
-                    if (col == 3) {  // Detail 列
+                    if (col == 3) {
                         showCourseDetailDialog(job);
-                    } else if (col == 4) {  // Apply 列
-                        String action = (String) coursesTable.getValueAt(row, 4);
-                        if ("Apply".equals(action)) {
-                            showApplicationDialog(job);
+                    } else if (col == 4) {
+                        refresh();
+                        // 保留申请时的弹窗提示
+                        if (!applicationController.canSubmitMoreApplications(ta.getUserId())) {
+                            showWarning("You can only have " + applicationController.getMaxActiveApplications() 
+                                + " active applications at once. Please wait for decisions before applying for more.");
+                            return;
                         }
+                        showApplicationDialog(job);
                     }
                 }
             }
@@ -176,16 +159,15 @@ public class TACourseCatalogPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
-        // 设置列宽
-        coursesTable.getColumnModel().getColumn(0).setPreferredWidth(300);
-        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(100);
-        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(400);
-        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(60);
-        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+        coursesTable.getColumnModel().getColumn(0).setPreferredWidth(280);
+        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(120);
+        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(100);
+        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(70);
+        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(70);
 
         JScrollPane scrollPane = new JScrollPane(coursesTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        scrollPane.setPreferredSize(new Dimension(1000, 400));
+        scrollPane.setPreferredSize(new Dimension(900, 400));
 
         return scrollPane;
     }
@@ -194,37 +176,42 @@ public class TACourseCatalogPanel extends JPanel {
         tableModel.setRowCount(0);
         
         availableJobs = applicationController.getAvailableJobs(ta.getUserId());
-        int remainingSlots = applicationController.getRemainingApplicationSlots(ta.getUserId());
 
         for (MOJob job : availableJobs) {
-            String applyAction = remainingSlots > 0 ? "Apply" : "Full";
-            String description = job.getDescription() != null ? 
-                    (job.getDescription().length() > 60 ? job.getDescription().substring(0, 60) + "..." : job.getDescription()) : "";
-            
             tableModel.addRow(new Object[]{
-                    job.getModuleCode() + " - " + job.getTitle(),
+                    job.getTitle(),
+                    job.getModuleCode(),
                     job.getWeeklyHours(),
-                    description,
                     "Detail",
-                    applyAction
+                    "Apply"
             });
         }
 
         if (availableJobs.isEmpty()) {
-            tableModel.addRow(new Object[]{"—", "—", "No available courses at this time", "—", "—"});
+            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—"});
         }
     }
     
-    /**
-     * 显示课程详情对话框
-     */
+    private JLabel createInfoLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("SansSerif", Font.BOLD, 13));
+        label.setForeground(new Color(55, 65, 81));
+        return label;
+    }
+    
+    private JLabel createValueLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        label.setForeground(new Color(30, 35, 45));
+        return label;
+    }
+    
     private void showCourseDetailDialog(MOJob job) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(new EmptyBorder(15, 15, 15, 15));
         panel.setBackground(Color.WHITE);
         
-        // 课程标题
         JLabel titleLabel = new JLabel(job.getModuleCode() + " - " + job.getTitle());
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setForeground(PRIMARY_BLUE);
@@ -232,26 +219,19 @@ public class TACourseCatalogPanel extends JPanel {
         panel.add(titleLabel);
         panel.add(Box.createVerticalStrut(15));
         
-        // 分隔线
-        JSeparator separator = new JSeparator();
-        separator.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(separator);
+        panel.add(new JSeparator());
         panel.add(Box.createVerticalStrut(15));
         
-        // 详细信息网格
         JPanel infoPanel = new JPanel(new java.awt.GridLayout(0, 2, 10, 10));
         infoPanel.setBackground(Color.WHITE);
         infoPanel.setAlignmentX(LEFT_ALIGNMENT);
         
-        // 课程代码
         infoPanel.add(createInfoLabel("Module Code:"));
         infoPanel.add(createValueLabel(job.getModuleCode()));
         
-        // 每周工时
         infoPanel.add(createInfoLabel("Weekly Hours:"));
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
         
-        // 状态
         infoPanel.add(createInfoLabel("Status:"));
         String statusText = "OPEN".equals(job.getStatus()) ? "Open for Applications" : 
                            ("PUBLISHED".equals(job.getStatus()) ? "Published" : job.getStatus());
@@ -261,31 +241,24 @@ public class TACourseCatalogPanel extends JPanel {
         }
         infoPanel.add(statusLabel);
         
-        // 发布时间
         if (job.getCreatedAt() != null) {
             infoPanel.add(createInfoLabel("Posted Date:"));
-            infoPanel.add(createValueLabel(job.getCreatedAt().format(
-                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))));
+            infoPanel.add(createValueLabel(job.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))));
         }
         
         panel.add(infoPanel);
         panel.add(Box.createVerticalStrut(15));
         
-        // 分隔线
-        JSeparator separator2 = new JSeparator();
-        separator2.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(separator2);
+        panel.add(new JSeparator());
         panel.add(Box.createVerticalStrut(15));
         
-        // 所需技能
         JLabel skillsTitle = new JLabel("Required Skills");
         skillsTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
-        skillsTitle.setForeground(new Color(55, 65, 81));
         skillsTitle.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(skillsTitle);
         panel.add(Box.createVerticalStrut(8));
         
-        JPanel skillsPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8));
+        JPanel skillsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         skillsPanel.setBackground(Color.WHITE);
         skillsPanel.setAlignmentX(LEFT_ALIGNMENT);
         
@@ -306,16 +279,11 @@ public class TACourseCatalogPanel extends JPanel {
         panel.add(skillsPanel);
         panel.add(Box.createVerticalStrut(15));
         
-        // 分隔线
-        JSeparator separator3 = new JSeparator();
-        separator3.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(separator3);
+        panel.add(new JSeparator());
         panel.add(Box.createVerticalStrut(15));
         
-        // 职位描述
         JLabel descTitle = new JLabel("Job Description");
         descTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
-        descTitle.setForeground(new Color(55, 65, 81));
         descTitle.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(descTitle);
         panel.add(Box.createVerticalStrut(8));
@@ -334,65 +302,41 @@ public class TACourseCatalogPanel extends JPanel {
         descScroll.setMaximumSize(new Dimension(500, 150));
         panel.add(descScroll);
         
-        // 对话框
         JOptionPane.showConfirmDialog(null, new JScrollPane(panel), 
             "Course Details", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
     }
     
-    /**
-     * 创建信息标签（左侧）
-     */
-    private JLabel createInfoLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 13));
-        label.setForeground(new Color(55, 65, 81));
-        return label;
-    }
-    
-    /**
-     * 创建值标签（右侧）
-     */
-    private JLabel createValueLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        label.setForeground(new Color(30, 35, 45));
-        return label;
-    }
-    
-    /**
-     * 显示申请对话框（带 CV 选择）
-     */
     private void showApplicationDialog(MOJob job) {
-        // 1. 检查个人资料是否完整
-        if (!profileController.isProfileComplete(ta.getUserId())) {
+        TAProfileService directService = new TAProfileService();
+        TAProfile freshProfile = directService.getProfileByTaId(ta.getUserId());
+        
+        boolean isComplete = freshProfile != null && freshProfile.isProfileCompleted();
+        
+        if (!isComplete) {
             JOptionPane.showMessageDialog(this,
                 "Please complete your personal profile first!\n\n" +
                 "Go to My Profile to fill in all required information.",
                 "Profile Incomplete", JOptionPane.WARNING_MESSAGE);
-            // 切换到Profile面板
             TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
             if (mainFrame instanceof TAMainFrame) {
                 mainFrame.switchToProfile();
             }
             return;
         }
+        cvService.refreshCVs(ta.getUserId());
         
-        // 2. 获取 TA 的所有 CV
         List<CVInfo> cvList = cvService.getAllCVs(ta.getUserId());
         
-        // 3. 创建对话框面板
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
         
-        // 课程信息
         JLabel courseLabel = new JLabel("Applying for: " + job.getModuleCode() + " - " + job.getTitle());
         courseLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         courseLabel.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(courseLabel);
         panel.add(Box.createVerticalStrut(15));
         
-        // CV 选择区域
         JLabel cvLabel = new JLabel("Select CV:");
         cvLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
         cvLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -420,7 +364,6 @@ public class TACourseCatalogPanel extends JPanel {
         panel.add(cvCombo);
         panel.add(Box.createVerticalStrut(10));
         
-        // 上传新 CV 按钮
         JButton uploadNewBtn = new JButton("📄 Upload New CV");
         uploadNewBtn.setAlignmentX(LEFT_ALIGNMENT);
         uploadNewBtn.setMaximumSize(new Dimension(200, 30));
@@ -428,7 +371,6 @@ public class TACourseCatalogPanel extends JPanel {
         panel.add(uploadNewBtn);
         panel.add(Box.createVerticalStrut(15));
         
-        // 申请陈述
         JLabel statementLabel = new JLabel("Application Statement:");
         statementLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
         statementLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -443,10 +385,8 @@ public class TACourseCatalogPanel extends JPanel {
         statementScroll.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(statementScroll);
         
-        // 选中的 CV ID
         final Long[] selectedCvId = {null};
         
-        // 初始化选中的 CV
         if (!cvList.isEmpty()) {
             String selected = (String) cvCombo.getSelectedItem();
             if (selected != null && cvMap.containsKey(selected)) {
@@ -454,7 +394,6 @@ public class TACourseCatalogPanel extends JPanel {
             }
         }
         
-        // CV 选择变化事件
         cvCombo.addActionListener(e -> {
             String selected = (String) cvCombo.getSelectedItem();
             if (selected != null && cvMap.containsKey(selected)) {
@@ -462,7 +401,6 @@ public class TACourseCatalogPanel extends JPanel {
             }
         });
         
-        // 上传新 CV 按钮事件
         uploadNewBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setFileFilter(new FileNameExtensionFilter("CV Files", "pdf", "doc", "docx"));
@@ -527,7 +465,6 @@ public class TACourseCatalogPanel extends JPanel {
                 return;
             }
             
-            // 提交申请
             boolean success = applicationController.submitApplicationWithFeedback(
                 ta.getUserId(), job.getJobId(), statement, selectedCvId[0], null);
             
@@ -549,9 +486,6 @@ public class TACourseCatalogPanel extends JPanel {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
     
-    /**
-     * 刷新面板数据
-     */
     public void refresh() {
         refreshTable();
         revalidate();

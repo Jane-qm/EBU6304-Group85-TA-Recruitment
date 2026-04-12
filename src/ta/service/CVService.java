@@ -11,7 +11,7 @@ import ta.entity.CVManager;
  * 负责 CV 的业务逻辑处理
  * 
  * @author System
- * @version 1.0
+ * @version 2.0 - 修复缓存同步问题，每次查询前强制刷新
  */
 public class CVService {
     
@@ -81,6 +81,9 @@ public class CVService {
         // 保存
         cvDao.saveCV(cvInfo);
         
+        // 上传成功后强制刷新缓存，确保后续查询能获取到
+        cvDao.refreshFromFile(taId);
+        
         return cvInfo;
     }
     
@@ -88,6 +91,9 @@ public class CVService {
      * 下载 CV 文件
      */
     public byte[] downloadCV(Long taId, Long cvId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             throw new IllegalArgumentException("No CV found for TA ID: " + taId);
@@ -105,6 +111,9 @@ public class CVService {
      * 下载默认 CV
      */
     public byte[] downloadDefaultCV(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             throw new IllegalArgumentException("No CV found for TA ID: " + taId);
@@ -122,20 +131,29 @@ public class CVService {
      * 删除 CV
      */
     public boolean deleteCV(Long taId, Long cvId) {
-        return cvDao.deleteCV(taId, cvId);
+        boolean result = cvDao.deleteCV(taId, cvId);
+        // 删除后强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        return result;
     }
     
     /**
      * 设置默认 CV
      */
     public boolean setDefaultCV(Long taId, Long cvId) {
-        return cvDao.setDefaultCV(taId, cvId);
+        boolean result = cvDao.setDefaultCV(taId, cvId);
+        // 设置后强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        return result;
     }
     
     /**
      * 获取所有 CV 名称列表
      */
     public List<String> getCVNames(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return new java.util.ArrayList<>();
@@ -147,6 +165,9 @@ public class CVService {
      * 根据 CV 名称获取 CV 信息
      */
     public CVInfo getCVByName(Long taId, String cvName) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return null;
@@ -158,6 +179,9 @@ public class CVService {
      * 检查 TA 是否有 CV
      */
     public boolean hasCV(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         return manager != null && manager.hasCV();
     }
@@ -166,6 +190,9 @@ public class CVService {
      * 获取 CV 数量
      */
     public int getCVCount(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return 0;
@@ -177,6 +204,9 @@ public class CVService {
      * 获取默认 CV 信息
      */
     public CVInfo getDefaultCV(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return null;
@@ -188,6 +218,9 @@ public class CVService {
      * 获取所有 CV 信息
      */
     public List<CVInfo> getAllCVs(Long taId) {
+        // 每次获取前都从文件刷新，确保数据最新
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return new java.util.ArrayList<>();
@@ -199,6 +232,9 @@ public class CVService {
      * 获取所有 CV 信息（按时间排序）
      */
     public List<CVInfo> getAllCVsSorted(Long taId) {
+        // 强制刷新缓存
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
             return new java.util.ArrayList<>();
@@ -213,15 +249,30 @@ public class CVService {
      * @return CVInfo 对象，如果不属于该 TA 则返回 null
      */
     public CVInfo getCVById(Long taId, Long cvId) {
+        // 强制刷新缓存，确保获取最新的 CV 数据
+        cvDao.refreshFromFile(taId);
+        
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
+            System.out.println("getCVById: manager is null for taId=" + taId);
             return null;
         }
+        
         CVInfo cv = manager.getCVById(cvId);
+        System.out.println("getCVById: taId=" + taId + ", cvId=" + cvId + ", found=" + (cv != null));
+        
         // 验证 CV 属于该 TA
         if (cv != null && cv.getTaId().equals(taId)) {
             return cv;
         }
         return null;
+    }
+
+    /**
+     * 强制刷新 TA 的 CV 缓存
+     */
+    public void refreshCVs(Long taId) {
+        System.out.println("=== CVService.refreshCVs: taId=" + taId + " ===");
+        cvDao.refreshFromFile(taId);
     }
 }

@@ -53,5 +53,27 @@
     "weeklyHours": 6,
     "status": "OPEN",
     "createdAt": "2026-04-04T17:41:48.9819552"
+  },
+  {
+    "jobId": 2006,
+    "moUserId": 100008,
+    "moduleCode": "3",
+    "title": "3",
+    "description": "Skills: 3\nHeadcount: 3\nDeadline: 2026-04-13\nDetails: 3",
+    "requiredSkills": [],
+    "weeklyHours": 3,
+    "status": "OPEN",
+    "createdAt": "2026-04-11T21:12:28.6558843"
+  },
+  {
+    "jobId": 2007,
+    "moUserId": 100008,
+    "moduleCode": "1",
+    "title": "1",
+    "description": "Skills: 11\nHeadcount: 1\nDeadline: 2026-04-13\nDetails: 1",
+    "requiredSkills": [],
+    "weeklyHours": 1,
+    "status": "OPEN",
+    "createdAt": "2026-04-11T21:44:49.8417463"
   }
 ]
