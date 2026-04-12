@@ -31,7 +31,16 @@
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-04-10T19:01:57.3465633",
-    "lastLogin": "2026-04-10T19:38:30.1080765"
+    "lastLogin": "2026-04-12T14:32:21.9720501"
+  },
+  {
+    "userId": 100007,
+    "email": "000@qmul.ac.uk",
+    "passwordHash": "91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203",
+    "role": "MO",
+    "status": "PENDING",
+    "createdAt": "2026-04-12T14:33:53.1483466",
+    "lastLogin": "2026-04-12T14:34:05.9850562"
   },
   {
     "userId": 100001,

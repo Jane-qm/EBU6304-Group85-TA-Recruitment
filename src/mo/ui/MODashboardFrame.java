@@ -105,6 +105,7 @@ public class MODashboardFrame extends BaseFrame {
         logoutBtn.addActionListener(e -> {
             this.dispose();
             // 此处应调出 LoginFrame
+            new LoginFrame().setVisible(true);
         });
         sidebar.add(logoutBtn);
 
