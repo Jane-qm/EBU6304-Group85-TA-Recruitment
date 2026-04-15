@@ -1,14 +1,5 @@
 [
   {
-    "userId": 100003,
-    "email": "admin@test.com",
-    "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
-    "role": "ADMIN",
-    "status": "ACTIVE",
-    "createdAt": "2026-04-08T14:49:04.2640618",
-    "lastLogin": "2026-04-12T16:12:34.880712"
-  },
-  {
     "userId": 100002,
     "email": "mo@test.com",
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
@@ -18,39 +9,12 @@
     "lastLogin": "2026-04-12T16:10:49.978547"
   },
   {
-    "userId": 100008,
-    "email": "t@qmul.ac.uk",
-    "passwordHash": "4cc8f4d609b717356701c57a03e737e5ac8fe885da8c7163d3de47e01849c635",
-    "role": "MO",
-    "status": "PENDING",
-    "createdAt": "2026-04-11T21:11:43.980256",
-    "lastLogin": "2026-04-11T21:45:49.7060713"
-  },
-  {
-    "userId": 100009,
-    "email": "zhixuan@qmul.ac.uk",
-    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
-    "role": "TA",
-    "status": "ACTIVE",
-    "createdAt": "2026-04-12T14:26:45.655512",
-    "lastLogin": "2026-04-12T16:09:16.544096"
-  },
-  {
     "userId": 100007,
     "email": "tun@qmul.ac.uk",
     "passwordHash": "4cc8f4d609b717356701c57a03e737e5ac8fe885da8c7163d3de47e01849c635",
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-04-11T21:10:24.3815438"
-  },
-  {
-    "userId": 100006,
-    "email": "222@qmul.ac.uk",
-    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
-    "role": "MO",
-    "status": "PENDING",
-    "createdAt": "2026-04-10T19:02:58.3744878",
-    "lastLogin": "2026-04-10T19:38:44.1475325"
   },
   {
     "userId": 100010,
@@ -80,12 +44,80 @@
     "lastLogin": "2026-04-12T14:34:05.9850562"
   },
   {
+    "userId": 100011,
+    "email": "test.unique.y456@bupt.edu.cn",
+    "passwordHash": "19513fdc9da4fb72a4a05eb66917548d3c90ff94d5419e1f2363eea89dfee1dd",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-15T10:52:40.266891"
+  },
+  {
+    "userId": 100003,
+    "email": "admin@test.com",
+    "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-08T14:49:04.2640618",
+    "lastLogin": "2026-04-12T16:12:34.880712"
+  },
+  {
+    "userId": 100008,
+    "email": "t@qmul.ac.uk",
+    "passwordHash": "4cc8f4d609b717356701c57a03e737e5ac8fe885da8c7163d3de47e01849c635",
+    "role": "MO",
+    "status": "PENDING",
+    "createdAt": "2026-04-11T21:11:43.980256",
+    "lastLogin": "2026-04-11T21:45:49.7060713"
+  },
+  {
+    "userId": 100009,
+    "email": "zhixuan@qmul.ac.uk",
+    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-12T14:26:45.655512",
+    "lastLogin": "2026-04-12T16:55:55.334892"
+  },
+  {
+    "userId": 100006,
+    "email": "222@qmul.ac.uk",
+    "passwordHash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
+    "role": "MO",
+    "status": "PENDING",
+    "createdAt": "2026-04-10T19:02:58.3744878",
+    "lastLogin": "2026-04-10T19:38:44.1475325"
+  },
+  {
+    "userId": 100013,
+    "email": "test.junit.bupt.y@bupt.edu.cn",
+    "passwordHash": "008c70392e3abfbd0fa47bbc2ed96aa99bd49e159727fcba0f2e6abeb3a9d601",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-15T10:54:16.664972"
+  },
+  {
     "userId": 100001,
     "email": "ta@test.com",
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     "role": "TA",
     "status": "ACTIVE",
     "createdAt": "2026-04-08T14:49:04.2617075"
+  },
+  {
+    "userId": 100012,
+    "email": "test.unique.x123@qmul.ac.uk",
+    "passwordHash": "19513fdc9da4fb72a4a05eb66917548d3c90ff94d5419e1f2363eea89dfee1dd",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-15T10:52:40.321844"
+  },
+  {
+    "userId": 100014,
+    "email": "test.junit.qmul.x@qmul.ac.uk",
+    "passwordHash": "008c70392e3abfbd0fa47bbc2ed96aa99bd49e159727fcba0f2e6abeb3a9d601",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-15T10:54:16.741269"
   },
   {
     "userId": 100004,
