@@ -92,13 +92,21 @@ public class LoginFrame extends BaseFrame {
     private JCheckBox rememberMeBox;
     private final AuthService authService;
     private common.entity.UserRole selectedRole = common.entity.UserRole.TA;
+    private final common.entity.UserRole initialRole;
 
     private static final int CONTENT_WIDTH = 360;
     private static final int FIELD_HEIGHT = 56;
 
     public LoginFrame() {
+        this(common.entity.UserRole.TA);
+    }
+
+    /** Opens the login page with the specified role tab pre-selected. */
+    public LoginFrame(common.entity.UserRole initialRole) {
         super("TA Recruitment System - Login", 760, 820);
         this.authService = new AuthService();
+        this.initialRole = (initialRole != null) ? initialRole : common.entity.UserRole.TA;
+        this.selectedRole = this.initialRole;
         initUI();
     }
 
@@ -147,9 +155,9 @@ public class LoginFrame extends BaseFrame {
         rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
         rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JToggleButton taTab = createRoleTab("TA", true);
-        JToggleButton moTab = createRoleTab("MO", false);
-        JToggleButton adminTab = createRoleTab("ADMIN", false);
+        JToggleButton taTab    = createRoleTab("TA",    initialRole == common.entity.UserRole.TA);
+        JToggleButton moTab    = createRoleTab("MO",    initialRole == common.entity.UserRole.MO);
+        JToggleButton adminTab = createRoleTab("ADMIN", initialRole == common.entity.UserRole.ADMIN);
 
         ButtonGroup roleGroup = new ButtonGroup();
         roleGroup.add(taTab);
