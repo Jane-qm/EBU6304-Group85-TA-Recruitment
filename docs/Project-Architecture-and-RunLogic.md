@@ -92,7 +92,7 @@ sequenceDiagram
 
 Key behavior:
 
-- Registration requires `@qmul.ac.uk` email.
+- Registration accepts `@qmul.ac.uk` **or** `@bupt.edu.cn` email addresses (both universities are supported).
 - Role-based account status:
   - `MO` starts as `PENDING`.
   - `TA` and `ADMIN` start as `ACTIVE`.
@@ -277,4 +277,18 @@ stateDiagram-v2
 - Runtime routing currently uses `MODashboardFrame` for MO, while `MOHomeFrame` remains as a legacy/demo entry.
 - Persistence is file-based JSON, so running from project root is required to resolve `data/` paths correctly.
 - Notifications are first-class runtime events linking TA/MO actions (offer sent, response, application updates).
+
+---
+
+## 10. Testing
+
+JUnit 5 tests live under `src/test/java/` and are run with `mvn test`.
+
+| Test class | Coverage |
+|---|---|
+| `common.domain.ApplicationStatusTest` | All `ApplicationStatus` static helpers (status classification, display text) |
+| `ta.entity.TAProfileTest` | `TAProfile` field validation, completion percentage, `saveProfile()` / `markAsEdited()` |
+| `auth.AuthServiceTest` | Email domain enforcement (qmul/bupt accepted, others rejected), password validation, login null-return |
+
+Email domain rule (enforced in `AuthService`): registration rejects any address that is not `@qmul.ac.uk` or `@bupt.edu.cn`.
 
