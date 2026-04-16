@@ -7,9 +7,11 @@ import java.util.List;
 import common.domain.ApplicationStatus;
 import common.domain.NotificationKind;
 import common.entity.MOJob;
+import common.entity.SystemConfig;
 import common.entity.UserRole;
 import common.service.MOJobService;
 import common.service.NotificationService;
+import common.service.SystemConfigService;
 import ta.dao.TAApplicationDAO;
 import ta.entity.CVInfo;
 import ta.entity.TAApplication;
@@ -23,6 +25,7 @@ public class TAApplicationService {
     private final TAProfileService taProfileService = new TAProfileService();
     private final CVService cvService = new CVService();
     private final NotificationService notificationService = new NotificationService();
+    private final SystemConfigService systemConfigService = new SystemConfigService();
 
     // ==================== 基础 CRUD 方法 ====================
 
@@ -85,6 +88,26 @@ public class TAApplicationService {
     }
 
     // ==================== 查询方法 ====================
+
+    /**
+     * Returns all WAITLISTED applications for the given job, sorted by appliedAt
+     * ascending so the candidate who waited longest is shown first.
+     */
+    public List<TAApplication> listWaitlistedByJobId(Long jobId) {
+        List<TAApplication> result = new ArrayList<>();
+        for (TAApplication app : dao.findAll()) {
+            if (jobId != null && jobId.equals(app.getJobId())
+                    && ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
+                result.add(app);
+            }
+        }
+        result.sort((a, b) -> {
+            if (a.getAppliedAt() == null) return 1;
+            if (b.getAppliedAt() == null) return -1;
+            return a.getAppliedAt().compareTo(b.getAppliedAt());
+        });
+        return result;
+    }
 
     public List<TAApplication> listApplicationsAwaitingReview() {
         List<TAApplication> result = new ArrayList<>();
@@ -158,8 +181,18 @@ private void refreshProfileCompletion(Long taUserId) {
     }
 }*/  
     public TAApplication submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
+        // ADM-003: enforce the global application cycle configured by the Admin
+        if (!systemConfigService.isWithinApplicationCycle(LocalDateTime.now())) {
+            SystemConfig cfg = systemConfigService.getConfig();
+            String window = cfg.isConfigured()
+                    ? cfg.getApplicationStart().toLocalDate() + " to " + cfg.getApplicationEnd().toLocalDate()
+                    : "not yet configured";
+            throw new IllegalStateException(
+                    "Applications are currently closed. Recruitment window: " + window + ".");
+        }
+
         refreshProfileCompletion(taUserId);
-        
+
         if (!taProfileService.isProfileComplete(taUserId)) {
             List<String> missing = taProfileService.getMissingFields(taUserId);
             String missingMsg = missing.isEmpty() ? "" : " Missing: " + String.join(", ", missing);
