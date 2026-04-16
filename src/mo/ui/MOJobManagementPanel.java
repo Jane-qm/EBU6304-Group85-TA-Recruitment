@@ -76,7 +76,16 @@ public class MOJobManagementPanel extends JPanel {
         withdrawJobBtn.setFocusPainted(false);
         withdrawJobBtn.addActionListener(e -> withdrawSelectedJob());
 
+        // MO-009.1: Close Recruitment button
+        JButton closeJobBtn = new JButton("Close Recruitment");
+        closeJobBtn.setBackground(new Color(107, 114, 128));
+        closeJobBtn.setForeground(new Color(55, 65, 81));
+        closeJobBtn.setFocusPainted(false);
+        closeJobBtn.setToolTipText("Stop accepting new applications for the selected job");
+        closeJobBtn.addActionListener(e -> closeSelectedJob());
+
         actionPanel.add(withdrawJobBtn);
+        actionPanel.add(closeJobBtn);
         actionPanel.add(editJobBtn);
         actionPanel.add(postJobBtn);
 
@@ -328,6 +337,68 @@ public class MOJobManagementPanel extends JPanel {
                 jobService.createOrUpdate(jobToWithdraw);
                 loadJobData();
                 JOptionPane.showMessageDialog(this, "Job has been withdrawn.");
+            }
+        }
+    }
+
+    /**
+     * MO-009.1: Close recruitment for the selected job.
+     *
+     * Sets the job status to CLOSED and persists to mo_jobs.json.
+     * After closing:
+     * - The job disappears from the TA Course Catalog (listPublishedJobs only returns OPEN/PUBLISHED).
+     * - TAs can no longer submit new applications for this job.
+     * - The job remains visible here for the MO's record-keeping.
+     */
+    private void closeSelectedJob() {
+        int selectedRow = jobTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this,
+                    "Please select a job to close.",
+                    "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Long jobId = (Long) tableModel.getValueAt(selectedRow, 0);
+        String currentStatus = (String) tableModel.getValueAt(selectedRow, 7);
+
+        if ("CLOSED".equalsIgnoreCase(currentStatus)) {
+            JOptionPane.showMessageDialog(this,
+                    "This job is already closed.",
+                    "Already Closed", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if ("WITHDRAWN".equalsIgnoreCase(currentStatus)) {
+            JOptionPane.showMessageDialog(this,
+                    "This job has been withdrawn and cannot be closed.",
+                    "Invalid Action", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String moduleCode = (String) tableModel.getValueAt(selectedRow, 1);
+        String title      = (String) tableModel.getValueAt(selectedRow, 2);
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "<html>Close recruitment for:<br><b>" + moduleCode + " — " + title + "</b>?<br><br>"
+                        + "TAs will no longer be able to apply for this job.<br>"
+                        + "This action can only be undone by re-editing the job.</html>",
+                "Confirm Close Recruitment",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            try {
+                jobService.closeJob(jobId);
+                loadJobData();
+                JOptionPane.showMessageDialog(this,
+                        "Recruitment closed. The job is no longer visible to TAs.",
+                        "Closed", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this,
+                        ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
