@@ -27,20 +27,27 @@ public class AuthService {
     private static final UserService USER_SERVICE = new UserService();
     private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
 
-    /** School email suffix enforced on registration only (demo accounts may use other domains for login). */
-    private static final String UNIVERSITY_DOMAIN = "@qmul.ac.uk";
+    /** Accepted school email domains enforced on registration. */
+    private static final String[] ALLOWED_DOMAINS = {"@qmul.ac.uk", "@bupt.edu.cn"};
 
     public User register(String email, String password, UserRole role) {
         validateEmail(email);
         validatePassword(password);
-        String normalized = email.trim();
-        if (!normalized.toLowerCase().endsWith(UNIVERSITY_DOMAIN.toLowerCase())) {
+        String normalized = email.trim().toLowerCase();
+        boolean domainOk = false;
+        for (String domain : ALLOWED_DOMAINS) {
+            if (normalized.endsWith(domain)) {
+                domainOk = true;
+                break;
+            }
+        }
+        if (!domainOk) {
             throw new IllegalArgumentException(
-                    "Only university email is allowed (e.g. user" + UNIVERSITY_DOMAIN + ").");
+                    "Only university emails are allowed (e.g. user@qmul.ac.uk or user@bupt.edu.cn).");
         }
 
         // Keep role-based status logic inside UserService.
-        User user = USER_SERVICE.register(normalized, password, role);
+        User user = USER_SERVICE.register(email.trim(), password, role);
 
         // Create a blank TA profile as soon as a TA account is created.
         if (user != null && user.getRole() == UserRole.TA) {

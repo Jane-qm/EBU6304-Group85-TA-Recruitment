@@ -162,7 +162,7 @@ public class RegisterFrame extends BaseFrame {
         backBtn.setBorderPainted(false);
         backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backBtn.addActionListener(e -> {
-            new LoginFrame().setVisible(true);
+            new LoginFrame(selectedRole).setVisible(true);
             dispose();
         });
 
@@ -259,8 +259,8 @@ public class RegisterFrame extends BaseFrame {
             User user = authService.register(email, pwd, selectedRole);
             showInfo("Registration Successful!\nStatus: " + user.getStatus());
 
-            // 注册成功，返回登录界面
-            new LoginFrame().setVisible(true);
+            // Return to login page with the same role tab pre-selected.
+            new LoginFrame(selectedRole).setVisible(true);
             dispose();
         } catch (Exception ex) {
             // 捕获异常（如邮箱已存在、格式错误等）

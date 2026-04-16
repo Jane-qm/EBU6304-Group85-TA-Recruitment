@@ -28,3 +28,5 @@ Thumbs.db
 # 因为根据要求，这些是你们存储数据的地方
 target/
 Group85/
+exports/
+*.zip

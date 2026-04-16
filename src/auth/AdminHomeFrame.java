@@ -11,6 +11,7 @@ import common.entity.User;
 import common.entity.UserRole;
 import common.service.SystemConfigService;
 import common.service.UserService;
+import common.util.AdminAuditLogger;
 import common.util.CsvExportUtil;
 import ta.dao.CVDao;
 import ta.dao.TAApplicationDAO;
@@ -177,6 +178,7 @@ public class AdminHomeFrame extends JFrame {
             }
 
             userService.approveMoAccount(email);
+            AdminAuditLogger.log(currentUser.getEmail(), "APPROVE_MO", email);
             refreshUserTable();
             showMessage("MO account approved: " + email);
         });
@@ -193,6 +195,7 @@ public class AdminHomeFrame extends JFrame {
             }
 
             userService.disableAccount(email);
+            AdminAuditLogger.log(currentUser.getEmail(), "DISABLE_ACCOUNT", email);
             refreshUserTable();
             showMessage("Account disabled: " + email);
         });
@@ -204,6 +207,7 @@ public class AdminHomeFrame extends JFrame {
             }
 
             userService.updateAccountStatus(email, AccountStatus.ACTIVE);
+            AdminAuditLogger.log(currentUser.getEmail(), "REACTIVATE_ACCOUNT", email);
             refreshUserTable();
             showMessage("Account reactivated: " + email);
         });
@@ -220,6 +224,7 @@ public class AdminHomeFrame extends JFrame {
             }
 
             userService.resetPasswordByAdmin(email, newPassword.trim());
+            AdminAuditLogger.log(currentUser.getEmail(), "RESET_PASSWORD", email);
             showMessage("Password reset completed for: " + email);
         });
 
@@ -476,6 +481,8 @@ public class AdminHomeFrame extends JFrame {
             };
 
             if (filePath != null) {
+                AdminAuditLogger.log(currentUser.getEmail(), "EXPORT_CSV",
+                        selected + " -> " + filePath.toAbsolutePath());
                 showMessage("CSV exported successfully:\n" + filePath.toAbsolutePath());
             }
         } catch (Exception ex) {
@@ -501,6 +508,8 @@ public class AdminHomeFrame extends JFrame {
             LocalDateTime end = LocalDateTime.parse(cycleEndField.getText().trim());
 
             systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
+            AdminAuditLogger.log(currentUser.getEmail(), "SAVE_CYCLE",
+                    "start=" + start + " end=" + end);
             showMessage("Application cycle saved successfully.");
         } catch (DateTimeParseException ex) {
             showMessage("Invalid datetime format. Use format like 2026-04-07T09:00:00");

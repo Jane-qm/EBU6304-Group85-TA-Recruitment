@@ -84,5 +84,45 @@
     "profileCompleted": true,
     "profileLastUpdated": "2026-04-12T15:56:55.325505",
     "createdAt": "2026-04-12T14:26:45.660811"
+  },
+  {
+    "taId": 100011,
+    "email": "test.unique.y456@bupt.edu.cn",
+    "campus": "XITUCHENG",
+    "skillTags": [],
+    "availableWorkingHours": 0,
+    "profileCompleted": false,
+    "profileLastUpdated": "2026-04-15T10:52:40.274733",
+    "createdAt": "2026-04-15T10:52:40.274705"
+  },
+  {
+    "taId": 100013,
+    "email": "test.junit.bupt.y@bupt.edu.cn",
+    "campus": "XITUCHENG",
+    "skillTags": [],
+    "availableWorkingHours": 0,
+    "profileCompleted": false,
+    "profileLastUpdated": "2026-04-15T10:54:16.675309",
+    "createdAt": "2026-04-15T10:54:16.675286"
+  },
+  {
+    "taId": 100012,
+    "email": "test.unique.x123@qmul.ac.uk",
+    "campus": "XITUCHENG",
+    "skillTags": [],
+    "availableWorkingHours": 0,
+    "profileCompleted": false,
+    "profileLastUpdated": "2026-04-15T10:52:40.323909",
+    "createdAt": "2026-04-15T10:52:40.323893"
+  },
+  {
+    "taId": 100014,
+    "email": "test.junit.qmul.x@qmul.ac.uk",
+    "campus": "XITUCHENG",
+    "skillTags": [],
+    "availableWorkingHours": 0,
+    "profileCompleted": false,
+    "profileLastUpdated": "2026-04-15T10:54:16.747247",
+    "createdAt": "2026-04-15T10:54:16.747221"
   }
 ]

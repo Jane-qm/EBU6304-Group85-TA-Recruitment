@@ -93,6 +93,46 @@ public final class CsvExportUtil {
     }
 
     /**
+     * Exports a table of string data to an arbitrary target path chosen by the caller
+     * (e.g. via JFileChooser).  Writes UTF-8 with BOM so Excel opens Chinese characters
+     * correctly without manual encoding selection.
+     *
+     * @param target  destination file path (parent directory must already exist)
+     * @param headers column header names
+     * @param rows    each element is one CSV row; values are escaped automatically
+     * @return the resolved absolute path that was written
+     * @throws IOException if the file cannot be written
+     */
+    public static Path exportRows(Path target, String[] headers, List<String[]> rows)
+            throws IOException {
+        Files.createDirectories(target.getParent() != null ? target.getParent() : Path.of("."));
+
+        StringBuilder sb = new StringBuilder();
+
+        // Header row
+        List<String> escapedHeaders = new ArrayList<>();
+        for (String h : headers) escapedHeaders.add(escape(h));
+        sb.append(String.join(",", escapedHeaders)).append("\r\n");
+
+        // Data rows
+        for (String[] row : rows) {
+            List<String> cells = new ArrayList<>();
+            for (String cell : row) cells.add(escape(cell));
+            sb.append(String.join(",", cells)).append("\r\n");
+        }
+
+        // UTF-8 BOM (0xEF 0xBB 0xBF) lets Excel auto-detect the encoding
+        byte[] bom  = { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
+        byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
+        byte[] out  = new byte[bom.length + body.length];
+        System.arraycopy(bom,  0, out, 0,           bom.length);
+        System.arraycopy(body, 0, out, bom.length,  body.length);
+        Files.write(target, out);
+
+        return target.toAbsolutePath();
+    }
+
+    /**
      * Escapes a CSV field.
      */
     private static String escape(String value) {

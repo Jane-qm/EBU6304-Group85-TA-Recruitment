@@ -2,7 +2,10 @@ package mo.ui;
 
 import auth.LoginFrame;
 import common.entity.User;
+import common.entity.UserRole;
+import common.service.MOJobService;
 import common.service.NotificationService;
+import common.service.PermissionService;
 import common.ui.BaseFrame;
 import common.ui.NotificationButtonFactory;
 import common.ui.NotificationPopup;
@@ -37,12 +40,27 @@ public class MODashboardFrame extends BaseFrame {
 
     public MODashboardFrame(User currentUser) {
         super("MO Dashboard - TA Recruitment System", 1100, 700);
+
+        // SYS-001: defend against direct instantiation with wrong-role user
+        if (!PermissionService.hasAccess(currentUser == null ? null : currentUser.getRole(), UserRole.MO)) {
+            this.currentUser = null;
+            javax.swing.JOptionPane.showMessageDialog(null,
+                    "Access denied. An MO account is required to open this portal.",
+                    "Permission Denied", javax.swing.JOptionPane.ERROR_MESSAGE);
+            javax.swing.SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
+            dispose();
+            return;
+        }
+
         this.currentUser = currentUser;
         initUI();
     }
 
     @Override
     protected void initUI() {
+        // MO-009.2: auto-close any jobs whose deadline passed since the last run
+        new MOJobService().autoCloseExpiredJobs();
+
         setLayout(new BorderLayout());
         getContentPane().setBackground(BRAND_BG);
 
@@ -58,6 +76,7 @@ public class MODashboardFrame extends BaseFrame {
         mainCardPanel.add(createWelcomePanel(), "HOME");
         mainCardPanel.add(new MOJobManagementPanel(currentUser), "JOBS");
         mainCardPanel.add(new MOApplicantReviewPanel(currentUser), "REVIEW");
+        mainCardPanel.add(new MOHiredTAsPanel(currentUser), "HIRED");
 
         mainContent.add(mainCardPanel, BorderLayout.CENTER);
         add(mainContent, BorderLayout.CENTER);
@@ -108,6 +127,8 @@ public class MODashboardFrame extends BaseFrame {
         sidebar.add(createNavButton("Manage Jobs", "JOBS"));
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         sidebar.add(createNavButton("Review Applicants", "REVIEW"));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
+        sidebar.add(createNavButton("Hired TAs", "HIRED"));
 
         sidebar.add(Box.createVerticalGlue());
 
