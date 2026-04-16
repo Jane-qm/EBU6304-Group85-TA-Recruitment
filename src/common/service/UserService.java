@@ -1,8 +1,10 @@
 package common.service;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -61,15 +63,39 @@ public class UserService {
     private void loadFromFile() {
         try {
             List<User> users = fileDAO.loadAll();
+
+            // First pass: establish the true maximum ID so the generator
+            // is already above every existing entry before we start reassigning.
             for (User user : users) {
-                String normalizedEmail = normalizeEmail(user.getEmail());
-                usersByEmail.put(normalizedEmail, user);
-                // 更新 ID 生成器，确保新用户 ID 不重复
-                if (user.getUserId() != null && user.getUserId() > idGenerator.get()) {
-                    idGenerator.set(user.getUserId());
+                Long uid = user.getUserId();
+                if (uid != null && uid > idGenerator.get()) {
+                    idGenerator.set(uid);
                 }
             }
-            System.out.println("加载用户数据成功，共 " + users.size() + " 个用户");
+
+            // Second pass: load into map, reassigning any duplicate ID in-place.
+            Set<Long> seenIds = new HashSet<>();
+            boolean needsResave = false;
+            for (User user : users) {
+                String normalizedEmail = normalizeEmail(user.getEmail());
+                Long uid = user.getUserId();
+                if (uid != null && !seenIds.add(uid)) {
+                    // Collision: assign the next fresh ID and keep the entry.
+                    Long newId = idGenerator.incrementAndGet();
+                    System.err.println("[UserService] WARNING: duplicate userId " + uid
+                            + " for email " + user.getEmail()
+                            + " — reassigned to " + newId + " and will be persisted.");
+                    user.setUserId(newId);
+                    seenIds.add(newId);
+                    needsResave = true;
+                }
+                usersByEmail.put(normalizedEmail, user);
+            }
+
+            if (needsResave) {
+                saveToFile();
+            }
+            System.out.println("加载用户数据成功，共 " + usersByEmail.size() + " 个用户");
         } catch (Exception e) {
             System.err.println("加载用户数据失败: " + e.getMessage());
         }
@@ -260,6 +286,34 @@ public class UserService {
                 && user.getRole() == UserRole.ADMIN
                 && "admin@test.com".equalsIgnoreCase(user.getEmail())
                 && user.getStatus() == AccountStatus.ACTIVE;
+    }
+
+    /**
+     * ADM-001: Ensures the default super-admin account exists in the persistent store.
+     *
+     * If {@code admin@test.com} is not present (e.g. data/ was wiped), this method
+     * creates it with the known default password ("admin123") so the system is always
+     * accessible.  If the account already exists, this method is a no-op.
+     *
+     * Default credentials:
+     *   email    : admin@test.com
+     *   password : admin123
+     *   role     : ADMIN
+     *   status   : ACTIVE
+     */
+    public void ensureDefaultAdmin() {
+        final String DEFAULT_ADMIN_EMAIL = "admin@test.com";
+        if (findByEmail(DEFAULT_ADMIN_EMAIL) != null) {
+            return;
+        }
+        System.out.println("[UserService] Default admin account not found — seeding admin@test.com.");
+        // Admin(email, password) constructor hashes the password and sets role=ADMIN, status=ACTIVE
+        Admin admin = new Admin(DEFAULT_ADMIN_EMAIL, "admin123");
+        Long newId = idGenerator.incrementAndGet();
+        admin.setUserId(newId);
+        usersByEmail.put(normalizeEmail(DEFAULT_ADMIN_EMAIL), admin);
+        saveToFile();
+        System.out.println("[UserService] Default admin seeded with userId=" + newId);
     }
 
     /**
