@@ -19,7 +19,9 @@ import javax.swing.border.EmptyBorder;
 import auth.LoginFrame;
 import common.entity.TA;
 import common.entity.User;
+import common.entity.UserRole;
 import common.service.NotificationService;
+import common.service.PermissionService;
 import common.ui.BaseFrame;
 import common.ui.NotificationPopup;
 import ta.controller.TAApplicationController;
@@ -66,13 +68,28 @@ public class TAMainFrame extends BaseFrame {
 
     public TAMainFrame(User user) {
         super("TA Recruitment System - Dashboard", 1200, 750);
-        this.ta = (TA) user;
-        
+
+        // SYS-001: defend against direct instantiation with wrong-role user
+        if (!PermissionService.hasAccess(user == null ? null : user.getRole(), UserRole.TA)) {
+            this.ta = null;
+            this.applicationController = null;
+            this.authController = null;
+            this.offerController = null;
+            this.notificationService = null;
+            javax.swing.JOptionPane.showMessageDialog(null,
+                    "Access denied. A TA account is required to open this portal.",
+                    "Permission Denied", javax.swing.JOptionPane.ERROR_MESSAGE);
+            javax.swing.SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
+            dispose();
+            return;
+        }
+
+        this.ta = (TA) user;   // safe: role verified above; UserFileDAO returns TA instance for TA role
         this.applicationController = new TAApplicationController();
         this.authController = new TAAuthController();
         this.offerController = new TAOfferController();
         this.notificationService = new NotificationService();
-        
+
         initUI();
         
         // 登录后检查是否有待处理的 Offer
