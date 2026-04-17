@@ -97,6 +97,11 @@ public class AuthService {
         USER_SERVICE.updatePassword(email, newPassword);
     }
 
+    public boolean isPasswordChangeRequired(String email) {
+        validateEmail(email);
+        return USER_SERVICE.isPasswordChangeRequired(email);
+    }
+
     private static void validateEmail(String email) {
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("Email must not be empty.");
