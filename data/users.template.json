@@ -1,0 +1,15 @@
+[
+  {
+    "userId": 100001,
+    "email": "admin@test.com",
+    "passwordHash": "PBKDF2$120000$<base64-salt>$<base64-hash>",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-04-17T00:00:00",
+    "lastLogin": null,
+    "mustChangePassword": true,
+    "failedLoginCount": 0,
+    "lockedUntil": null
+  }
+]
+
