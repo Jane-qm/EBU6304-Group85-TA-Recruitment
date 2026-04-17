@@ -1,8 +1,0 @@
-{
-  "comment": "SYS-001 Role-Based Access Control matrix. Each key is a UserRole name; its array lists the portal areas (also UserRole names) that role may enter. Edit this file to adjust access without recompiling.",
-  "roleAccess": {
-    "ADMIN": ["ADMIN", "MO", "TA"],
-    "MO":    ["MO"],
-    "TA":    ["TA"]
-  }
-}
