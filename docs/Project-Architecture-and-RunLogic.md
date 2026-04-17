@@ -569,3 +569,99 @@ JUnit 5 tests live under `src/test/java/` and run with `mvn test`.
 **Manual test cases** for Iteration 3 features are documented in `TestCase.md` (TC-015 through TC-031).
 
 Email domain rule (enforced in `AuthService`): only `@qmul.ac.uk` or `@bupt.edu.cn` are accepted.
+
+---
+
+## 12. Security (Iteration 3 Hardening)
+
+This section summarizes the security-oriented changes introduced after the
+Iteration 3 feature implementation, focused on credential handling, account
+protection, and operational auditability.
+
+### 12.1 Threat model and design intent
+
+- Avoid hardcoded default credentials in source code.
+- Ensure initial bootstrap credentials are short-lived and rotated immediately.
+- Improve password storage from fast hash to slow KDF with salt and iterations.
+- Protect against online brute-force/password spraying via lockout policy.
+- Separate runtime-sensitive data files from version-controlled templates.
+- Keep audit trails for admin actions and authentication attempts.
+
+### 12.2 Implemented controls
+
+| Control | Design decision | Implementation |
+|---|---|---|
+| Bootstrap admin secret | Read from environment variable only | `UserService.ensureDefaultAdmin()` reads `TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD`; if missing, auto-create is denied |
+| First-login password rotation | Bootstrap admin must change password before entering portal | `User.mustChangePassword`; enforced in `LoginFrame` for ADMIN login |
+| Password hashing upgrade | Move from SHA-256 to PBKDF2 with salt/iterations | `PasswordService` uses `PBKDF2WithHmacSHA256`, format `PBKDF2$iter$salt$hash` |
+| Backward compatibility | Keep old users functional while upgrading | `PasswordService.verify()` accepts legacy SHA-256; successful login upgrades hash |
+| Account lockout | 5 failed attempts lock account for 15 minutes | `User.failedLoginCount`, `User.lockedUntil`, enforced in `UserService.login()` |
+| Auth audit log | Record success/failure without plaintext passwords | `AuthAuditLogger` -> `data/auth_audit.log` |
+| Admin audit log | Record account/config/export operations | `AdminAuditLogger` -> `data/admin_audit.log` |
+| Runtime data separation | Prevent committing live credential/config files | `.gitignore` excludes `data/users.json`, `data/permissions.json`, and audit logs; templates added |
+
+### 12.3 Data model changes (`users.json`)
+
+New persisted fields in `User` / `UserFileDAO`:
+
+- `mustChangePassword` (boolean)
+- `failedLoginCount` (int)
+- `lockedUntil` (`LocalDateTime`, nullable)
+
+### 12.4 Security test minimum set
+
+Automated coverage added in `common.service.SecurityHardeningTest`:
+
+1. Legacy SHA-256 verification remains functional.
+2. Legacy hash is upgraded to PBKDF2 after successful login.
+3. 5 failed logins trigger 15-minute lockout.
+4. Missing bootstrap env var prevents auto-creation of default admin.
+
+Manual coverage added in `TestCase.md`:
+
+- `TC-035`: admin self-service password recovery is blocked.
+
+---
+
+## 13. UI Consistency (TA as visual baseline)
+
+To reduce role-to-role context switching, MO/Admin portals were aligned to the
+same interaction skeleton used by `TAMainFrame`.
+
+### 13.1 UI baseline decisions
+
+- Keep a shared shell: `sidebar + top bar + center content`.
+- Use TA palette tokens for cross-role consistency:
+  - sidebar background `rgb(30,35,45)`
+  - active nav `rgb(37,99,235)`
+  - hover nav `rgb(55,65,81)`
+  - app background `rgb(248,250,252)`
+- Keep role-specific business widgets intact (no logic changes).
+
+### 13.2 Structural updates
+
+| Portal | Before | After |
+|---|---|---|
+| MO (`MODashboardFrame`) | Blue sidebar + white pill buttons | TA-style dark sidebar, hover/active states, left-aligned nav, unified top/content layout |
+| Admin (`AdminHomeFrame`) | Top panel + `JTabbedPane` | TA-style dark sidebar + `CardLayout` routing + dynamic top title + unified right-pane background |
+
+### 13.3 Navigation behavior parity
+
+- Sidebar route switching is now consistent across TA/MO/Admin.
+- Active button highlighting and hover behavior are standardized.
+- Admin top title now updates with route context:
+  - `MO Account Approval`
+  - `System Data`
+  - `Application Cycle`
+
+### 13.4 Change statistics (this hardening/polish batch)
+
+- **Security-focused core files updated:** 8  
+  (`User`, `UserFileDAO`, `PasswordService`, `UserService`, `AuthService`, `LoginFrame`, `AuthAuditLogger`, `.gitignore`)
+- **UI-consistency core files updated:** 2  
+  (`MODashboardFrame`, `AdminHomeFrame`)
+- **New template/config artifacts:** 2  
+  (`data/users.template.json`, `data/permissions.template.json`)
+- **New security regression test class:** 1  
+  (`SecurityHardeningTest`)
+
