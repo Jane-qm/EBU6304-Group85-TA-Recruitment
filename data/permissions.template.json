@@ -1,0 +1,9 @@
+{
+  "comment": "Copy to data/permissions.json for runtime use",
+  "roleAccess": {
+    "ADMIN": ["ADMIN", "MO", "TA"],
+    "MO": ["MO"],
+    "TA": ["TA"]
+  }
+}
+

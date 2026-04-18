@@ -395,6 +395,20 @@ public class LoginFrame extends BaseFrame {
                             showError("Only active super admin account admin@test.com can access Admin Portal.");
                             return;
                         }
+                        if (user.isMustChangePassword()) {
+                            String newPassword = promptMandatoryPasswordChange(user.getEmail());
+                            if (newPassword == null) {
+                                // Explicitly block portal access until password is changed.
+                                return;
+                            }
+                            authService.resetPassword(user.getEmail(), newPassword);
+                            // Re-login with the updated password to refresh in-memory state.
+                            user = authService.login(user.getEmail(), newPassword);
+                            if (user == null) {
+                                showError("Password updated, but automatic re-login failed. Please log in again.");
+                                return;
+                            }
+                        }
                     }
 
                     // 6. Pending accounts continue directly in demo flow.
@@ -451,6 +465,48 @@ public class LoginFrame extends BaseFrame {
     }
 
     /**
+     * Forces first-login admin password update before opening AdminHomeFrame.
+     * Returning null means the user cancelled or failed validation.
+     */
+    private String promptMandatoryPasswordChange(String email) {
+        JPasswordField pwd1 = new JPasswordField();
+        JPasswordField pwd2 = new JPasswordField();
+        Object[] content = {
+                "First login security setup for " + email,
+                "Please set a new password:",
+                pwd1,
+                "Confirm new password:",
+                pwd2
+        };
+        int option = JOptionPane.showConfirmDialog(
+                this,
+                content,
+                "First Login - Change Password",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        if (option != JOptionPane.OK_OPTION) {
+            showWarning("You must change the bootstrap password before entering Admin Portal.");
+            return null;
+        }
+        String p1 = new String(pwd1.getPassword());
+        String p2 = new String(pwd2.getPassword());
+        if (p1.isBlank() || p2.isBlank()) {
+            showWarning("Password must not be empty.");
+            return null;
+        }
+        if (!p1.equals(p2)) {
+            showWarning("Passwords do not match.");
+            return null;
+        }
+        if (p1.length() < 6) {
+            showWarning("Password must be at least 6 characters.");
+            return null;
+        }
+        return p1;
+    }
+
+    /**
      * Password recovery with backend update.
      */
     private void handlePasswordRecovery() {
@@ -462,6 +518,12 @@ public class LoginFrame extends BaseFrame {
         try {
             if (!authService.checkEmailExists(email.trim())) {
                 showError("Email is not registered.");
+                return;
+            }
+            User targetUser = new UserService().findByEmail(email.trim());
+            if (targetUser != null && targetUser.getRole() == UserRole.ADMIN) {
+                showError("Admin password cannot be reset via self-service recovery.\n"
+                        + "Please use secure bootstrap/login flow.");
                 return;
             }
 

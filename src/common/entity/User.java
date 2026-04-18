@@ -19,6 +19,9 @@ public abstract class User {
     private AccountStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime lastLogin;
+    private boolean mustChangePassword;
+    private int failedLoginCount;
+    private LocalDateTime lockedUntil;
 
     protected User(String email, String password, UserRole role) {
         if (email == null || email.isBlank()) {
@@ -38,6 +41,9 @@ public abstract class User {
         this.status = (role == UserRole.MO) ? AccountStatus.PENDING : AccountStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
         this.lastLogin = null;
+        this.mustChangePassword = false;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
     }
 
     /**
@@ -120,6 +126,30 @@ public abstract class User {
 
     public void setLastLogin(LocalDateTime lastLogin) {
         this.lastLogin = lastLogin;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
+    }
+
+    public int getFailedLoginCount() {
+        return failedLoginCount;
+    }
+
+    public void setFailedLoginCount(int failedLoginCount) {
+        this.failedLoginCount = Math.max(0, failedLoginCount);
+    }
+
+    public LocalDateTime getLockedUntil() {
+        return lockedUntil;
+    }
+
+    public void setLockedUntil(LocalDateTime lockedUntil) {
+        this.lockedUntil = lockedUntil;
     }
 
 }

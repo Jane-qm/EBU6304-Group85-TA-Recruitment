@@ -21,6 +21,7 @@ import ta.entity.TAApplication;
 import ta.entity.TAProfile;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.nio.file.Path;
@@ -66,6 +67,20 @@ public class AdminHomeFrame extends JFrame {
     private final UserService userService = new UserService();
     private final SystemConfigService systemConfigService = new SystemConfigService();
 
+    // Align visual style with TA portal (TAMainFrame)
+    private static final Color APP_BG = new Color(248, 250, 252);
+    private static final Color SIDEBAR_BG = new Color(30, 35, 45);
+    private static final Color NAV_ACTIVE_BG = new Color(37, 99, 235);
+    private static final Color NAV_HOVER_BG = new Color(55, 65, 81);
+    private static final Color NAV_ACTIVE_FG = Color.WHITE;
+    private static final Color NAV_INACTIVE_FG = new Color(156, 163, 175);
+
+    private JButton currentActiveBtn = null;
+    private JButton navAccountsBtn;
+    private JButton navDataBtn;
+    private JButton navCycleBtn;
+    private JLabel topBarTitleLabel;
+
     private final TAProfileDAO taProfileDAO = new TAProfileDAO();
     private final MOJobDAO moJobDAO = new MOJobDAO();
     private final TAApplicationDAO applicationDAO = new TAApplicationDAO();
@@ -82,6 +97,13 @@ public class AdminHomeFrame extends JFrame {
 
     private JTextField cycleStartField;
     private JTextField cycleEndField;
+
+    private JPanel mainCardPanel;
+    private CardLayout cardLayout;
+
+    private static final String CARD_ACCOUNTS = "ACCOUNTS";
+    private static final String CARD_DATA = "DATA";
+    private static final String CARD_CYCLE = "CYCLE";
 
     public AdminHomeFrame(User user) {
         this.currentUser = user;
@@ -110,29 +132,201 @@ public class AdminHomeFrame extends JFrame {
     }
 
     private void initUi() {
-        JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("MO Account Approval", createUserManagementPanel());
-        tabs.addTab("System Data", createDataPanel());
-        tabs.addTab("Application Cycle", createCyclePanel());
+        setLayout(new BorderLayout());
+        getContentPane().setBackground(APP_BG);
+
+        add(createSidebar(), BorderLayout.WEST);
+
+        JPanel main = new JPanel(new BorderLayout());
+        main.setBackground(APP_BG);
+        main.add(createTopBar(), BorderLayout.NORTH);
+
+        cardLayout = new CardLayout();
+        mainCardPanel = new JPanel(cardLayout);
+        mainCardPanel.setBackground(APP_BG);
+        mainCardPanel.add(createUserManagementPanel(), CARD_ACCOUNTS);
+        mainCardPanel.add(createDataPanel(), CARD_DATA);
+        mainCardPanel.add(createCyclePanel(), CARD_CYCLE);
+        main.add(mainCardPanel, BorderLayout.CENTER);
+
+        add(main, BorderLayout.CENTER);
+
+        // Default selection
+        setActiveButton(navAccountsBtn);
+        cardLayout.show(mainCardPanel, CARD_ACCOUNTS);
+        updateTopBarTitle(CARD_ACCOUNTS);
+    }
+
+    private JPanel createSidebar() {
+        JPanel sidebar = new JPanel();
+        sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setPreferredSize(new Dimension(280, getHeight()));
+        sidebar.setBorder(new EmptyBorder(28, 20, 28, 20));
+
+        JPanel logoPanel = new JPanel();
+        logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
+        logoPanel.setBackground(SIDEBAR_BG);
+        logoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel logoLabel = new JLabel("TA Recruit");
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setForeground(Color.WHITE);
+        logoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel logoSubLabel = new JLabel("Admin Portal");
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setForeground(new Color(107, 114, 128));
+        logoSubLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        logoPanel.add(logoLabel);
+        logoPanel.add(Box.createVerticalStrut(4));
+        logoPanel.add(logoSubLabel);
+
+        sidebar.add(logoPanel);
+        sidebar.add(Box.createVerticalStrut(26));
+
+        JPanel userPanel = new JPanel();
+        userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
+        userPanel.setBackground(SIDEBAR_BG);
+        userPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel userLabel = new JLabel(currentUser.getEmail());
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setForeground(Color.WHITE);
+        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel metaLabel = new JLabel("SUPER ADMIN");
+        metaLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        metaLabel.setForeground(new Color(107, 114, 128));
+        metaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        userPanel.add(userLabel);
+        userPanel.add(Box.createVerticalStrut(4));
+        userPanel.add(metaLabel);
+
+        sidebar.add(userPanel);
+        sidebar.add(Box.createVerticalStrut(26));
+
+        navAccountsBtn = createNavButton("MO Account Approval", CARD_ACCOUNTS);
+        navDataBtn = createNavButton("System Data", CARD_DATA);
+        navCycleBtn = createNavButton("Application Cycle", CARD_CYCLE);
+
+        sidebar.add(navAccountsBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(navDataBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(navCycleBtn);
+
+        sidebar.add(Box.createVerticalGlue());
 
         JButton logoutBtn = new JButton("Logout");
+        logoutBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setBackground(new Color(239, 68, 68));
+        logoutBtn.setOpaque(true);
+        logoutBtn.setContentAreaFilled(true);
+        logoutBtn.setBorderPainted(false);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.setMaximumSize(new Dimension(240, 46));
+        logoutBtn.setBorder(new EmptyBorder(10, 16, 10, 16));
         logoutBtn.addActionListener(e -> {
             new LoginFrame().setVisible(true);
             dispose();
         });
+        sidebar.add(logoutBtn);
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+        return sidebar;
+    }
 
-        JLabel title = new JLabel("Welcome, " + currentUser.getEmail() + " (SUPER ADMIN)");
-        title.setFont(new Font("SansSerif", Font.BOLD, 18));
+    private JButton createNavButton(String text, String cardName) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btn.setForeground(NAV_INACTIVE_FG);
+        btn.setBackground(SIDEBAR_BG);
+        btn.setOpaque(true);
+        btn.setContentAreaFilled(true);
+        btn.setBorderPainted(false);
+        btn.setBorder(new EmptyBorder(12, 16, 12, 16));
+        btn.setFocusPainted(false);
+        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setMaximumSize(new Dimension(240, 46));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        topPanel.add(title, BorderLayout.WEST);
-        topPanel.add(logoutBtn, BorderLayout.EAST);
+        btn.addActionListener(e -> {
+            if (cardLayout != null && mainCardPanel != null) {
+                cardLayout.show(mainCardPanel, cardName);
+            }
+            setActiveButton(btn);
+            updateTopBarTitle(cardName);
+        });
 
-        setLayout(new BorderLayout());
-        add(topPanel, BorderLayout.NORTH);
-        add(tabs, BorderLayout.CENTER);
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (btn != currentActiveBtn) {
+                    btn.setBackground(NAV_HOVER_BG);
+                    btn.setForeground(Color.WHITE);
+                }
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                if (btn != currentActiveBtn) {
+                    btn.setBackground(SIDEBAR_BG);
+                    btn.setForeground(NAV_INACTIVE_FG);
+                }
+            }
+        });
+
+        return btn;
+    }
+
+    private void setActiveButton(JButton btn) {
+        if (currentActiveBtn != null && currentActiveBtn != btn) {
+            currentActiveBtn.setBackground(SIDEBAR_BG);
+            currentActiveBtn.setForeground(NAV_INACTIVE_FG);
+        }
+        currentActiveBtn = btn;
+        if (currentActiveBtn != null) {
+            currentActiveBtn.setBackground(NAV_ACTIVE_BG);
+            currentActiveBtn.setForeground(NAV_ACTIVE_FG);
+        }
+    }
+
+    private JPanel createTopBar() {
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setBackground(APP_BG);
+        topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
+
+        topBarTitleLabel = new JLabel("Admin Portal");
+        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        topBarTitleLabel.setForeground(new Color(30, 35, 45));
+
+        topBar.add(topBarTitleLabel, BorderLayout.WEST);
+        return topBar;
+    }
+
+    private void updateTopBarTitle(String cardName) {
+        if (topBarTitleLabel == null) {
+            return;
+        }
+        if (CARD_ACCOUNTS.equals(cardName)) {
+            topBarTitleLabel.setText("MO Account Approval");
+            return;
+        }
+        if (CARD_DATA.equals(cardName)) {
+            topBarTitleLabel.setText("System Data");
+            return;
+        }
+        if (CARD_CYCLE.equals(cardName)) {
+            topBarTitleLabel.setText("Application Cycle");
+            return;
+        }
+        topBarTitleLabel.setText("Admin Portal");
     }
 
     private JPanel createUserManagementPanel() {

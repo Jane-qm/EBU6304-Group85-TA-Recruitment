@@ -15,6 +15,7 @@ import common.entity.MO;
 import common.entity.TA;
 import common.entity.User;
 import common.entity.UserRole;
+import common.util.AuthAuditLogger;
 
 /**
  * 用户业务服务
@@ -44,6 +45,10 @@ import common.entity.UserRole;
  * - Restored a compilable and compatible UserService implementation
  */
 public class UserService {
+    private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
+    private static final int ACCOUNT_LOCK_MINUTES = 15;
+    private static final String DEFAULT_ADMIN_EMAIL = "admin@test.com";
+    private static final String BOOTSTRAP_ENV = "TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD";
     
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(100000L);
@@ -140,11 +145,41 @@ public class UserService {
     public User login(String email, String password) {
         String normalizedEmail = normalizeEmail(email);
         User user = usersByEmail.get(normalizedEmail);
-        if (user == null || !user.checkPassword(password)) {
+        if (user == null) {
+            AuthAuditLogger.logFailure(normalizedEmail, "email not found");
             return null;
+        }
+
+        if (user.getLockedUntil() != null && LocalDateTime.now().isBefore(user.getLockedUntil())) {
+            AuthAuditLogger.logFailure(normalizedEmail,
+                    "account locked until " + user.getLockedUntil());
+            return null;
+        }
+
+        if (!user.checkPassword(password)) {
+            int failCount = user.getFailedLoginCount() + 1;
+            user.setFailedLoginCount(failCount);
+            if (failCount >= MAX_FAILED_LOGIN_ATTEMPTS) {
+                user.setLockedUntil(LocalDateTime.now().plusMinutes(ACCOUNT_LOCK_MINUTES));
+                user.setFailedLoginCount(0);
+                AuthAuditLogger.logFailure(normalizedEmail,
+                        "too many failures; locked for " + ACCOUNT_LOCK_MINUTES + " minutes");
+            } else {
+                AuthAuditLogger.logFailure(normalizedEmail, "invalid password");
+            }
+            saveToFile();
+            return null;
+        }
+
+        // Successful login: clear lock counters and transparently upgrade legacy hash.
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
+        if (PasswordService.needsUpgrade(user.getPasswordHash())) {
+            user.setPassword(password);
         }
         user.setLastLogin(LocalDateTime.now());
         saveToFile();
+        AuthAuditLogger.logSuccess(normalizedEmail, String.valueOf(user.getRole()));
         return user;
     }
 
@@ -171,6 +206,9 @@ public class UserService {
             throw new IllegalArgumentException("Email is not registered.");
         }
         user.setPassword(newPassword);
+        user.setMustChangePassword(false);
+        user.setFailedLoginCount(0);
+        user.setLockedUntil(null);
         saveToFile();
     }
 
@@ -222,12 +260,6 @@ public class UserService {
         pendingMo.setUserId(idGenerator.incrementAndGet());
         pendingMo.setStatus(AccountStatus.PENDING);
         usersByEmail.put(normalizeEmail(pendingMo.getEmail()), pendingMo);
-        
-        // 演示管理员用户
-        User admin = new Admin("admin@test.com", "admin123");
-        admin.setUserId(idGenerator.incrementAndGet());
-        admin.setStatus(AccountStatus.ACTIVE);
-        usersByEmail.put(normalizeEmail(admin.getEmail()), admin);
     }
 
     /**
@@ -289,31 +321,35 @@ public class UserService {
     }
 
     /**
-     * ADM-001: Ensures the default super-admin account exists in the persistent store.
+     * Ensures the bootstrap super-admin account exists.
      *
-     * If {@code admin@test.com} is not present (e.g. data/ was wiped), this method
-     * creates it with the known default password ("admin123") so the system is always
-     * accessible.  If the account already exists, this method is a no-op.
-     *
-     * Default credentials:
-     *   email    : admin@test.com
-     *   password : admin123
-     *   role     : ADMIN
-     *   status   : ACTIVE
+     * <p>Security policy:
+     * - Password is loaded from environment variable {@code TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD}
+     * - If env var is absent/blank, account creation is skipped and a warning is logged.
+     * - Newly bootstrapped admin is forced to change password at first login.
      */
     public void ensureDefaultAdmin() {
-        final String DEFAULT_ADMIN_EMAIL = "admin@test.com";
         if (findByEmail(DEFAULT_ADMIN_EMAIL) != null) {
             return;
         }
-        System.out.println("[UserService] Default admin account not found — seeding admin@test.com.");
-        // Admin(email, password) constructor hashes the password and sets role=ADMIN, status=ACTIVE
-        Admin admin = new Admin(DEFAULT_ADMIN_EMAIL, "admin123");
+        String bootstrapPassword = System.getenv(BOOTSTRAP_ENV);
+        if (bootstrapPassword == null || bootstrapPassword.isBlank()) {
+            System.err.println("[UserService] Bootstrap admin missing and cannot be auto-created: "
+                    + "environment variable " + BOOTSTRAP_ENV + " is not set.");
+            System.err.println("[UserService] Please initialize admin@test.com manually or set "
+                    + BOOTSTRAP_ENV + " before startup.");
+            return;
+        }
+
+        System.out.println("[UserService] Default admin account not found — creating from environment bootstrap.");
+        Admin admin = new Admin(DEFAULT_ADMIN_EMAIL, bootstrapPassword);
         Long newId = idGenerator.incrementAndGet();
         admin.setUserId(newId);
+        admin.setMustChangePassword(true);
         usersByEmail.put(normalizeEmail(DEFAULT_ADMIN_EMAIL), admin);
         saveToFile();
-        System.out.println("[UserService] Default admin seeded with userId=" + newId);
+        System.out.println("[UserService] Bootstrap admin created with userId=" + newId
+                + ". First login requires password change.");
     }
 
     /**
@@ -370,5 +406,10 @@ public class UserService {
      */
     public void resetPasswordByAdmin(String email, String newPassword) {
         updatePassword(email, newPassword);
+    }
+
+    public boolean isPasswordChangeRequired(String email) {
+        User user = findByEmail(email);
+        return user != null && user.isMustChangePassword();
     }
 }

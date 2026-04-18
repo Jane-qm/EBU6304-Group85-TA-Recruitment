@@ -30,3 +30,9 @@ target/
 Group85/
 exports/
 *.zip
+
+# --- Runtime security-sensitive data (keep local, do not commit) ---
+data/users.json
+data/permissions.json
+data/auth_audit.log
+data/admin_audit.log

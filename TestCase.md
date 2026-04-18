@@ -1,6 +1,6 @@
 # Test Cases (Iteration 2 + Iteration 3)
 
-Group: Group85  
+Group: Group85
 Testers: Jiayi Lou, Zhixuan Guo
 
 ---
@@ -113,7 +113,18 @@ mvn test
 
 ---
 
-### Iteration 3 (TC-015 – TC-031)
+### Test Class: `common.service.SecurityHardeningTest` (Iteration 3 security minimum set)
+
+| Test Method | What is tested | Pass |
+| ----------- | -------------- | ---- |
+| `passwordService_legacySha256_isStillAcceptedAndFlaggedForUpgrade` | Legacy SHA-256 users can still log in and are flagged for hash upgrade | Yes |
+| `login_withLegacyHash_upgradesToPbkdf2` | Legacy hash is automatically upgraded to PBKDF2 after successful login | Yes |
+| `login_fiveFailures_locksAccountFor15Minutes` | 5 wrong-password attempts trigger 15-minute account lockout | Yes |
+| `ensureDefaultAdmin_withoutEnvVar_doesNotAutoCreateAdmin` | If bootstrap env var is missing, default admin is NOT auto-created | Yes |
+
+---
+
+### Iteration 3 (TC-015 – TC-035)
 
 | Test ID | Task | Test Function | Steps | Expected Result | Pass |
 | ------- | ---- | ------------- | ----- | --------------- | ---- |
@@ -131,12 +142,13 @@ mvn test
 | TC-026 | MO-009.1 | Manual close changes status | 1. Select a PUBLISHED job 2. Click "Close Recruitment" 3. Confirm dialog | Job status changes to CLOSED in table; mo_jobs.json updated; TA course catalog no longer shows this job | Yes |
 | TC-027 | MO-009.1 | Cannot close already-closed job | 1. Select a CLOSED job 2. Click "Close Recruitment" | Info dialog: "This job is already closed"; no state change | Yes |
 | TC-028 | MO-009.2 | Auto-close on MO login | 1. Set a job's deadline to yesterday's date in mo_jobs.json 2. Log in as MO | Console shows auto-close log; job status updated to CLOSED; job no longer visible to TAs | Yes |
-| TC-029 | ADM-001 | Default admin seeded at startup | 1. Remove admin@test.com from users.json 2. Restart application | Console logs "Default admin seeded"; admin@test.com entry recreated in users.json; login with admin123 succeeds | Yes |
+| TC-029 | ADM-001 | Bootstrap admin requires environment variable | 1. Remove admin@test.com from users.json 2. Ensure `TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD` is NOT set 3. Restart app | Console warns that bootstrap env var is missing; admin account is not auto-created | Yes |
 | TC-030 | ADM-003 | TA blocked outside cycle | 1. Log in as Admin 2. Set cycle end to yesterday 3. Log in as TA 4. Attempt to apply for a job | Error dialog: "Applications are currently closed. Recruitment window: ... to ..." | Yes |
 | TC-031 | ADM-004.2 | Audit log records admin actions | 1. Log in as Admin 2. Approve an MO 3. Disable an account 4. Reset a password 5. Check data/admin_audit.log | Each action produces one line in admin_audit.log with timestamp, admin email, action verb, and target email | Yes |
 | TC-032 | SYS-001 | Wrong-role login blocked | 1. Select MO tab on login page 2. Enter TA credentials | Error: "Role mismatch. Account Role: TA"; login blocked; MO portal not opened | Yes |
 | TC-033 | SYS-001 | RBAC guard in portal | Attempt to directly instantiate `TAMainFrame` with an MO user object in code | "Access denied. A TA account is required" dialog shown; LoginFrame opens; TAMainFrame closes | Yes |
 | TC-034 | SYS-001 | permissions.json loaded | 1. Check console on startup 2. Verify data/permissions.json exists | Console logs "[PermissionService] Loaded RBAC matrix from data/permissions.json" | Yes |
+| TC-035 | SEC-001 | Admin self-service reset blocked | 1. Click Forgot Password 2. Enter `admin@test.com` 3. Continue | Reset is blocked with security warning; admin password cannot be changed by weak self-service flow | Yes |
 
 ---
 

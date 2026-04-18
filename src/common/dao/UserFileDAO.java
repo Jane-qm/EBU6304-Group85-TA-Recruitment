@@ -81,6 +81,9 @@ public class UserFileDAO {
         private AccountStatus status;
         private LocalDateTime createdAt;
         private LocalDateTime lastLogin;
+        private boolean mustChangePassword;
+        private int failedLoginCount;
+        private LocalDateTime lockedUntil;
 
         // 已移除所有 TA profile 相关字段：
         // name, major, grade, skillTags, availableWorkingHours, 
@@ -99,6 +102,9 @@ public class UserFileDAO {
             row.status = user.getStatus();
             row.createdAt = user.getCreatedAt();
             row.lastLogin = user.getLastLogin();
+            row.mustChangePassword = user.isMustChangePassword();
+            row.failedLoginCount = user.getFailedLoginCount();
+            row.lockedUntil = user.getLockedUntil();
 
             // 移除 TA profile 字段的序列化
             // 个人资料由 TAProfileService 独立管理
@@ -136,6 +142,9 @@ public class UserFileDAO {
             if (lastLogin != null) {
                 user.setLastLogin(lastLogin);
             }
+            user.setMustChangePassword(mustChangePassword);
+            user.setFailedLoginCount(failedLoginCount);
+            user.setLockedUntil(lockedUntil);
             
             // 移除 TA profile 字段的恢复代码
             // 个人资料由 TAProfileService 独立加载

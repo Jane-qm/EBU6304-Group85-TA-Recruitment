@@ -10,7 +10,6 @@ import common.ui.BaseFrame;
 import common.ui.NotificationButtonFactory;
 import common.ui.NotificationPopup;
 
-import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -25,18 +24,29 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.CardLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 public class MODashboardFrame extends BaseFrame {
-    private static final Color SIDEBAR_PRIMARY_TEXT = Color.WHITE;
-    private static final Color SIDEBAR_SECONDARY_TEXT = new Color(224, 231, 255);
     private final User currentUser;
     private final NotificationService notificationService = new NotificationService();
 
     private JPanel mainCardPanel;
     private CardLayout cardLayout;
 
-    private static final Color BRAND_BLUE = new Color(59, 130, 246);
-    private static final Color BRAND_BG = new Color(248, 250, 252);
+    // Align visual style with TA portal (TAMainFrame)
+    private static final Color APP_BG = new Color(248, 250, 252);
+    private static final Color SIDEBAR_BG = new Color(30, 35, 45);
+    private static final Color NAV_ACTIVE_BG = new Color(37, 99, 235);
+    private static final Color NAV_HOVER_BG = new Color(55, 65, 81);
+    private static final Color NAV_ACTIVE_FG = Color.WHITE;
+    private static final Color NAV_INACTIVE_FG = new Color(156, 163, 175);
+
+    private JButton currentActiveBtn = null;
+    private JButton dashboardBtn;
+    private JButton jobsBtn;
+    private JButton reviewBtn;
+    private JButton hiredBtn;
 
     public MODashboardFrame(User currentUser) {
         super("MO Dashboard - TA Recruitment System", 1100, 700);
@@ -62,17 +72,17 @@ public class MODashboardFrame extends BaseFrame {
         new MOJobService().autoCloseExpiredJobs();
 
         setLayout(new BorderLayout());
-        getContentPane().setBackground(BRAND_BG);
+        getContentPane().setBackground(APP_BG);
 
         add(createSidebar(), BorderLayout.WEST);
 
         JPanel mainContent = new JPanel(new BorderLayout());
-        mainContent.setBackground(BRAND_BG);
+        mainContent.setBackground(APP_BG);
         mainContent.add(createTopBar(), BorderLayout.NORTH);
 
         cardLayout = new CardLayout();
         mainCardPanel = new JPanel(cardLayout);
-        mainCardPanel.setBackground(BRAND_BG);
+        mainCardPanel.setBackground(APP_BG);
         mainCardPanel.add(createWelcomePanel(), "HOME");
         mainCardPanel.add(new MOJobManagementPanel(currentUser), "JOBS");
         mainCardPanel.add(new MOApplicantReviewPanel(currentUser), "REVIEW");
@@ -80,59 +90,94 @@ public class MODashboardFrame extends BaseFrame {
 
         mainContent.add(mainCardPanel, BorderLayout.CENTER);
         add(mainContent, BorderLayout.CENTER);
+
+        // Default selection
+        setActiveButton(dashboardBtn);
+        cardLayout.show(mainCardPanel, "HOME");
     }
 
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
-        sidebar.setBackground(BRAND_BLUE);
-        sidebar.setPreferredSize(new Dimension(250, getHeight()));
-        sidebar.setBorder(new EmptyBorder(30, 20, 30, 20));
+        sidebar.setBackground(SIDEBAR_BG);
+        sidebar.setPreferredSize(new Dimension(280, getHeight()));
+        sidebar.setBorder(new EmptyBorder(28, 20, 28, 20));
 
-        JLabel titleLabel = new JLabel("TA Recruitment");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
-        titleLabel.setForeground(SIDEBAR_PRIMARY_TEXT);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        sidebar.add(titleLabel);
-        sidebar.add(Box.createRigidArea(new Dimension(0, 40)));
+        // Logo (aligned with TA)
+        JPanel logoPanel = new JPanel();
+        logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
+        logoPanel.setBackground(SIDEBAR_BG);
+        logoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel userIcon = new JLabel("MO", SwingConstants.CENTER);
-        userIcon.setFont(new Font("SansSerif", Font.BOLD, 28));
-        userIcon.setForeground(SIDEBAR_PRIMARY_TEXT);
-        userIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel logoLabel = new JLabel("TA Recruit");
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setForeground(Color.WHITE);
+        logoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel idLabel = new JLabel(String.valueOf(currentUser.getUserId()));
-        idLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        idLabel.setForeground(SIDEBAR_PRIMARY_TEXT);
-        idLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel logoSubLabel = new JLabel("Module Organiser Portal");
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setForeground(new Color(107, 114, 128));
+        logoSubLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel emailLabel = new JLabel(currentUser.getEmail());
-        emailLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        emailLabel.setForeground(SIDEBAR_SECONDARY_TEXT);
-        emailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        logoPanel.add(logoLabel);
+        logoPanel.add(Box.createVerticalStrut(4));
+        logoPanel.add(logoSubLabel);
 
-        JLabel roleLabel = new JLabel("Module Organiser");
-        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        roleLabel.setForeground(SIDEBAR_SECONDARY_TEXT);
-        roleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        sidebar.add(logoPanel);
+        sidebar.add(Box.createVerticalStrut(26));
 
-        sidebar.add(userIcon);
-        sidebar.add(idLabel);
-        sidebar.add(emailLabel);
-        sidebar.add(roleLabel);
-        sidebar.add(Box.createRigidArea(new Dimension(0, 50)));
+        // User info (left aligned like TA)
+        JPanel userPanel = new JPanel();
+        userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
+        userPanel.setBackground(SIDEBAR_BG);
+        userPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        sidebar.add(createNavButton("Dashboard", "HOME"));
-        sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
-        sidebar.add(createNavButton("Manage Jobs", "JOBS"));
-        sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
-        sidebar.add(createNavButton("Review Applicants", "REVIEW"));
-        sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
-        sidebar.add(createNavButton("Hired TAs", "HIRED"));
+        JLabel userLabel = new JLabel(currentUser.getEmail());
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setForeground(Color.WHITE);
+        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel metaLabel = new JLabel("MO #" + currentUser.getUserId());
+        metaLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        metaLabel.setForeground(new Color(107, 114, 128));
+        metaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        userPanel.add(userLabel);
+        userPanel.add(Box.createVerticalStrut(4));
+        userPanel.add(metaLabel);
+
+        sidebar.add(userPanel);
+        sidebar.add(Box.createVerticalStrut(26));
+
+        // Navigation buttons (TA style)
+        dashboardBtn = createNavButton("Dashboard", "HOME");
+        jobsBtn = createNavButton("Manage Jobs", "JOBS");
+        reviewBtn = createNavButton("Review Applicants", "REVIEW");
+        hiredBtn = createNavButton("Hired TAs", "HIRED");
+
+        sidebar.add(dashboardBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(jobsBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(reviewBtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(hiredBtn);
 
         sidebar.add(Box.createVerticalGlue());
 
-        JButton logoutBtn = createNavButton("Logout", null);
+        // Logout (TA style)
+        JButton logoutBtn = new JButton("Logout");
+        logoutBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setBackground(new Color(239, 68, 68));
+        logoutBtn.setOpaque(true);
+        logoutBtn.setContentAreaFilled(true);
+        logoutBtn.setBorderPainted(false);
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.setMaximumSize(new Dimension(240, 46));
+        logoutBtn.setBorder(new EmptyBorder(10, 16, 10, 16));
         logoutBtn.addActionListener(e -> {
             dispose();
             new LoginFrame().setVisible(true);
@@ -145,27 +190,56 @@ public class MODashboardFrame extends BaseFrame {
     private JButton createNavButton(String text, String cardName) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        btn.setForeground(new Color(29, 78, 216));
-        btn.setBackground(new Color(255, 255, 255, 245));
+        btn.setForeground(NAV_INACTIVE_FG);
+        btn.setBackground(SIDEBAR_BG);
         btn.setOpaque(true);
         btn.setContentAreaFilled(true);
-        btn.setBorderPainted(true);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(255, 255, 255, 210), 1, true),
-                new EmptyBorder(10, 20, 10, 20)
-        ));
+        btn.setBorderPainted(false);
+        btn.setBorder(new EmptyBorder(12, 16, 12, 16));
         btn.setFocusPainted(false);
-        btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-        btn.setHorizontalAlignment(SwingConstants.CENTER);
-        btn.setMaximumSize(new Dimension(200, 46));
+        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        btn.setHorizontalAlignment(SwingConstants.LEFT);
+        btn.setMaximumSize(new Dimension(240, 46));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         btn.addActionListener(e -> {
             if (cardName != null) {
                 cardLayout.show(mainCardPanel, cardName);
+                setActiveButton(btn);
             }
         });
+
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (btn != currentActiveBtn) {
+                    btn.setBackground(NAV_HOVER_BG);
+                    btn.setForeground(Color.WHITE);
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (btn != currentActiveBtn) {
+                    btn.setBackground(SIDEBAR_BG);
+                    btn.setForeground(NAV_INACTIVE_FG);
+                }
+            }
+        });
+
         return btn;
+    }
+
+    private void setActiveButton(JButton btn) {
+        if (currentActiveBtn != null && currentActiveBtn != btn) {
+            currentActiveBtn.setBackground(SIDEBAR_BG);
+            currentActiveBtn.setForeground(NAV_INACTIVE_FG);
+        }
+        currentActiveBtn = btn;
+        if (currentActiveBtn != null) {
+            currentActiveBtn.setBackground(NAV_ACTIVE_BG);
+            currentActiveBtn.setForeground(NAV_ACTIVE_FG);
+        }
     }
 
     private JPanel createTopBar() {
@@ -173,7 +247,7 @@ public class MODashboardFrame extends BaseFrame {
         topBar.setBackground(Color.WHITE);
         topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
 
-        JLabel welcomeLabel = new JLabel("Welcome back, MO!");
+        JLabel welcomeLabel = new JLabel("MO Dashboard");
         welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         welcomeLabel.setForeground(new Color(30, 35, 45));
 
@@ -189,10 +263,10 @@ public class MODashboardFrame extends BaseFrame {
 
     private JPanel createWelcomePanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(BRAND_BG);
+        panel.setBackground(APP_BG);
         panel.setBorder(new EmptyBorder(50, 50, 50, 50));
 
-        JLabel welcomeLabel = new JLabel("Welcome back, MO!");
+        JLabel welcomeLabel = new JLabel("Welcome to the MO Portal");
         welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 32));
         welcomeLabel.setHorizontalAlignment(SwingConstants.CENTER);
         panel.add(welcomeLabel, BorderLayout.NORTH);
