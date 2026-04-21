@@ -110,7 +110,7 @@ public class TACourseCatalogPanel extends JPanel {
     }
     
     private JScrollPane createCoursesTable() {
-        String[] columns = {"Course Name", "Module Code", "Hours/Week", "Detail", "Apply"};
+        String[] columns = {"Course Name", "Module Code", "Hours/Week", "Deadline", "Detail", "Apply"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -126,8 +126,8 @@ public class TACourseCatalogPanel extends JPanel {
         coursesTable.setShowGrid(false);
         coursesTable.setIntercellSpacing(new Dimension(0, 0));
         
-        coursesTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
         coursesTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
+        coursesTable.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());
         
         coursesTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -138,11 +138,20 @@ public class TACourseCatalogPanel extends JPanel {
                 if (row < availableJobs.size()) {
                     MOJob job = availableJobs.get(row);
                     
-                    if (col == 3) {
+                    if (col == 4) {
                         showCourseDetailDialog(job);
-                    } else if (col == 4) {
+                    } else if (col == 5) {
+                        // 检查职位是否可申请
+                        if (!job.isApplicable()) {
+                            if (job.isExpired()) {
+                                showWarning("The application deadline for this position has passed.");
+                            } else {
+                                showWarning("This position is not open for applications.");
+                            }
+                            return;
+                        }
+                        
                         refresh();
-                        // 保留申请时的弹窗提示
                         if (!applicationController.canSubmitMoreApplications(ta.getUserId())) {
                             showWarning("You can only have " + applicationController.getMaxActiveApplications() 
                                 + " active applications at once. Please wait for decisions before applying for more.");
@@ -161,10 +170,11 @@ public class TACourseCatalogPanel extends JPanel {
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
         coursesTable.getColumnModel().getColumn(0).setPreferredWidth(280);
-        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(120);
-        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(100);
-        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(70);
-        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(70);
+        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(80);
+        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(100);
+        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+        coursesTable.getColumnModel().getColumn(5).setPreferredWidth(60);
 
         JScrollPane scrollPane = new JScrollPane(coursesTable);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
@@ -179,17 +189,21 @@ public class TACourseCatalogPanel extends JPanel {
         availableJobs = applicationController.getAvailableJobs(ta.getUserId());
 
         for (MOJob job : availableJobs) {
+            String deadlineText = job.getApplicationDeadline() != null ? 
+                job.getApplicationDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "Not set";
+            
             tableModel.addRow(new Object[]{
                     job.getTitle(),
                     job.getModuleCode(),
                     job.getWeeklyHours(),
+                    deadlineText,
                     "Detail",
                     "Apply"
             });
         }
 
         if (availableJobs.isEmpty()) {
-            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—"});
+            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—", "—"});
         }
     }
     
@@ -233,12 +247,19 @@ public class TACourseCatalogPanel extends JPanel {
         infoPanel.add(createInfoLabel("Weekly Hours:"));
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
         
+        infoPanel.add(createInfoLabel("Application Deadline:"));
+        String deadlineText = job.getApplicationDeadline() != null ? 
+            job.getApplicationDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Not set";
+        infoPanel.add(createValueLabel(deadlineText));
+        
         infoPanel.add(createInfoLabel("Status:"));
-        String statusText = "OPEN".equals(job.getStatus()) ? "Open for Applications" : 
-                           ("PUBLISHED".equals(job.getStatus()) ? "Published" : job.getStatus());
+        String statusText = job.isApplicable() ? "Open for Applications" : 
+                           (job.isExpired() ? "Closed - Deadline Passed" : job.getStatus());
         JLabel statusLabel = createValueLabel(statusText);
-        if ("OPEN".equals(job.getStatus()) || "PUBLISHED".equals(job.getStatus())) {
+        if (job.isApplicable()) {
             statusLabel.setForeground(new Color(34, 197, 94));
+        } else {
+            statusLabel.setForeground(new Color(239, 68, 68));
         }
         infoPanel.add(statusLabel);
         

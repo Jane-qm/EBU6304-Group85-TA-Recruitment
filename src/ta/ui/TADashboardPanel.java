@@ -77,7 +77,7 @@ public class TADashboardPanel extends JPanel {
                 applicationController.getApplicationStats(ta.getUserId());
 
         gbc.gridx = 0;
-        panel.add(createStatCard("✅", "Accepted", String.valueOf(stats.accepted), ACCEPTED_COLOR), gbc);
+        panel.add(createStatCard("✅", "Hired", String.valueOf(stats.hired), ACCEPTED_COLOR), gbc);
         
         gbc.gridx = 1;
         panel.add(createStatCard("⏳", "Pending", String.valueOf(stats.pending), PENDING_COLOR), gbc);

@@ -28,5 +28,45 @@
     "type": "APPLICATION_RESULT",
     "read": true,
     "createdAt": "2026-04-11T21:46:09.6053071"
+  },
+  {
+    "notificationId": 7004,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "New Offer Received",
+    "content": "You have received an offer for EBU6304 with 6 hours/week. Please respond before 2026-04-28.",
+    "type": "OFFER_RESPONSE",
+    "read": false,
+    "createdAt": "2026-04-21T23:27:49.0130312"
+  },
+  {
+    "notificationId": 7005,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "Application Cancelled",
+    "content": "Your application has been cancelled successfully.",
+    "type": "APPLICATION_CANCELLED",
+    "read": false,
+    "createdAt": "2026-04-21T23:28:50.79614"
+  },
+  {
+    "notificationId": 7006,
+    "recipientUserId": 100002,
+    "recipientRole": "MO",
+    "title": "Offer Accepted",
+    "content": "TA has accepted the offer for EBU6304 - Software Engineering",
+    "type": "OFFER_RESPONSE",
+    "read": false,
+    "createdAt": "2026-04-21T23:33:58.9403994"
+  },
+  {
+    "notificationId": 7007,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "Offer Accepted",
+    "content": "Congratulations! You have accepted the offer and been hired.",
+    "type": "OFFER_RESPONSE",
+    "read": false,
+    "createdAt": "2026-04-21T23:33:58.9418817"
   }
 ]

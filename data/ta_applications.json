@@ -51,5 +51,27 @@
     "statement": "0412",
     "status": "REJECTED",
     "appliedAt": "2026-04-12T15:56:55.337341"
+  },
+  {
+    "applicationId": 3007,
+    "taUserId": 100003,
+    "jobId": 2001,
+    "cvId": 5,
+    "statement": "1",
+    "status": "HIRED",
+    "appliedAt": "2026-04-21T23:24:03.3548159",
+    "offeredHours": 6,
+    "offerSentAt": "2026-04-21T23:27:49.0034632",
+    "offerExpiryAt": "2026-04-28T23:27:49.0034632",
+    "respondedAt": "2026-04-21T23:33:58.9360474"
+  },
+  {
+    "applicationId": 3008,
+    "taUserId": 100003,
+    "jobId": 2002,
+    "cvId": 5,
+    "statement": "33",
+    "status": "CANCELLED",
+    "appliedAt": "2026-04-21T23:28:43.6352351"
   }
 ]

@@ -1,40 +1,45 @@
 package mo.ui;
 
-import common.entity.MOJob;
-import common.entity.MOOffer;
-import common.entity.User;
-import common.service.MOJobService;
-import common.service.MOOfferService;
-import common.service.UserService;
-import common.util.CsvExportUtil;
-import ta.dao.TAProfileDAO;
-import ta.entity.TAApplication;
-import ta.entity.TAProfile;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.io.File;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * MO-008.1: Displays every TA who accepted an offer for the current MO's modules.
- *
- * Data sources (all file-backed, no database):
- *   ta_applications.json  — find applications with status HIRED belonging to this MO's jobs
- *   mo_offers.json        — find the matching ACCEPTED offer for the hired-at timestamp
- *   ta_profiles.json      — TA name, major, year, phone
- *   users.json            — TA email (fallback when profile is incomplete)
- *   mo_jobs.json          — module code + job title for the "Course" column
- */
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.ListSelectionModel;
+import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableModel;
+
+import common.domain.ApplicationStatus;
+import common.entity.MOJob;
+import common.entity.User;
+import common.service.MOJobService;
+import common.service.UserService;
+import common.util.CsvExportUtil;
+import ta.dao.TAProfileDAO;
+import ta.entity.TAApplication;
+import ta.entity.TAProfile;
+import ta.service.TAApplicationService;
+
 public class MOHiredTAsPanel extends JPanel {
 
     private static final DateTimeFormatter DISPLAY_FMT =
@@ -42,14 +47,14 @@ public class MOHiredTAsPanel extends JPanel {
 
     private final User currentUser;
     private final MOJobService     jobService     = new MOJobService();
-    private final MOOfferService   offerService   = new MOOfferService();
+    private final TAApplicationService appService = new TAApplicationService();
     private final UserService      userService    = new UserService();
     private final TAProfileDAO     profileDAO     = new TAProfileDAO();
 
     private JTable             table;
     private DefaultTableModel  tableModel;
     private JLabel             countLabel;
-    private List<TAApplication> hiredApps;   // parallel to table rows
+    private List<TAApplication> hiredApps;
 
     public MOHiredTAsPanel(User currentUser) {
         this.currentUser = currentUser;
@@ -63,10 +68,6 @@ public class MOHiredTAsPanel extends JPanel {
 
         loadData();
     }
-
-    // -----------------------------------------------------------------------
-    // UI construction
-    // -----------------------------------------------------------------------
 
     private JPanel createHeader() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -142,40 +143,29 @@ public class MOHiredTAsPanel extends JPanel {
         return panel;
     }
 
-    // -----------------------------------------------------------------------
-    // Data loading
-    // -----------------------------------------------------------------------
-
     private void loadData() {
         tableModel.setRowCount(0);
         hiredApps = new ArrayList<>();
 
-        // 1. Load all jobs once; build a map for O(1) look-up inside the loop
-        Map<Long, MOJob> jobMap = jobService.listAll().stream()
-                .collect(Collectors.toMap(MOJob::getJobId, j -> j, (a, b) -> a));
-
-        List<Long> myJobIds = jobMap.values().stream()
+        List<Long> myJobIds = jobService.listAll().stream()
                 .filter(j -> currentUser.getUserId().equals(j.getMoUserId()))
                 .map(MOJob::getJobId)
                 .collect(Collectors.toList());
 
-        // 2. Find applications with status HIRED for those jobs
+        // 获取 HIRED 状态的申请
         List<TAApplication> hired = jobService.listAllApplications().stream()
                 .filter(app -> myJobIds.contains(app.getJobId())
-                        && "HIRED".equals(app.getStatus()))
+                        && ApplicationStatus.isHired(app.getStatus()))
                 .collect(Collectors.toList());
 
-        // 3. Load all offers once for O(n) look-up
-        List<MOOffer> allOffers = offerService.listAll();
-
         for (TAApplication app : hired) {
-            // --- job label (O(1) map look-up, no extra listAll() call) ---
-            MOJob job = jobMap.get(app.getJobId());
+            MOJob job = jobService.listAll().stream()
+                    .filter(j -> j.getJobId().equals(app.getJobId()))
+                    .findFirst().orElse(null);
             String courseLabel = job != null
-                    ? job.getModuleCode() + " \u2013 " + job.getTitle()
+                    ? job.getModuleCode() + " – " + job.getTitle()
                     : "Job #" + app.getJobId();
 
-            // --- profile (two-step lookup: by taId first, then by email) ---
             TAProfile profile = profileDAO.findByTaId(app.getTaUserId());
             if (profile == null) {
                 User u = userService.getUserById(app.getTaUserId());
@@ -189,14 +179,9 @@ public class MOHiredTAsPanel extends JPanel {
             String phone  = blankToNA(profile != null ? profile.getPhone() : null);
             String email  = resolveEmail(profile, app.getTaUserId());
 
-            // --- hired-at time: respondedAt of the matching ACCEPTED offer ---
-            String hiredAt = allOffers.stream()
-                    .filter(o -> app.getApplicationId().equals(o.getApplicationId())
-                            && "ACCEPTED".equals(o.getStatus()))
-                    .findFirst()
-                    .map(o -> o.getRespondedAt() != null
-                            ? o.getRespondedAt().format(DISPLAY_FMT) : "N/A")
-                    .orElse("N/A");
+            // 录用时间使用 respondedAt
+            String hiredAt = app.getRespondedAt() != null
+                    ? app.getRespondedAt().format(DISPLAY_FMT) : "N/A";
 
             tableModel.addRow(new Object[]{taName, major, year, phone, email, courseLabel, hiredAt});
             hiredApps.add(app);
@@ -205,18 +190,6 @@ public class MOHiredTAsPanel extends JPanel {
         countLabel.setText(hiredApps.size() + " TA(s) hired across your module(s)");
     }
 
-    // -----------------------------------------------------------------------
-    // Actions
-    // -----------------------------------------------------------------------
-
-    /**
-     * MO-008.2: Export the current hired-TA table to a CSV file.
-     *
-     * Export fields: Course Name | TA Name | Student ID / Email | Phone | Hired Date
-     *
-     * A JFileChooser lets the MO choose the save directory and filename.
-     * The file is written UTF-8 with BOM so Excel opens it correctly.
-     */
     private void exportToCsv() {
         if (hiredApps == null || hiredApps.isEmpty()) {
             JOptionPane.showMessageDialog(this,
@@ -225,7 +198,6 @@ public class MOHiredTAsPanel extends JPanel {
             return;
         }
 
-        // Default filename: hired_tas_YYYY-MM-DD.csv
         String defaultName = "hired_tas_" + LocalDate.now() + ".csv";
 
         JFileChooser chooser = new JFileChooser();
@@ -233,7 +205,6 @@ public class MOHiredTAsPanel extends JPanel {
         chooser.setFileFilter(new FileNameExtensionFilter("CSV files (*.csv)", "csv"));
         chooser.setSelectedFile(new File(defaultName));
 
-        // Pre-navigate to the exports/ directory if it exists, otherwise stay in project root
         File exportsDir = new File("exports");
         if (exportsDir.isDirectory()) {
             chooser.setCurrentDirectory(exportsDir);
@@ -249,25 +220,20 @@ public class MOHiredTAsPanel extends JPanel {
             chosen = new File(chosen.getAbsolutePath() + ".csv");
         }
 
-        // Build CSV headers and rows
         String[] headers = {
             "Course Name", "TA Name", "Student ID / Email", "Phone", "Hired Date"
         };
 
         List<String[]> rows = new ArrayList<>();
-        // Load jobs and offers once before the loop to avoid O(n²) file reads
-        Map<Long, MOJob> jobMap = jobService.listAll().stream()
-                .collect(Collectors.toMap(MOJob::getJobId, j -> j, (a, b) -> a));
-        List<MOOffer> allOffers = offerService.listAll();
 
         for (TAApplication app : hiredApps) {
-            // Course — O(1) map look-up instead of calling listAll() per iteration
-            MOJob job = jobMap.get(app.getJobId());
+            MOJob job = jobService.listAll().stream()
+                    .filter(j -> j.getJobId().equals(app.getJobId()))
+                    .findFirst().orElse(null);
             String course = job != null
                     ? job.getModuleCode() + " - " + job.getTitle()
                     : "Job #" + app.getJobId();
 
-            // Profile
             TAProfile profile = profileDAO.findByTaId(app.getTaUserId());
             if (profile == null) {
                 User u = userService.getUserById(app.getTaUserId());
@@ -280,14 +246,8 @@ public class MOHiredTAsPanel extends JPanel {
                     : resolveEmail(profile, app.getTaUserId());
             String phone    = blankToNA(profile != null ? profile.getPhone() : null);
 
-            // Hired date from ACCEPTED offer
-            String hiredDate = allOffers.stream()
-                    .filter(o -> app.getApplicationId().equals(o.getApplicationId())
-                            && "ACCEPTED".equals(o.getStatus()))
-                    .findFirst()
-                    .map(o -> o.getRespondedAt() != null
-                            ? o.getRespondedAt().toLocalDate().toString() : "N/A")
-                    .orElse("N/A");
+            String hiredDate = app.getRespondedAt() != null
+                    ? app.getRespondedAt().toLocalDate().toString() : "N/A";
 
             rows.add(new String[]{course, taName, studentId, phone, hiredDate});
         }
@@ -319,16 +279,10 @@ public class MOHiredTAsPanel extends JPanel {
             if (u != null) profile = profileDAO.findByEmail(u.getEmail());
         }
 
-        // --- find matching offer for additional details ---
-        MOOffer offer = offerService.listAll().stream()
-                .filter(o -> app.getApplicationId().equals(o.getApplicationId())
-                        && "ACCEPTED".equals(o.getStatus()))
-                .findFirst().orElse(null);
-
-        showProfileDialog(profile, app, offer);
+        showProfileDialog(profile, app);
     }
 
-    private void showProfileDialog(TAProfile p, TAApplication app, MOOffer offer) {
+    private void showProfileDialog(TAProfile p, TAApplication app) {
         StringBuilder sb = new StringBuilder();
 
         if (p == null) {
@@ -358,13 +312,11 @@ public class MOHiredTAsPanel extends JPanel {
 
         sb.append("\n");
         appendLine(sb, "Application ID", String.valueOf(app.getApplicationId()));
-        if (offer != null) {
-            appendLine(sb, "Offered Hours",
-                    offer.getOfferedHours() + " h/week");
-            appendLine(sb, "Hired At",
-                    offer.getRespondedAt() != null
-                            ? offer.getRespondedAt().format(DISPLAY_FMT) : "N/A");
+        if (app.getOfferedHours() != null) {
+            appendLine(sb, "Offered Hours", app.getOfferedHours() + " h/week");
         }
+        appendLine(sb, "Hired At", app.getRespondedAt() != null
+                ? app.getRespondedAt().format(DISPLAY_FMT) : "N/A");
 
         JTextArea area = new JTextArea(sb.toString());
         area.setEditable(false);
@@ -378,10 +330,6 @@ public class MOHiredTAsPanel extends JPanel {
                 "Hired TA — " + resolveName(p, app.getTaUserId()),
                 JOptionPane.INFORMATION_MESSAGE);
     }
-
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
 
     private String resolveName(TAProfile p, Long taUserId) {
         if (p != null) {

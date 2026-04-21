@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -14,24 +15,16 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.border.EmptyBorder;
 
+import common.domain.ApplicationStatus;
 import common.entity.MOJob;
-import common.entity.MOOffer;
 import common.entity.TA;
 import ta.controller.TAApplicationController;
-import ta.controller.TAOfferController;
+import ta.entity.TAApplication;
 
-/**
- * TA 工作量追踪面板
- * 显示当前活跃职位和工时统计
- * 
- * @author Can Chen
- * @version 1.0
- */
 public class TAWorkloadPanel extends JPanel {
     
     private final TA ta;
     private final TAApplicationController applicationController;
-    private final TAOfferController offerController;
     
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
     private static final Color ACCEPTED_COLOR = new Color(34, 197, 94);
@@ -42,7 +35,6 @@ public class TAWorkloadPanel extends JPanel {
     public TAWorkloadPanel(TA ta) {
         this.ta = ta;
         this.applicationController = new TAApplicationController();
-        this.offerController = new TAOfferController();
         
         setLayout(new BorderLayout());
         setBackground(new Color(248, 250, 252));
@@ -51,11 +43,9 @@ public class TAWorkloadPanel extends JPanel {
     }
     
     private void initUI() {
-        // 标题区域
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
         
-        // 内容区域
         JScrollPane contentScroll = createContentPanel();
         add(contentScroll, BorderLayout.CENTER);
     }
@@ -80,11 +70,9 @@ public class TAWorkloadPanel extends JPanel {
         panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(new EmptyBorder(0, 30, 30, 30));
         
-        // 工作量统计卡片
         panel.add(createWorkloadSummary());
         panel.add(Box.createVerticalStrut(25));
         
-        // 接受的 Offer 列表
         panel.add(createAcceptedOffersSection());
         
         JScrollPane scrollPane = new JScrollPane(panel);
@@ -98,17 +86,23 @@ public class TAWorkloadPanel extends JPanel {
         JPanel panel = new JPanel(new GridLayout(1, 3, 15, 0));
         panel.setOpaque(false);
         
-        List<MOOffer> offers = offerController.getMyOffers(ta.getUserId());
-        int totalHours = offers.stream()
-                .filter(o -> "ACCEPTED".equals(o.getStatus()))
-                .mapToInt(MOOffer::getOfferedHours)
+        List<TAApplication> applications = applicationController.getMyApplications(ta.getUserId());
+        
+        // 从 Application 获取已录用的职位信息
+        int totalHours = applications.stream()
+                .filter(a -> ApplicationStatus.isHired(a.getStatus()))
+                .mapToInt(a -> a.getOfferedHours() != null ? a.getOfferedHours() : 0)
                 .sum();
-        int acceptedCount = (int) offers.stream().filter(o -> "ACCEPTED".equals(o.getStatus())).count();
-        int pendingOffers = (int) offers.stream().filter(o -> "SENT".equals(o.getStatus())).count();
+        int hiredCount = (int) applications.stream()
+                .filter(a -> ApplicationStatus.isHired(a.getStatus()))
+                .count();
+        int offerSentCount = (int) applications.stream()
+                .filter(a -> ApplicationStatus.OFFER_SENT.equals(a.getStatus()))
+                .count();
         
         panel.add(createSummaryCard("Total Hours", String.valueOf(totalHours), "per week", PRIMARY_BLUE));
-        panel.add(createSummaryCard("Active Positions", String.valueOf(acceptedCount), "TA roles", ACCEPTED_COLOR));
-        panel.add(createSummaryCard("Pending Offers", String.valueOf(pendingOffers), "awaiting response", PENDING_COLOR));
+        panel.add(createSummaryCard("Active Positions", String.valueOf(hiredCount), "TA roles", ACCEPTED_COLOR));
+        panel.add(createSummaryCard("Pending Offers", String.valueOf(offerSentCount), "awaiting response", PENDING_COLOR));
         
         return panel;
     }
@@ -177,20 +171,20 @@ public class TAWorkloadPanel extends JPanel {
     private void refreshContent() {
         contentPanel.removeAll();
         
-        List<MOOffer> offers = offerController.getMyOffers(ta.getUserId());
-        List<MOOffer> acceptedOffers = offers.stream()
-                .filter(o -> "ACCEPTED".equals(o.getStatus()))
-                .toList();
+        List<TAApplication> applications = applicationController.getMyApplications(ta.getUserId());
+        List<TAApplication> hiredApplications = applications.stream()
+                .filter(a -> ApplicationStatus.isHired(a.getStatus()))
+                .collect(Collectors.toList());
         
-        if (acceptedOffers.isEmpty()) {
+        if (hiredApplications.isEmpty()) {
             JLabel emptyLabel = new JLabel("No active positions yet. Apply for courses to get started!");
             emptyLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
             emptyLabel.setForeground(new Color(107, 114, 128));
             emptyLabel.setAlignmentX(CENTER_ALIGNMENT);
             contentPanel.add(emptyLabel);
         } else {
-            for (MOOffer offer : acceptedOffers) {
-                contentPanel.add(createOfferCard(offer));
+            for (TAApplication app : hiredApplications) {
+                contentPanel.add(createOfferCard(app));
                 contentPanel.add(Box.createVerticalStrut(10));
             }
         }
@@ -199,7 +193,7 @@ public class TAWorkloadPanel extends JPanel {
         contentPanel.repaint();
     }
     
-    private JPanel createOfferCard(MOOffer offer) {
+    private JPanel createOfferCard(TAApplication app) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(new Color(248, 250, 252));
         card.setBorder(BorderFactory.createCompoundBorder(
@@ -207,12 +201,13 @@ public class TAWorkloadPanel extends JPanel {
                 new EmptyBorder(12, 15, 12, 15)
         ));
         
-        String courseName = getCourseName(offer.getModuleCode());
+        String courseName = getCourseName(app.getJobId());
         
         JLabel courseLabel = new JLabel(courseName);
         courseLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         
-        JLabel hoursLabel = new JLabel(offer.getOfferedHours() + " hours/week");
+        int hours = app.getOfferedHours() != null ? app.getOfferedHours() : 0;
+        JLabel hoursLabel = new JLabel(hours + " hours/week");
         hoursLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         hoursLabel.setForeground(PRIMARY_BLUE);
         
@@ -226,19 +221,18 @@ public class TAWorkloadPanel extends JPanel {
         return card;
     }
     
-    private String getCourseName(String moduleCode) {
+    private String getCourseName(Long jobId) {
         List<MOJob> jobs = applicationController.getPublishedJobs();
         for (MOJob job : jobs) {
-            if (job.getModuleCode().equals(moduleCode)) {
+            if (job.getJobId().equals(jobId)) {
                 return job.getModuleCode() + " - " + job.getTitle();
             }
         }
-        return moduleCode;
+        return "Course #" + jobId;
     }
     
     public void refresh() {
         refreshContent();
-        // 刷新统计卡片
         removeAll();
         initUI();
         revalidate();
