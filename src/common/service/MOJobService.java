@@ -1,29 +1,34 @@
 package common.service;
 
-import common.dao.MOJobDAO;
-import common.entity.MOJob;
-import ta.dao.TAApplicationDAO;
-import ta.entity.TAApplication;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import common.dao.MOJobDAO;
+import common.entity.MOJob;
+import ta.dao.TAApplicationDAO;
+import ta.entity.TAApplication;
+import ta.service.TAApplicationService;
+
 /**
  * MO job service.
  *
- * @version 2.0
- * @contributor Jiaze Wang
- * @update
- * - Added deadline parsing from formatted job description
- * - Enforced application cycle validation when saving and publishing jobs
+ * @version 3.0 - 新增截止日期处理
  */
 public class MOJobService {
     private final MOJobDAO dao = new MOJobDAO();
     private final TAApplicationDAO appDao = new TAApplicationDAO();
     private final SystemConfigService systemConfigService = new SystemConfigService();
+    private TAApplicationService applicationService;
+
+    private TAApplicationService getApplicationService() {
+        if (applicationService == null) {
+            applicationService = new TAApplicationService();
+        }
+        return applicationService;
+    }
 
     public MOJob createOrUpdate(MOJob job) {
         if (job == null) {
@@ -41,13 +46,20 @@ public class MOJobService {
         return dao.findAll();
     }
 
+    /**
+     * 获取已发布的职位（TA 可见）
+     * 只返回 PUBLISHED/OPEN 且未过截止日期的职位
+     */
     public List<MOJob> listPublishedJobs() {
         List<MOJob> result = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
         for (MOJob job : dao.findAll()) {
-            if (job.getStatus() != null && (
-                    job.getStatus().equalsIgnoreCase("OPEN")
-                            || job.getStatus().equalsIgnoreCase("PUBLISHED"))) {
-                result.add(job);
+            String status = job.getStatus();
+            if (status != null && ("OPEN".equalsIgnoreCase(status) || "PUBLISHED".equalsIgnoreCase(status))) {
+                // 检查截止日期
+                if (job.getApplicationDeadline() == null || !now.isAfter(job.getApplicationDeadline())) {
+                    result.add(job);
+                }
             }
         }
         return result;
@@ -55,6 +67,15 @@ public class MOJobService {
 
     public MOJob getPublishedJob(Long jobId) {
         for (MOJob job : listPublishedJobs()) {
+            if (jobId != null && jobId.equals(job.getJobId())) {
+                return job;
+            }
+        }
+        return null;
+    }
+    
+    public MOJob getJobById(Long jobId) {
+        for (MOJob job : dao.findAll()) {
             if (jobId != null && jobId.equals(job.getJobId())) {
                 return job;
             }
@@ -74,16 +95,7 @@ public class MOJobService {
     }
 
     /**
-     * MO-009.1: Closes recruitment for a job.
-     *
-     * Sets status to "CLOSED" and persists the change. Once closed:
-     * - listPublishedJobs() will no longer return this job (it only returns OPEN/PUBLISHED),
-     *   so TAs cannot see or apply for it.
-     * - The job remains visible in the MO's own Manage Jobs panel for record-keeping.
-     *
-     * @param jobId the job to close
-     * @return the updated MOJob
-     * @throws IllegalArgumentException if the job is not found or is already CLOSED/WITHDRAWN
+     * 关闭职位
      */
     public MOJob closeJob(Long jobId) {
         for (MOJob job : dao.findAll()) {
@@ -92,20 +104,20 @@ public class MOJobService {
                 if ("CLOSED".equalsIgnoreCase(current)) {
                     throw new IllegalArgumentException("This job is already closed.");
                 }
-                if ("WITHDRAWN".equalsIgnoreCase(current)) {
-                    throw new IllegalArgumentException(
-                            "This job has been withdrawn and cannot be closed.");
-                }
                 job.setStatus("CLOSED");
-                return dao.save(job);
+                MOJob saved = dao.save(job);
+                
+                // 处理关联的未完成申请
+                getApplicationService().processExpiredApplicationsForJob(jobId);
+                
+                return saved;
             }
         }
         throw new IllegalArgumentException("Job not found.");
     }
 
     /**
-     * Returns the parsed deadline from the formatted job description.
-     * Expected line format: Deadline: YYYY-MM-DD
+     * 解析截止日期（从描述中）
      */
     public LocalDate extractDeadline(MOJob job) {
         if (job == null || job.getDescription() == null || job.getDescription().isBlank()) {
@@ -130,9 +142,7 @@ public class MOJobService {
     }
 
     /**
-     * Validates that the job deadline falls within the configured application cycle.
-     * If no deadline is provided, the job is rejected because the requirement explicitly
-     * depends on comparing the deadline with the global cycle.
+     * 验证截止日期在申请周期内
      */
     public void validateDeadlineWithinCycle(MOJob job) {
         LocalDate deadline = extractDeadline(job);
@@ -143,18 +153,7 @@ public class MOJobService {
     }
 
     /**
-     * MO-009.2: Scans every OPEN/PUBLISHED job and closes those whose deadline
-     * has already passed (deadline strictly before today).
-     *
-     * Design decisions:
-     * - "Today" is determined once per call so a batch run is consistent.
-     * - A job whose deadline IS today is still open (last day to apply).
-     * - Already CLOSED or WITHDRAWN jobs are silently skipped → no double-processing.
-     * - Jobs with a missing or unparseable deadline are skipped with a warning.
-     * - Each closure is persisted immediately via dao.save() so the change
-     *   survives even if the JVM is killed mid-batch.
-     *
-     * @return the number of jobs that were newly closed
+     * 自动关闭过期职位
      */
     public int autoCloseExpiredJobs() {
         LocalDate today = LocalDate.now();
@@ -163,7 +162,6 @@ public class MOJobService {
         for (MOJob job : dao.findAll()) {
             String status = job.getStatus();
 
-            // Only act on jobs that are currently accepting applications
             if (!"OPEN".equalsIgnoreCase(status) && !"PUBLISHED".equalsIgnoreCase(status)) {
                 continue;
             }
@@ -181,13 +179,16 @@ public class MOJobService {
                 continue;
             }
 
-            // Close if deadline is strictly before today (deadline day itself is still open)
             if (deadline.isBefore(today)) {
                 job.setStatus("CLOSED");
                 dao.save(job);
+                
+                // 处理关联的未完成申请
+                getApplicationService().processExpiredApplicationsForJob(job.getJobId());
+                
                 closedCount++;
                 System.out.println("[MOJobService] Auto-closed expired job #" + job.getJobId()
-                        + " (" + job.getModuleCode() + " \u2013 " + job.getTitle()
+                        + " (" + job.getModuleCode() + " – " + job.getTitle()
                         + ") deadline was " + deadline);
             }
         }
@@ -198,12 +199,10 @@ public class MOJobService {
         return closedCount;
     }
 
-    // [新增方法：供 UI 调用获取所有申请]
     public List<TAApplication> listAllApplications() {
         return appDao.findAll();
     }
 
-    // [新增方法：供 UI 调用更新申请状态]
     public void updateApplication(TAApplication app) {
         appDao.save(app);
     }

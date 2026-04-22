@@ -26,7 +26,6 @@ import common.ui.BaseFrame;
 import common.ui.NotificationPopup;
 import ta.controller.TAApplicationController;
 import ta.controller.TAAuthController;
-import ta.controller.TAOfferController;
 
 
 public class TAMainFrame extends BaseFrame {
@@ -35,7 +34,6 @@ public class TAMainFrame extends BaseFrame {
     
     private final TAApplicationController applicationController;
     private final TAAuthController authController;
-    private final TAOfferController offerController;
     private final NotificationService notificationService;
     
     // 面板组件
@@ -74,7 +72,6 @@ public class TAMainFrame extends BaseFrame {
             this.ta = null;
             this.applicationController = null;
             this.authController = null;
-            this.offerController = null;
             this.notificationService = null;
             javax.swing.JOptionPane.showMessageDialog(null,
                     "Access denied. A TA account is required to open this portal.",
@@ -87,7 +84,6 @@ public class TAMainFrame extends BaseFrame {
         this.ta = (TA) user;   // safe: role verified above; UserFileDAO returns TA instance for TA role
         this.applicationController = new TAApplicationController();
         this.authController = new TAAuthController();
-        this.offerController = new TAOfferController();
         this.notificationService = new NotificationService();
 
         initUI();

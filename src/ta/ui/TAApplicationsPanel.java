@@ -26,25 +26,22 @@ import javax.swing.table.JTableHeader;
 
 import common.domain.ApplicationStatus;
 import common.entity.MOJob;
-import common.entity.MOOffer;
 import common.entity.TA;
 import ta.controller.TAApplicationController;
-import ta.controller.TAOfferController;
 import ta.entity.TAApplication;
-import ta.service.TAApplicationService;
 import ta.ui.components.ActionButtonRenderer;
 import ta.ui.components.StatusCellRenderer;
 
 /**
  * TA 我的申请面板
- * 显示所有申请记录，支持取消申请和查看详情，以及处理 Offer
+ * 显示所有申请记录，支持取消申请、查看详情、响应 Offer
+ * 
+ * @version 3.0 - 合并 Offer 功能，保留完整 UI
  */
 public class TAApplicationsPanel extends JPanel {
     
     private final TA ta;
     private final TAApplicationController applicationController;
-    private final TAOfferController offerController;
-    private final TAApplicationService applicationService;
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
@@ -52,13 +49,10 @@ public class TAApplicationsPanel extends JPanel {
     private JTable applicationsTable;
     private DefaultTableModel tableModel;
     private List<TAApplication> applications;
-    private List<MOOffer> offers;
     
     public TAApplicationsPanel(TA ta) {
         this.ta = ta;
         this.applicationController = new TAApplicationController();
-        this.offerController = new TAOfferController();
-        this.applicationService = new TAApplicationService();
         
         setLayout(new BorderLayout());
         setBackground(new Color(248, 250, 252));
@@ -105,7 +99,8 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private JScrollPane createApplicationsTable() {
-        String[] columns = {"Course", "Status", "Applied Date", "", "", ""};
+        // 5列：课程、状态、申请日期、详情、操作1、操作2
+        String[] columns = {"Course", "Status", "Applied Date", "Detail", "", ""};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -122,6 +117,7 @@ public class TAApplicationsPanel extends JPanel {
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
         applicationsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         
+        // 设置渲染器
         applicationsTable.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
         applicationsTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
         applicationsTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
@@ -137,6 +133,7 @@ public class TAApplicationsPanel extends JPanel {
                     TAApplication app = applications.get(row);
                     
                     if (col == 3) {
+                        // 详情按钮
                         showApplicationDetailDialog(app);
                     } else if (col == 4) {
                         String action = (String) applicationsTable.getValueAt(row, 4);
@@ -161,8 +158,9 @@ public class TAApplicationsPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
+        // 设置列宽
         applicationsTable.getColumnModel().getColumn(0).setPreferredWidth(350);
-        applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(100);
+        applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(120);
         applicationsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
         applicationsTable.getColumnModel().getColumn(3).setPreferredWidth(60);
         applicationsTable.getColumnModel().getColumn(4).setPreferredWidth(70);
@@ -189,32 +187,33 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private void handleAcceptOffer(TAApplication app) {
-        MOOffer offer = findOfferByApplicationId(app.getApplicationId());
-        if (offer == null) {
+        // 检查是否有有效 Offer
+        if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
             JOptionPane.showMessageDialog(this, 
-                "Offer not found. Please contact the MO.",
+                "No pending offer for this application.",
                 "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        if (app.isOfferExpired()) {
+            JOptionPane.showMessageDialog(this, 
+                "This offer has expired. You cannot accept it.",
+                "Offer Expired", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
         int confirm = JOptionPane.showConfirmDialog(this,
             "Do you want to ACCEPT this offer?\n\n" +
             "Course: " + applicationController.getCourseName(app.getJobId()) + "\n" +
-            "Weekly Hours: " + offer.getOfferedHours() + " hours",
+            "Offered Hours: " + (app.getOfferedHours() != null ? app.getOfferedHours() : 0) + " hours\n\n" +
+            "This action cannot be undone.",
             "Confirm Accept Offer",
             JOptionPane.YES_NO_OPTION,
             JOptionPane.QUESTION_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            boolean success = offerController.acceptOfferWithFeedback(offer.getOfferId(), null);
+            boolean success = applicationController.acceptOfferWithFeedback(app.getApplicationId(), null);
             if (success) {
-                app.setStatus(ApplicationStatus.HIRED);
-                applicationService.createOrUpdate(app);
-                
-                JOptionPane.showMessageDialog(this, 
-                    "You have accepted the offer! Your application status has been updated to HIRED.",
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
-                
                 refresh();
                 TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
                 if (mainFrame != null) {
@@ -225,11 +224,18 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private void handleRejectOffer(TAApplication app) {
-        MOOffer offer = findOfferByApplicationId(app.getApplicationId());
-        if (offer == null) {
+        // 检查是否有有效 Offer
+        if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
             JOptionPane.showMessageDialog(this, 
-                "Offer not found. Please contact the MO.",
+                "No pending offer for this application.",
                 "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        if (app.isOfferExpired()) {
+            JOptionPane.showMessageDialog(this, 
+                "This offer has expired.",
+                "Offer Expired", JOptionPane.WARNING_MESSAGE);
             return;
         }
         
@@ -242,15 +248,8 @@ public class TAApplicationsPanel extends JPanel {
             JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            boolean success = offerController.rejectOfferWithFeedback(offer.getOfferId(), null);
+            boolean success = applicationController.rejectOfferWithFeedback(app.getApplicationId(), null);
             if (success) {
-                app.setStatus(ApplicationStatus.REJECTED);
-                applicationService.createOrUpdate(app);
-                
-                JOptionPane.showMessageDialog(this, 
-                    "You have rejected the offer.",
-                    "Success", JOptionPane.INFORMATION_MESSAGE);
-                
                 refresh();
                 TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
                 if (mainFrame != null) {
@@ -258,16 +257,6 @@ public class TAApplicationsPanel extends JPanel {
                 }
             }
         }
-    }
-    
-    private MOOffer findOfferByApplicationId(Long applicationId) {
-        List<MOOffer> allOffers = offerController.getMyOffers(ta.getUserId());
-        for (MOOffer offer : allOffers) {
-            if (applicationId.equals(offer.getApplicationId()) && "SENT".equals(offer.getStatus())) {
-                return offer;
-            }
-        }
-        return null;
     }
     
     private void showApplicationDetailDialog(TAApplication app) {
@@ -308,14 +297,14 @@ public class TAApplicationsPanel extends JPanel {
         JLabel statusValueLabel = new JLabel(statusText);
         statusValueLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         
-        if (ApplicationStatus.isAccepted(app.getStatus()) || ApplicationStatus.isHired(app.getStatus())) {
+        if (ApplicationStatus.isHired(app.getStatus())) {
             statusValueLabel.setForeground(new Color(34, 197, 94));
-        } else if (ApplicationStatus.isAwaitingReview(app.getStatus())) {
-            statusValueLabel.setForeground(new Color(234, 179, 8));
+        } else if (ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
+            statusValueLabel.setForeground(PRIMARY_BLUE);
         } else if (ApplicationStatus.isRejected(app.getStatus())) {
             statusValueLabel.setForeground(new Color(239, 68, 68));
         } else if (ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
-            statusValueLabel.setForeground(new Color(59, 130, 246));
+            statusValueLabel.setForeground(new Color(234, 179, 8));
         } else {
             statusValueLabel.setForeground(new Color(107, 114, 128));
         }
@@ -325,6 +314,16 @@ public class TAApplicationsPanel extends JPanel {
         statusInnerPanel.add(statusTitleLabel);
         statusInnerPanel.add(statusValueLabel);
         statusPanel.add(statusInnerPanel, BorderLayout.WEST);
+        
+        // 添加 Offer 信息（如果有）
+        if (app.getOfferedHours() != null) {
+            JPanel offerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+            offerPanel.setBackground(new Color(248, 250, 252));
+            JLabel offerLabel = new JLabel("Offered Hours: " + app.getOfferedHours() + " hours/week");
+            offerLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            offerPanel.add(offerLabel);
+            statusPanel.add(offerPanel, BorderLayout.SOUTH);
+        }
         
         panel.add(statusPanel);
         panel.add(Box.createVerticalStrut(15));
@@ -343,6 +342,11 @@ public class TAApplicationsPanel extends JPanel {
         String appliedDate = app.getAppliedAt() != null ? 
             app.getAppliedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "N/A";
         infoPanel.add(createValueLabel(appliedDate));
+        
+        if (app.getOfferExpiryAt() != null) {
+            infoPanel.add(createInfoLabel("Offer Expires:"));
+            infoPanel.add(createValueLabel(app.getOfferExpiryAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))));
+        }
         
         panel.add(infoPanel);
         panel.add(Box.createVerticalStrut(15));
@@ -391,11 +395,10 @@ public class TAApplicationsPanel extends JPanel {
         tableModel.setRowCount(0);
         
         applications = applicationController.getMyApplications(ta.getUserId());
-        offers = offerController.getMyOffers(ta.getUserId());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         for (TAApplication app : applications) {
-            String status = applicationController.getDisplayStatus(app);
+            String status = applicationController.getShortDisplayStatus(app);
             String appliedAt = app.getAppliedAt() != null ? app.getAppliedAt().format(formatter) : "";
             String courseName = applicationController.getCourseName(app.getJobId());
             
@@ -407,12 +410,15 @@ public class TAApplicationsPanel extends JPanel {
             String action2 = "—";
             
             if (ApplicationStatus.isCancellable(app.getStatus())) {
+                // 可取消状态：显示 Cancel 按钮
                 action1 = "Cancel";
                 action2 = "—";
-            } else {
-                boolean hasSentOffer = offers.stream().anyMatch(o -> 
-                    app.getApplicationId().equals(o.getApplicationId()) && "SENT".equals(o.getStatus()));
-                if (hasSentOffer) {
+            } else if (ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
+                // Offer 已发送状态：显示 Accept 和 Reject 按钮
+                if (app.isOfferExpired()) {
+                    action1 = "Expired";
+                    action2 = "—";
+                } else {
                     action1 = "Accept";
                     action2 = "Reject";
                 }

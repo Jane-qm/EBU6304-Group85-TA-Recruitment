@@ -1,22 +1,40 @@
 package mo.ui;
 
-import common.entity.*;
-import common.service.*;
-import ta.entity.TAApplication;
-import ta.service.TAApplicationService;
-
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.Frame;
+import java.awt.Window;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+
+import common.domain.ApplicationStatus;
+import common.entity.MOJob;
+import common.entity.User;
+import common.service.MOJobService;
+import common.service.UserService;
+import ta.entity.TAApplication;
+import ta.service.TAApplicationService;
 
 public class MOApplicantReviewPanel extends JPanel {
     private final User currentUser;
     private final UserService userService = new UserService();
     private final MOJobService jobService = new MOJobService();
-    private final MOOfferService offerService = new MOOfferService();
     private final TAApplicationService appService = new TAApplicationService();
     
     private JTable appTable;
@@ -42,7 +60,6 @@ public class MOApplicantReviewPanel extends JPanel {
     }
 
     private void initTable() {
-        // 表头：App ID, 课程, TA邮箱, 申请陈述, 当前状态, 申请时间
         String[] columns = {"App ID", "Module", "TA Email", "Statement", "Status", "Date"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -61,24 +78,18 @@ public class MOApplicantReviewPanel extends JPanel {
         JButton viewBtn = new JButton("📄 View TA Profile");
         viewBtn.addActionListener(e -> viewProfile());
 
-        // 任务4：一键标记（内部初筛）
         JButton rejectBtn = new JButton("Reject");
-        rejectBtn.addActionListener(e -> updateAppStatus("REJECTED"));
+        rejectBtn.addActionListener(e -> updateAppStatus(ApplicationStatus.REJECTED));
 
         JButton waitlistBtn = new JButton("Waitlist");
-        waitlistBtn.addActionListener(e -> updateAppStatus("WAITLISTED"));
+        waitlistBtn.addActionListener(e -> updateAppStatus(ApplicationStatus.WAITLISTED));
 
-        JButton acceptBtn = new JButton("Pass Screen (Accept)");
-        acceptBtn.addActionListener(e -> updateAppStatus("ACCEPTED"));
+        JButton acceptBtn = new JButton("Accept & Send Offer");
+        acceptBtn.setBackground(new Color(16, 185, 129));
+        acceptBtn.setForeground(Color.WHITE);
+        acceptBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        acceptBtn.addActionListener(e -> sendOfferToSelected());
 
-        // 任务5：正式发送 Offer（进入 TA 最终确认阶段）
-        JButton offerBtn = new JButton("Send Official Offer");
-        offerBtn.setBackground(new Color(16, 185, 129));
-        offerBtn.setForeground(Color.WHITE);
-        offerBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        offerBtn.addActionListener(e -> sendOfficialOffer());
-
-        // MO-007.2：从候补名单选人并补发 Offer
         JButton waitlistOfferBtn = new JButton("From Waitlist");
         waitlistOfferBtn.setBackground(new Color(59, 130, 246));
         waitlistOfferBtn.setForeground(Color.WHITE);
@@ -101,7 +112,6 @@ public class MOApplicantReviewPanel extends JPanel {
         btnPanel.add(waitlistBtn);
         btnPanel.add(acceptBtn);
         btnPanel.add(Box.createHorizontalStrut(20));
-        btnPanel.add(offerBtn);
         btnPanel.add(waitlistOfferBtn);
 
         add(btnPanel, BorderLayout.SOUTH);
@@ -124,12 +134,13 @@ public class MOApplicantReviewPanel extends JPanel {
                     .filter(j -> j.getJobId().equals(app.getJobId()))
                     .findFirst().orElse(null);
 
+            String statusDisplay = ApplicationStatus.getDisplayText(app.getStatus());
             tableModel.addRow(new Object[]{
                     app.getApplicationId(),
                     job != null ? job.getModuleCode() : "N/A",
                     taUser != null ? taUser.getEmail() : "Unknown",
                     app.getStatement(),
-                    app.getStatus(),
+                    statusDisplay,
                     app.getAppliedAt() != null ? app.getAppliedAt().toLocalDate() : "N/A"
             });
         }
@@ -139,30 +150,69 @@ public class MOApplicantReviewPanel extends JPanel {
         int row = appTable.getSelectedRow();
         if (row == -1) return;
         TAApplication app = currentApplications.get(row);
-        JOptionPane.showMessageDialog(this, "TA Statement:\n" + app.getStatement(), "Applicant Profile", JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(this, "TA Statement:\n" + app.getStatement(), 
+                "Applicant Profile", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // 内部初筛状态更新
     private void updateAppStatus(String status) {
         int[] rows = appTable.getSelectedRows();
         if (rows.length == 0) return;
         
         for (int row : rows) {
             TAApplication app = currentApplications.get(row);
-            app.setStatus(status);
-            jobService.updateApplication(app);
+            // 只有 SUBMITTED 或 WAITLISTED 状态可以更新
+            if (ApplicationStatus.SUBMITTED.equals(app.getStatus()) || 
+                ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
+                app.setStatus(status);
+                jobService.updateApplication(app);
+            }
         }
         loadApplications();
-        JOptionPane.showMessageDialog(this, "Internal status updated to: " + status);
+        JOptionPane.showMessageDialog(this, "Status updated to: " + status);
     }
 
-    /**
-     * 实现任务 5：发送 Offer（关键逻辑整改）
-     * 只有发送了 Offer，TA 端才会收到反馈，并拥有最终“接受/拒绝”的权力。
-     */
-    // -----------------------------------------------------------------------
-    // MO-007.2: Waitlist -> Offer
-    // -----------------------------------------------------------------------
+    private void sendOfferToSelected() {
+        int[] rows = appTable.getSelectedRows();
+        if (rows.length == 0) {
+            JOptionPane.showMessageDialog(this, "Please select applicants to send offers.");
+            return;
+        }
+
+        int count = 0;
+        for (int row : rows) {
+            TAApplication app = currentApplications.get(row);
+            
+            // 只有 SUBMITTED 或 WAITLISTED 状态的才能发 Offer
+            if (!ApplicationStatus.SUBMITTED.equals(app.getStatus()) && 
+                !ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
+                continue;
+            }
+
+            MOJob job = jobService.listAll().stream()
+                    .filter(j -> j.getJobId().equals(app.getJobId()))
+                    .findFirst().orElse(null);
+
+            if (job != null) {
+                try {
+                    // 发送 Offer（直接发，状态变为 OFFER_SENT）
+                    appService.sendOffer(app.getApplicationId(), job.getWeeklyHours(), 7);
+                    count++;
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, 
+                        "Error sending offer: " + ex.getMessage(), 
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
+        loadApplications();
+        if (count > 0) {
+            JOptionPane.showMessageDialog(this, 
+                "Successfully sent " + count + " offers.\nWaiting for TA's final decision.");
+        } else {
+            JOptionPane.showMessageDialog(this, 
+                "Offers can only be sent to applicants with SUBMITTED or WAITLISTED status.");
+        }
+    }
 
     private void showWaitlistDialog(TAApplication referenceApp) {
         Long jobId = referenceApp.getJobId();
@@ -174,7 +224,12 @@ public class MOApplicantReviewPanel extends JPanel {
             return;
         }
 
-        List<TAApplication> waitlist = appService.listWaitlistedByJobId(jobId);
+        // 获取候选名单中的申请
+        List<TAApplication> waitlist = appService.listAll().stream()
+                .filter(app -> jobId.equals(app.getJobId()) && 
+                        ApplicationStatus.WAITLISTED.equals(app.getStatus()))
+                .collect(Collectors.toList());
+        
         if (waitlist.isEmpty()) {
             JOptionPane.showMessageDialog(this,
                     "No waitlisted candidates for " + job.getModuleCode() + ".",
@@ -243,81 +298,21 @@ public class MOApplicantReviewPanel extends JPanel {
         dialog.setVisible(true);
     }
 
-    /**
-     * Transitions the application from WAITLISTED to OFFER_SENT:
-     * 1. Creates and persists a new MOOffer (also notifies the TA via NotificationService).
-     * 2. Updates the application status to OFFER_SENT and persists it.
-     * 3. Refreshes the main table.
-     */
     private void sendOfferFromWaitlist(TAApplication app, MOJob job) {
-        MOOffer offer = new MOOffer();
-        offer.setApplicationId(app.getApplicationId());
-        offer.setMoUserId(currentUser.getUserId());
-        offer.setTaUserId(app.getTaUserId());
-        offer.setModuleCode(job.getModuleCode());
-        offer.setOfferedHours(job.getWeeklyHours());
+        try {
+            appService.sendOffer(app.getApplicationId(), job.getWeeklyHours(), 7);
+            loadApplications();
 
-        offerService.sendOffer(offer);
-        app.setStatus("OFFER_SENT");
-        jobService.updateApplication(app);
-
-        loadApplications();
-
-        User taUser = userService.getUserById(app.getTaUserId());
-        String taEmail = taUser != null ? taUser.getEmail() : "TA #" + app.getTaUserId();
-        JOptionPane.showMessageDialog(this,
-                "Offer sent to " + taEmail + " (promoted from waitlist).\n"
-                        + "Module: " + job.getModuleCode() + " - " + job.getTitle() + "\n"
-                        + "Application status updated to OFFER_SENT.",
-                "Offer Sent", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    // -----------------------------------------------------------------------
-
-    private void sendOfficialOffer() {
-        int[] rows = appTable.getSelectedRows();
-        if (rows.length == 0) {
-            JOptionPane.showMessageDialog(this, "Please select applicants to send offers.");
-            return;
-        }
-
-        int count = 0;
-        for (int row : rows) {
-            TAApplication app = currentApplications.get(row);
-            
-            // 逻辑检查：建议只有初筛 ACCEPTED 的人才能发 Offer
-            if (!"ACCEPTED".equals(app.getStatus())) {
-                continue;
-            }
-
-            MOJob job = jobService.listAll().stream()
-                    .filter(j -> j.getJobId().equals(app.getJobId()))
-                    .findFirst().orElse(null);
-
-            if (job != null) {
-                // 1. 创建 Offer 实体
-                MOOffer offer = new MOOffer();
-                offer.setApplicationId(app.getApplicationId());
-                offer.setMoUserId(currentUser.getUserId());
-                offer.setTaUserId(app.getTaUserId());
-                offer.setModuleCode(job.getModuleCode());
-                offer.setOfferedHours(job.getWeeklyHours());
-                
-                // 2. 调用 offerService 发送 Offer (同步 mo_offer.json 并通知 TA)
-                // 这一步之后，TA 的界面会显示这个 Offer，等待 TA 点击 Accept 或 Decline
-                offerService.sendOffer(offer);
-
-                // 3. 更新申请状态为 OFFER_SENT，表示 MO 已给出反馈
-                app.setStatus("OFFER_SENT");
-                jobService.updateApplication(app);
-                count++;
-            }
-        }
-        loadApplications();
-        if (count > 0) {
-            JOptionPane.showMessageDialog(this, "Successfully sent " + count + " offers.\nWaiting for TA's final decision.");
-        } else {
-            JOptionPane.showMessageDialog(this, "Offers can only be sent to applicants marked as 'ACCEPTED'.");
+            User taUser = userService.getUserById(app.getTaUserId());
+            String taEmail = taUser != null ? taUser.getEmail() : "TA #" + app.getTaUserId();
+            JOptionPane.showMessageDialog(this,
+                    "Offer sent to " + taEmail + " (promoted from waitlist).\n"
+                            + "Module: " + job.getModuleCode() + " - " + job.getTitle() + "\n"
+                            + "Application status updated to OFFER_SENT.",
+                    "Offer Sent", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error sending offer: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

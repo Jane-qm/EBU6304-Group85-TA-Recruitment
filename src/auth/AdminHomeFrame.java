@@ -1,11 +1,38 @@
 package auth;
 
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableModel;
+
 import common.dao.MOJobDAO;
-import common.dao.MOOfferDAO;
 import common.dao.NotificationDAO;
 import common.entity.AccountStatus;
 import common.entity.MOJob;
-import common.entity.MOOffer;
 import common.entity.NotificationMessage;
 import common.entity.User;
 import common.entity.UserRole;
@@ -20,47 +47,16 @@ import ta.entity.CVInfo;
 import ta.entity.TAApplication;
 import ta.entity.TAProfile;
 
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.List;
-
 /**
  * Admin portal.
  * Supports administrator operations such as account management,
  * system data inspection, and global configuration.
  *
- * @version 2.0
- * @contributor Jiaze Wang
+ * @version 6.0
+ * @contributor System
  * @update
- * - Expanded the original demo admin page into a structured admin portal
- * - Added strict super-admin access validation
- * - Added MO approval, account disable/reactivate, and password reset actions
- *
- * @version 3.0
- * @contributor Jiaze Wang
- * @update
- * - Added system-wide data viewing
- * - Added CSV export for core datasets
- * - Kept existing account lifecycle management functions
- *
- * @version 4.0
- * @contributor Jiaze Wang
- * @update
- * - Added global application cycle configuration support
- * - Structured the admin portal into three functional tabs
- * - Kept account management, system data inspection, and CSV export
- *
- * @version 5.0
- * @contributor Jiaze Wang
- * @update
- * - Aligned System Data with ta.* profile/application/CV data sources
- * - Removed dependency on outdated common.* profile/application/CV stores
- * - Fixed TA profile and CV dataset rendering and export consistency
+ * - Removed MOOffer/MOOfferDAO references (merged into TAApplication)
+ * - Removed "Offers" dataset option from System Data panel
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
@@ -85,7 +81,6 @@ public class AdminHomeFrame extends JFrame {
     private final MOJobDAO moJobDAO = new MOJobDAO();
     private final TAApplicationDAO applicationDAO = new TAApplicationDAO();
     private final CVDao cvDao = new CVDao();
-    private final MOOfferDAO offerDAO = new MOOfferDAO();
     private final NotificationDAO notificationDAO = new NotificationDAO();
 
     private JTable userTable;
@@ -436,13 +431,13 @@ public class AdminHomeFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
+        // 移除 "Offers" 选项，因为已合并到 Applications
         datasetCombo = new JComboBox<>(new String[]{
                 "Users",
                 "TA Profiles",
                 "Jobs",
                 "Applications",
                 "CV Infos",
-                "Offers",
                 "Notifications"
         });
 
@@ -539,13 +534,14 @@ public class AdminHomeFrame extends JFrame {
                             .toList()
             );
             case "Jobs" -> loadGenericTable(
-                    new String[]{"Job ID", "MO User ID", "Module", "Title", "Hours", "Status"},
+                    new String[]{"Job ID", "MO User ID", "Module", "Title", "Hours", "Status", "Deadline"},
                     moJobDAO.findAll().stream()
                             .map(this::toJobRow)
                             .toList()
             );
             case "Applications" -> loadGenericTable(
-                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At", "CV ID"},
+                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At", 
+                                 "Offered Hours", "Offer Expiry", "Responded At"},
                     applicationDAO.findAll().stream()
                             .map(this::toApplicationRow)
                             .toList()
@@ -554,12 +550,6 @@ public class AdminHomeFrame extends JFrame {
                     new String[]{"CV ID", "TA ID", "TA Email", "CV Name", "File Path", "Updated At"},
                     cvDao.findAll().stream()
                             .map(this::toCvRow)
-                            .toList()
-            );
-            case "Offers" -> loadGenericTable(
-                    new String[]{"Offer ID", "Application ID", "TA User ID", "Module", "Hours", "Status"},
-                    offerDAO.findAll().stream()
-                            .map(this::toOfferRow)
                             .toList()
             );
             case "Notifications" -> loadGenericTable(
@@ -595,7 +585,8 @@ public class AdminHomeFrame extends JFrame {
                 job.getModuleCode(),
                 job.getTitle(),
                 job.getWeeklyHours(),
-                job.getStatus()
+                job.getStatus(),
+                job.getApplicationDeadline()
         };
     }
 
@@ -606,7 +597,9 @@ public class AdminHomeFrame extends JFrame {
                 application.getJobId(),
                 application.getStatus(),
                 application.getAppliedAt(),
-                application.getCvId()
+                application.getOfferedHours(),
+                application.getOfferExpiryAt(),
+                application.getRespondedAt()
         };
     }
 
@@ -618,17 +611,6 @@ public class AdminHomeFrame extends JFrame {
                 cv.getCvName(),
                 cv.getFilePath(),
                 cv.getUpdatedAt()
-        };
-    }
-
-    private Object[] toOfferRow(MOOffer offer) {
-        return new Object[]{
-                offer.getOfferId(),
-                offer.getApplicationId(),
-                offer.getTaUserId(),
-                offer.getModuleCode(),
-                offer.getOfferedHours(),
-                offer.getStatus()
         };
     }
 
@@ -669,7 +651,6 @@ public class AdminHomeFrame extends JFrame {
                 case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
                 case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
                 case "CV Infos" -> CsvExportUtil.exportObjects("ta_cvs.csv", cvDao.findAll());
-                case "Offers" -> CsvExportUtil.exportObjects("offers.csv", offerDAO.findAll());
                 case "Notifications" -> CsvExportUtil.exportObjects("notifications.csv", notificationDAO.findAll());
                 default -> null;
             };
