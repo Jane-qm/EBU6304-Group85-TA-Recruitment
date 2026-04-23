@@ -129,9 +129,9 @@ public class MOHiredTAsPanel extends JPanel {
         viewBtn.addActionListener(e -> viewSelectedProfile());
 
         JButton exportBtn = new JButton("Export CSV");
-        exportBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        exportBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
         exportBtn.setBackground(new Color(16, 185, 129));
-        exportBtn.setForeground(Color.WHITE);
+        //exportBtn.setForeground(Color.WHITE);
         exportBtn.setOpaque(true);
         exportBtn.setContentAreaFilled(true);
         exportBtn.setFocusPainted(false);

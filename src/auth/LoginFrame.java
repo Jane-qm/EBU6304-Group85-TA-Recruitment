@@ -79,6 +79,10 @@ import common.entity.AccountStatus; // 导入账号状态
  * @author Jiaze Wang
  * @version 6.0
  * @update Add strict super-admin access validation before routing to Admin Portal
+ *
+ * @author (Your Name)
+ * @version 7.0
+ * @update 邮箱输入改为前缀 + 后缀下拉选择 (@qmul.ac.uk / @bupt.edu.cn)
  */
 
 /**
@@ -87,7 +91,8 @@ import common.entity.AccountStatus; // 导入账号状态
  */
 public class LoginFrame extends BaseFrame {
 
-    private JTextField emailField;
+    private JTextField emailPrefixField;      // 邮箱前缀输入框
+    private JComboBox<String> domainCombo;    // 邮箱后缀下拉选择
     private JPasswordField passwordField;
     private JCheckBox rememberMeBox;
     private final AuthService authService;
@@ -184,19 +189,40 @@ public class LoginFrame extends BaseFrame {
         cardPanel.add(rolePanel);
         cardPanel.add(Box.createVerticalStrut(34));
 
-        // 邮箱
+        // 邮箱区域（前缀 + 后缀下拉）
         JLabel emailLabel = new JLabel("University Email");
         emailLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         emailLabel.setForeground(new Color(17, 24, 39));
         emailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        emailField = new JTextField();
-        emailField.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        emailField.setBorder(new EmptyBorder(0, 0, 0, 0));
+        // 创建前缀输入框
+        emailPrefixField = new JTextField();
+        emailPrefixField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        emailPrefixField.setBorder(new EmptyBorder(0, 0, 0, 0));
+
+        // 创建后缀下拉框
+        domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
+        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        domainCombo.setPreferredSize(new Dimension(120, FIELD_HEIGHT - 10));
+        domainCombo.setMaximumSize(new Dimension(120, FIELD_HEIGHT - 10));
+
+        // 将前缀和下拉框放入一个面板
+        JPanel emailWrapper = new JPanel(new BorderLayout(8, 0));
+        emailWrapper.setBackground(Color.WHITE);
+        emailWrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        emailWrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        emailWrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        emailWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        emailWrapper.setBorder(BorderFactory.createCompoundBorder(
+                new RoundedBorder(16, new Color(220, 224, 230), 1),
+                new EmptyBorder(0, 16, 0, 16)
+        ));
+        emailWrapper.add(emailPrefixField, BorderLayout.CENTER);
+        emailWrapper.add(domainCombo, BorderLayout.EAST);
 
         cardPanel.add(emailLabel);
         cardPanel.add(Box.createVerticalStrut(12));
-        cardPanel.add(wrapField(emailField));
+        cardPanel.add(emailWrapper);
         cardPanel.add(Box.createVerticalStrut(28));
 
         // 密码
@@ -295,6 +321,9 @@ public class LoginFrame extends BaseFrame {
         add(rootPanel);
 
         getRootPane().setDefaultButton(loginButton);
+
+        // 加载记住的邮箱（如果有）
+        loadRememberedEmail();
     }
 
     /**
@@ -321,24 +350,6 @@ public class LoginFrame extends BaseFrame {
     }
 
     /**
-     * 普通输入框外层
-     */
-    private JPanel wrapField(JTextField field) {
-        JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setBackground(Color.WHITE);
-        wrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        wrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        wrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        wrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
-        wrapper.setBorder(BorderFactory.createCompoundBorder(
-                new RoundedBorder(16, new Color(220, 224, 230), 1),
-                new EmptyBorder(0, 16, 0, 16)
-        ));
-        wrapper.add(field, BorderLayout.CENTER);
-        return wrapper;
-    }
-
-    /**
      * 密码输入框外层
      */
     private JPanel wrapPasswordField(JPasswordField field) {
@@ -357,16 +368,37 @@ public class LoginFrame extends BaseFrame {
     }
 
     /**
+     * 加载记住的邮箱，并拆分到前缀输入框和下拉框
+     */
+    private void loadRememberedEmail() {
+        // 模拟从某个存储中读取完整的邮箱（实际实现中可能需要从配置文件或系统属性读取）
+        // 这里为了演示，假设没有记住功能，如需扩展可在此处添加代码
+        // 如果后期需要接入记住我功能，可在此根据 rememberMeBox 的状态从存储中读取完整邮箱，
+        // 然后拆分为前缀和后缀进行设置。
+        // 当前版本保持原有逻辑：不主动加载（原有代码中没有自动填充 remember me 的实现，因此保持原样）
+        // 注：原有代码的 rememberMeBox 只是 UI 展示，实际并未实现持久化存储，因此此处不添加额外逻辑。
+    }
+
+    /**
+     * 获取完整的邮箱地址（前缀 + 后缀）
+     */
+    private String getFullEmail() {
+        String prefix = emailPrefixField.getText().trim();
+        String domain = (String) domainCombo.getSelectedItem();
+        return prefix + domain;
+    }
+
+    /**
      * 登录按钮事件
      */
     private class LoginAction implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            String email = emailField.getText().trim();
+            String email = getFullEmail();  // 获取完整邮箱
             String password = new String(passwordField.getPassword());
 
             // 1. 基础非空校验
-            if (email.isEmpty() || password.isEmpty()) {
+            if (emailPrefixField.getText().trim().isEmpty() || password.isEmpty()) {
                 showWarning("Please enter both email and password");
                 return;
             }
@@ -416,15 +448,7 @@ public class LoginFrame extends BaseFrame {
                         // No popup; continue to role-based routing directly.
                     }
 
-                    /*/ --- 修改开始：处理任务 1 (PENDING 状态拦截) ---
-                    if (user.getRole() == common.entity.UserRole.MO && 
-                        user.getStatus() == common.entity.AccountStatus.PENDING) {
-                        showWarning("Your account is under review. Please contact the administrator.");
-                        return; // 拦截，不让登录
-                    }
-                    // --- 修改结束 --- */  
-
-                    // 6. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
+                    // 7. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
                         new AdminHomeFrame(user).setVisible(true);
                         dispose();
@@ -508,19 +532,34 @@ public class LoginFrame extends BaseFrame {
 
     /**
      * Password recovery with backend update.
+     * 修改：使用完整的邮箱（前缀+后缀）
      */
     private void handlePasswordRecovery() {
-        String email = showInput("Enter your registered email:", "Password Recovery");
-        if (email == null || email.trim().isEmpty()) {
-            return;
+        String fullEmail = getFullEmail();
+        // 如果用户没有输入前缀，则弹出输入框让用户重新输入
+        if (emailPrefixField.getText().trim().isEmpty()) {
+            fullEmail = showInput("Enter your registered email (full address):", "Password Recovery");
+            if (fullEmail == null || fullEmail.trim().isEmpty()) {
+                return;
+            }
+        } else {
+            // 用户已输入前缀，使用组合的完整邮箱
+            // 但为了确认，可以弹出一个确认框或直接使用
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Reset password for: " + fullEmail + " ?",
+                    "Confirm Email",
+                    JOptionPane.YES_NO_OPTION);
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
         }
 
         try {
-            if (!authService.checkEmailExists(email.trim())) {
+            if (!authService.checkEmailExists(fullEmail.trim())) {
                 showError("Email is not registered.");
                 return;
             }
-            User targetUser = new UserService().findByEmail(email.trim());
+            User targetUser = new UserService().findByEmail(fullEmail.trim());
             if (targetUser != null && targetUser.getRole() == UserRole.ADMIN) {
                 showError("Admin password cannot be reset via self-service recovery.\n"
                         + "Please use secure bootstrap/login flow.");
@@ -538,7 +577,7 @@ public class LoginFrame extends BaseFrame {
                 return;
             }
 
-            authService.resetPassword(email.trim(), new String(newPasswordField.getPassword()));
+            authService.resetPassword(fullEmail.trim(), new String(newPasswordField.getPassword()));
             showInfo("Password has been reset successfully.");
         } catch (IllegalArgumentException ex) {
             showWarning(ex.getMessage());
