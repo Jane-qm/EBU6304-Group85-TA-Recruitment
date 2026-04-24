@@ -14,6 +14,7 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
@@ -30,13 +31,14 @@ import common.ui.BaseFrame;
  * 采用与 LoginFrame 完全一致的 UI 风格（圆角卡片、平滑阴影、蓝色主色调）
  *
  * @author System
- * @version 2.0
- * @update 继承 BaseFrame，支持窗口最大化/还原功能
+ * @version 2.1
+ * @update 邮箱输入改为前缀+后缀下拉选择 (@qmul.ac.uk / @bupt.edu.cn)
  */
 public class RegisterFrame extends BaseFrame {
 
     private final AuthService authService;
-    private JTextField emailField;
+    private JTextField prefixField;               // 邮箱前缀
+    private JComboBox<String> domainCombo;        // 邮箱后缀下拉
     private JPasswordField passwordField;
     private JPasswordField confirmField;
     private UserRole selectedRole = UserRole.TA; // 默认选中 TA 角色
@@ -114,14 +116,19 @@ public class RegisterFrame extends BaseFrame {
         cardPanel.add(rolePanel);
         cardPanel.add(Box.createVerticalStrut(24));
 
-        // 5. 表单输入区域
-        emailField = new JTextField();
+        // 5. 表单输入区域（邮箱改为前缀+后缀）
+        prefixField = new JTextField();
+        domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
+        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        domainCombo.setPreferredSize(new Dimension(120, 32));
+        domainCombo.setMaximumSize(new Dimension(120, 32));
+        
         passwordField = new JPasswordField();
         confirmField = new JPasswordField();
 
         cardPanel.add(createLabel("University Email"));
         cardPanel.add(Box.createVerticalStrut(8));
-        cardPanel.add(wrapField(emailField));
+        cardPanel.add(wrapEmailField(prefixField, domainCombo));
         cardPanel.add(Box.createVerticalStrut(16));
 
         cardPanel.add(createLabel("Password"));
@@ -188,7 +195,7 @@ public class RegisterFrame extends BaseFrame {
     }
 
     /**
-     * 辅助方法：给输入框套上圆角边框
+     * 辅助方法：给普通输入框套上圆角边框
      */
     private JPanel wrapField(JTextField field) {
         field.setFont(new Font("SansSerif", Font.PLAIN, 16));
@@ -203,6 +210,30 @@ public class RegisterFrame extends BaseFrame {
                 new EmptyBorder(0, 16, 0, 16) // 内边距
         ));
         wrapper.add(field, BorderLayout.CENTER);
+        return wrapper;
+    }
+
+    /**
+     * 专门用于邮箱输入框的包装方法：前缀文本框 + 后缀下拉，共用圆角边框
+     */
+    private JPanel wrapEmailField(JTextField prefixField, JComboBox<String> domainCombo) {
+        prefixField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        prefixField.setBorder(new EmptyBorder(0, 0, 0, 0));
+
+        JPanel emailPanel = new JPanel(new BorderLayout(8, 0));
+        emailPanel.setOpaque(false);
+        emailPanel.add(prefixField, BorderLayout.CENTER);
+        emailPanel.add(domainCombo, BorderLayout.EAST);
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Color.WHITE);
+        wrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        wrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        wrapper.setBorder(BorderFactory.createCompoundBorder(
+                new LoginFrame.RoundedBorder(16, new Color(220, 224, 230), 1),
+                new EmptyBorder(0, 16, 0, 16)
+        ));
+        wrapper.add(emailPanel, BorderLayout.CENTER);
         return wrapper;
     }
 
@@ -240,12 +271,14 @@ public class RegisterFrame extends BaseFrame {
      * 处理注册提交逻辑
      */
     private void handleRegister() {
-        String email = emailField.getText().trim();
+        String prefix = prefixField.getText().trim();
+        String domain = (String) domainCombo.getSelectedItem();
+        String email = prefix + domain;                 // 拼接完整邮箱
         String pwd = new String(passwordField.getPassword());
         String confirm = new String(confirmField.getPassword());
 
         // 基础表单校验
-        if (email.isEmpty() || pwd.isEmpty() || confirm.isEmpty()) {
+        if (prefix.isEmpty() || pwd.isEmpty() || confirm.isEmpty()) {
             showWarning("All fields are required.");
             return;
         }

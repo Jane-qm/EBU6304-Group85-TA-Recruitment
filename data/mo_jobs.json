@@ -75,5 +75,16 @@
     "weeklyHours": 1,
     "status": "WITHDRAWN",
     "createdAt": "2026-04-11T21:44:49.8417463"
+  },
+  {
+    "jobId": 2008,
+    "moUserId": 100003,
+    "moduleCode": "EBU6304",
+    "title": "Soft engineering",
+    "description": "Skills: patience\nHeadcount: 6\nDeadline: 2026-05-01\nDetails: nothing else",
+    "requiredSkills": [],
+    "weeklyHours": 6,
+    "status": "OPEN",
+    "createdAt": "2026-04-23T09:30:12.4890765"
   }
 ]

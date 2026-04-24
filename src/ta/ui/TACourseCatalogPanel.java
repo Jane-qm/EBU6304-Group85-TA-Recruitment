@@ -109,6 +109,28 @@ public class TACourseCatalogPanel extends JPanel {
         return scrollPane;
     }
     
+    /**
+     * 从 job 的 description 中解析 deadline 字符串
+     * description 格式示例: "Skills: ...\nHeadcount: ...\nDeadline: 2026-05-01\nDetails: ..."
+     */
+    private String parseDeadlineFromDescription(MOJob job) {
+        String desc = job.getDescription();
+        if (desc == null) return "Not set";
+        // 查找 "Deadline: " 行
+        String[] lines = desc.split("\n");
+        for (String line : lines) {
+            if (line.trim().startsWith("Deadline:")) {
+                String deadlinePart = line.substring(line.indexOf("Deadline:") + 9).trim();
+                return deadlinePart.isEmpty() ? "Not set" : deadlinePart;
+            }
+        }
+        // 如果 description 中没有，则使用 applicationDeadline 字段（如果有）
+        if (job.getApplicationDeadline() != null) {
+            return job.getApplicationDeadline().toLocalDate().toString();
+        }
+        return "Not set";
+    }
+    
     private JScrollPane createCoursesTable() {
         String[] columns = {"Course Name", "Module Code", "Hours/Week", "Deadline", "Detail", "Apply"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -189,8 +211,7 @@ public class TACourseCatalogPanel extends JPanel {
         availableJobs = applicationController.getAvailableJobs(ta.getUserId());
 
         for (MOJob job : availableJobs) {
-            String deadlineText = job.getApplicationDeadline() != null ? 
-                job.getApplicationDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "Not set";
+            String deadlineText = parseDeadlineFromDescription(job);
             
             tableModel.addRow(new Object[]{
                     job.getTitle(),
@@ -248,8 +269,7 @@ public class TACourseCatalogPanel extends JPanel {
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
         
         infoPanel.add(createInfoLabel("Application Deadline:"));
-        String deadlineText = job.getApplicationDeadline() != null ? 
-            job.getApplicationDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Not set";
+        String deadlineText = parseDeadlineFromDescription(job);
         infoPanel.add(createValueLabel(deadlineText));
         
         infoPanel.add(createInfoLabel("Status:"));

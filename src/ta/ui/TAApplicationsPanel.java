@@ -13,6 +13,7 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;          // <-- Added missing import
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -36,7 +37,7 @@ import ta.ui.components.StatusCellRenderer;
  * TA 我的申请面板
  * 显示所有申请记录，支持取消申请、查看详情、响应 Offer
  * 
- * @version 3.0 - 合并 Offer 功能，保留完整 UI
+ * @version 3.1 - 修复 Offer 响应按钮显示逻辑，确保刷新后正确更新
  */
 public class TAApplicationsPanel extends JPanel {
     
@@ -77,7 +78,16 @@ public class TAApplicationsPanel extends JPanel {
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         titleLabel.setForeground(new Color(30, 35, 45));
         
+        // 添加刷新按钮
+        JButton refreshBtn = new JButton("⟳ Refresh");
+        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        refreshBtn.setBackground(PRIMARY_BLUE);
+        refreshBtn.setForeground(Color.WHITE);
+        refreshBtn.setFocusPainted(false);
+        refreshBtn.addActionListener(e -> refresh());
+        
         panel.add(titleLabel, BorderLayout.WEST);
+        panel.add(refreshBtn, BorderLayout.EAST);
         
         return panel;
     }
@@ -99,7 +109,6 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private JScrollPane createApplicationsTable() {
-        // 5列：课程、状态、申请日期、详情、操作1、操作2
         String[] columns = {"Course", "Status", "Applied Date", "Detail", "", ""};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -117,7 +126,6 @@ public class TAApplicationsPanel extends JPanel {
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
         applicationsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         
-        // 设置渲染器
         applicationsTable.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
         applicationsTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
         applicationsTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
@@ -133,7 +141,6 @@ public class TAApplicationsPanel extends JPanel {
                     TAApplication app = applications.get(row);
                     
                     if (col == 3) {
-                        // 详情按钮
                         showApplicationDetailDialog(app);
                     } else if (col == 4) {
                         String action = (String) applicationsTable.getValueAt(row, 4);
@@ -158,7 +165,6 @@ public class TAApplicationsPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
-        // 设置列宽
         applicationsTable.getColumnModel().getColumn(0).setPreferredWidth(350);
         applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(120);
         applicationsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
@@ -187,7 +193,6 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private void handleAcceptOffer(TAApplication app) {
-        // 检查是否有有效 Offer
         if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
             JOptionPane.showMessageDialog(this, 
                 "No pending offer for this application.",
@@ -205,7 +210,7 @@ public class TAApplicationsPanel extends JPanel {
         int confirm = JOptionPane.showConfirmDialog(this,
             "Do you want to ACCEPT this offer?\n\n" +
             "Course: " + applicationController.getCourseName(app.getJobId()) + "\n" +
-            "Offered Hours: " + (app.getOfferedHours() != null ? app.getOfferedHours() : 0) + " hours\n\n" +
+            "Offered Hours: " + (app.getOfferedHours() != null ? app.getOfferedHours() : 0) + " hours/week\n\n" +
             "This action cannot be undone.",
             "Confirm Accept Offer",
             JOptionPane.YES_NO_OPTION,
@@ -224,7 +229,6 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private void handleRejectOffer(TAApplication app) {
-        // 检查是否有有效 Offer
         if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
             JOptionPane.showMessageDialog(this, 
                 "No pending offer for this application.",
@@ -315,7 +319,6 @@ public class TAApplicationsPanel extends JPanel {
         statusInnerPanel.add(statusValueLabel);
         statusPanel.add(statusInnerPanel, BorderLayout.WEST);
         
-        // 添加 Offer 信息（如果有）
         if (app.getOfferedHours() != null) {
             JPanel offerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             offerPanel.setBackground(new Color(248, 250, 252));
@@ -410,11 +413,9 @@ public class TAApplicationsPanel extends JPanel {
             String action2 = "—";
             
             if (ApplicationStatus.isCancellable(app.getStatus())) {
-                // 可取消状态：显示 Cancel 按钮
                 action1 = "Cancel";
                 action2 = "—";
             } else if (ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
-                // Offer 已发送状态：显示 Accept 和 Reject 按钮
                 if (app.isOfferExpired()) {
                     action1 = "Expired";
                     action2 = "—";

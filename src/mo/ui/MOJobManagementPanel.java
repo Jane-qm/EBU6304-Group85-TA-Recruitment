@@ -1,6 +1,5 @@
 package mo.ui;
 
-import common.entity.MO;
 import common.entity.MOJob;
 import common.entity.User;
 import common.service.MOJobService;
@@ -9,6 +8,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -17,20 +18,21 @@ import java.util.stream.Collectors;
 /**
  * MO job management panel.
  *
- * @version 2.0
+ * @version 3.0
  * @contributor Jiaze Wang
  * @update
  * - Added deadline format validation before job save
  * - Delegated application cycle enforcement to MOJobService
- * - Preserved the existing UI layout and description encoding format
+ * - Simplified table view: only Module Code, Course Title, Headcount, Deadline + Detail button
+ * - Added detail dialog to show full job information
  */
 public class MOJobManagementPanel extends JPanel {
-    private final User currentUser;//记录当前登录的模块负责人用户对象，用于权限控制和数据过滤
-    private final MOJobService jobService = new MOJobService();//职位管理服务实例，处理与职位相关的所有业务逻辑
-    private JTable jobTable;//用于显示职位列表的表格组件
-    private DefaultTableModel tableModel;//表格的数据模型，控制数据的展示和编辑行为
+    private final User currentUser;
+    private final MOJobService jobService = new MOJobService();
+    private JTable jobTable;
+    private DefaultTableModel tableModel;
+    private List<MOJob> currentJobs;   // 存储当前显示的职位列表，与表格行对应
 
-    //接收当前用户对象并存储
     public MOJobManagementPanel(User currentUser) {
         this.currentUser = currentUser;
         setLayout(new BorderLayout(20, 20));
@@ -42,44 +44,38 @@ public class MOJobManagementPanel extends JPanel {
         loadJobData();
     }
 
-    //创建标题面板，使用边界布局
     private void initHeader() {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
 
         JLabel titleLabel = new JLabel("Manage Course Jobs");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         headerPanel.add(titleLabel, BorderLayout.WEST);
 
-        //创建操作按钮面板，使用流式布局并右对齐
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         actionPanel.setOpaque(false);
 
-        //创建"发布新职位"按钮
-        JButton postJobBtn = new JButton("+ Post New Job");
+        JButton postJobBtn = createStyledButton("+ Post New Job", new Color(59, 130, 246));
         postJobBtn.setBackground(new Color(59, 130, 246));
-        postJobBtn.setForeground(Color.BLUE);
+        //postJobBtn.setForeground(Color.WHITE);
         postJobBtn.setFocusPainted(false);
         postJobBtn.addActionListener(e -> showJobDialog(null));
 
-        //创建"编辑选中"按钮
-        JButton editJobBtn = new JButton("Edit Selected");
+        JButton editJobBtn = createStyledButton("Edit Selected", new Color(245, 158, 11));
         editJobBtn.setBackground(new Color(245, 158, 11));
-        editJobBtn.setForeground(Color.ORANGE);
+        //editJobBtn.setForeground(Color.WHITE);
         editJobBtn.setFocusPainted(false);
         editJobBtn.addActionListener(e -> editSelectedJob());
 
-        //创建"撤回选中"按钮
-        JButton withdrawJobBtn = new JButton("Withdraw Selected");
+        JButton withdrawJobBtn = createStyledButton("Withdraw Selected", new Color(239, 68, 68));
         withdrawJobBtn.setBackground(new Color(239, 68, 68));
-        withdrawJobBtn.setForeground(Color.RED);
+        //withdrawJobBtn.setForeground(Color.WHITE);
         withdrawJobBtn.setFocusPainted(false);
         withdrawJobBtn.addActionListener(e -> withdrawSelectedJob());
 
-        // MO-009.1: Close Recruitment button
-        JButton closeJobBtn = new JButton("Close Recruitment");
+        JButton closeJobBtn = createStyledButton("Close Recruitment", new Color(107, 114, 128));
         closeJobBtn.setBackground(new Color(107, 114, 128));
-        closeJobBtn.setForeground(new Color(55, 65, 81));
+        //closeJobBtn.setForeground(Color.WHITE);
         closeJobBtn.setFocusPainted(false);
         closeJobBtn.setToolTipText("Stop accepting new applications for the selected job");
         closeJobBtn.addActionListener(e -> closeSelectedJob());
@@ -90,12 +86,25 @@ public class MOJobManagementPanel extends JPanel {
         actionPanel.add(postJobBtn);
 
         headerPanel.add(actionPanel, BorderLayout.EAST);
-
         add(headerPanel, BorderLayout.NORTH);
     }
 
+    private JButton createStyledButton(String text, Color color) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SansSerif", Font.BOLD, 13));
+        button.setForeground(color);
+        button.setBackground(null);
+        button.setOpaque(false);
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(true);
+        button.setBorder(BorderFactory.createLineBorder(color, 1));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return button;
+    }
     private void initTable() {
-        String[] columns = {"Job ID", "Module Code", "Course Title", "Skills", "Headcount", "Deadline", "Weekly Hrs", "Status", "Created At"};
+        // 精简列：Module Code, Course Title, Headcount, Deadline, Detail (按钮)
+        String[] columns = {"Module Code", "Course Title", "Headcount", "Deadline", "Detail"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -103,15 +112,30 @@ public class MOJobManagementPanel extends JPanel {
             }
         };
         jobTable = new JTable(tableModel);
-        jobTable.setRowHeight(30);
+        jobTable.setRowHeight(40);
         jobTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 14));
-        jobTable.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        jobTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
         jobTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        jobTable.getColumnModel().getColumn(0).setPreferredWidth(60);
+        // 设置列宽
+        jobTable.getColumnModel().getColumn(0).setPreferredWidth(120);
+        jobTable.getColumnModel().getColumn(1).setPreferredWidth(250);
+        jobTable.getColumnModel().getColumn(2).setPreferredWidth(80);
         jobTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-        jobTable.getColumnModel().getColumn(4).setPreferredWidth(80);
-        jobTable.getColumnModel().getColumn(5).setPreferredWidth(100);
+        jobTable.getColumnModel().getColumn(4).setPreferredWidth(60);
+
+        // 鼠标监听处理 Detail 按钮点击
+        jobTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int row = jobTable.rowAtPoint(e.getPoint());
+                int col = jobTable.columnAtPoint(e.getPoint());
+                if (row >= 0 && col == 4) { // Detail 列
+                    MOJob job = currentJobs.get(row);
+                    showDetailDialog(job);
+                }
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(jobTable);
         scrollPane.getViewport().setBackground(Color.WHITE);
@@ -119,15 +143,8 @@ public class MOJobManagementPanel extends JPanel {
     }
 
     /**
-     * 【新增辅助方法】：用于把拼凑在 Description 里的信息拆解出来
-     * 返回一个数组: [0]=Skills, [1]=Headcount, [2]=Deadline, [3]=Details
-     * 初始化数组，如果描述为空，数组最后一个元素为空字符串，否则为原始描述
-       检查描述是否以 "Skills:" 开头（即是否符合特定格式）
-        如果是，尝试用换行符 \n分割字符串，最多分割成 4 部分
-        从每行中移除前缀标签（如 "Skills: "）并去除空格
-        如果解析失败，捕获异常但不处理，保持数组初始值
+     * 解析 description 字段中的信息
      */
-
     private String[] parseDescription(String desc) {
         String[] parsed = new String[]{"", "", "", desc != null ? desc : ""};
         if (desc != null && desc.startsWith("Skills:")) {
@@ -144,33 +161,59 @@ public class MOJobManagementPanel extends JPanel {
         return parsed;
     }
 
-    //清空表格现有数据，从服务获取所有职位，使用流式 API 过滤出当前 MO 用户发布的职位，将过滤结果收集到列表中
     private void loadJobData() {
         tableModel.setRowCount(0);
-        List<MOJob> myJobs = jobService.listAll().stream()
+        currentJobs = jobService.listAll().stream()
                 .filter(j -> j.getMoUserId().equals(currentUser.getUserId()))
                 .collect(Collectors.toList());
 
-        //遍历每个职位对象，使用 parseDescription()方法解析职位描述，将职位数据添加到表格模型中，对应各列：
-        for (MOJob job : myJobs) {
+        for (MOJob job : currentJobs) {
             String[] parsedDesc = parseDescription(job.getDescription());
+            String headcount = parsedDesc[1].isEmpty() ? "N/A" : parsedDesc[1];
+            String deadline = parsedDesc[2].isEmpty() ? "N/A" : parsedDesc[2];
+
             tableModel.addRow(new Object[]{
-                    job.getJobId(),
                     job.getModuleCode(),
                     job.getTitle(),
-                    parsedDesc[0],
-                    parsedDesc[1],
-                    parsedDesc[2],
-                    job.getWeeklyHours(),
-                    job.getStatus(),
-                    job.getCreatedAt() != null ? job.getCreatedAt().toLocalDate() : "N/A"
+                    headcount,
+                    deadline,
+                    "🔍 Detail"
             });
         }
     }
 
     /**
-     * 统一的新增/编辑弹窗
-     * @param existingJob 如果为 null 则表示发布新职位，如果不为 null 则表示编辑
+     * 显示职位详细信息弹窗
+     */
+    private void showDetailDialog(MOJob job) {
+        String[] parsedDesc = parseDescription(job.getDescription());
+        StringBuilder info = new StringBuilder();
+        info.append("Job ID: ").append(job.getJobId()).append("\n");
+        info.append("Module Code: ").append(job.getModuleCode()).append("\n");
+        info.append("Course Title: ").append(job.getTitle()).append("\n");
+        info.append("Weekly Hours: ").append(job.getWeeklyHours()).append("\n");
+        info.append("Headcount: ").append(parsedDesc[1].isEmpty() ? "N/A" : parsedDesc[1]).append("\n");
+        info.append("Deadline: ").append(parsedDesc[2].isEmpty() ? "N/A" : parsedDesc[2]).append("\n");
+        info.append("Status: ").append(job.getStatus()).append("\n");
+        info.append("Skills: ").append(parsedDesc[0].isEmpty() ? "Not specified" : parsedDesc[0]).append("\n");
+        info.append("Created At: ").append(job.getCreatedAt() != null ? job.getCreatedAt().toLocalDate() : "N/A").append("\n");
+        info.append("\n--- Detailed Description ---\n");
+        info.append(parsedDesc[3].isEmpty() ? "No description" : parsedDesc[3]);
+
+        JTextArea textArea = new JTextArea(info.toString());
+        textArea.setEditable(false);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
+        textArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(500, 400));
+
+        JOptionPane.showMessageDialog(this, scrollPane,
+                "Job Details - " + job.getModuleCode(),
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * 统一的新增/编辑弹窗 (保持不变)
      */
     private void showJobDialog(MOJob existingJob) {
         boolean isEdit = (existingJob != null);
@@ -211,11 +254,9 @@ public class MOJobManagementPanel extends JPanel {
         panel.add(new JLabel("Detailed Description:"));
         panel.add(new JScrollPane(descField));
 
-        //根据模式设置对话框标题，显示确认对话框，包含输入面板和确定/取消按钮，获取用户选择结果
         String dialogTitle = isEdit ? "Edit Job" : "Post New Job";
         int result = JOptionPane.showConfirmDialog(this, panel, dialogTitle, JOptionPane.OK_CANCEL_OPTION);
 
-        //如果用户点击确定，获取并验证截止日期：检查是否为空；尝试解析为 LocalDate以验证格式（注释说明这是新增的验证）
         if (result == JOptionPane.OK_OPTION) {
             try {
                 String deadlineText = deadlineField.getText().trim();
@@ -226,19 +267,14 @@ public class MOJobManagementPanel extends JPanel {
                             JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-
-                // Validate format early for clearer UI feedback.
                 LocalDate.parse(deadlineText);
 
-                //根据模式决定保存对象，如果是新增模式，设置用户ID和初始状态为"OPEN"
                 MOJob jobToSave = isEdit ? existingJob : new MOJob();
-
                 if (!isEdit) {
                     jobToSave.setMoUserId(currentUser.getUserId());
                     jobToSave.setStatus("OPEN");
                 }
 
-                //设置职位的基本信息，注意：每周工时需要转换为整数，如果格式错误会抛出异常
                 jobToSave.setModuleCode(moduleCodeField.getText().trim());
                 jobToSave.setTitle(titleField.getText().trim());
                 jobToSave.setWeeklyHours(Integer.parseInt(hoursField.getText().trim()));
@@ -252,7 +288,6 @@ public class MOJobManagementPanel extends JPanel {
                 );
                 jobToSave.setDescription(formattedDesc);
 
-                //调用服务保存职位，重新加载表格数据，显示成功消息
                 jobService.createOrUpdate(jobToSave);
                 loadJobData();
                 JOptionPane.showMessageDialog(this, isEdit ? "Job updated successfully!" : "Job posted successfully!");
@@ -275,44 +310,22 @@ public class MOJobManagementPanel extends JPanel {
         }
     }
 
-    /**
-     * 编辑选中的职位
-     */
     private void editSelectedJob() {
-        //获取当前选中的行索引
         int selectedRow = jobTable.getSelectedRow();
-        //如果没有选中任何行（索引为 -1），显示警告并返回
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Please select a job to edit.", "Warning", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        //从表格模型的第一列获取职位ID
-        Long jobId = (Long) tableModel.getValueAt(selectedRow, 0);
-
-        //从服务获取的所有职位中查找匹配的职位对象
-        MOJob jobToEdit = jobService.listAll().stream()
-                .filter(j -> j.getJobId().equals(jobId))
-                .findFirst()
-                .orElse(null);
-
-        //如果找到职位，调用 showJobDialog()进入编辑模式；如果未找到，显示错误信息
-        if (jobToEdit != null) {
-            showJobDialog(jobToEdit);
-        } else {
-            JOptionPane.showMessageDialog(this, "Error finding job data.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
+        MOJob jobToEdit = currentJobs.get(selectedRow);
+        showJobDialog(jobToEdit);
     }
 
-    /**
-     * 撤回选中的职位
-     */
     private void withdrawSelectedJob() {
         int selectedRow = jobTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Please select a job to withdraw.", "Warning", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        //获取当前选中的行索引，如果没有选中任何行，显示警告并返回
 
         int confirm = JOptionPane.showConfirmDialog(
                 this,
@@ -320,36 +333,16 @@ public class MOJobManagementPanel extends JPanel {
                 "Confirm Withdraw",
                 JOptionPane.YES_NO_OPTION
         );
-        //显示确认对话框，询问用户是否确定要撤回；包含撤回的后果说明："申请者将无法再申请该职位"；如果用户选择"是"，继续执行
 
         if (confirm == JOptionPane.YES_OPTION) {
-            //从表格模型获取职位ID
-            Long jobId = (Long) tableModel.getValueAt(selectedRow, 0);
-
-            //从服务获取职位对象；将职位状态设置为"WITHDRAWN"（已撤回）；保存更改
-            MOJob jobToWithdraw = jobService.listAll().stream()
-                    .filter(j -> j.getJobId().equals(jobId))
-                    .findFirst()
-                    .orElse(null);
-
-            if (jobToWithdraw != null) {
-                jobToWithdraw.setStatus("WITHDRAWN");
-                jobService.createOrUpdate(jobToWithdraw);
-                loadJobData();
-                JOptionPane.showMessageDialog(this, "Job has been withdrawn.");
-            }
+            MOJob jobToWithdraw = currentJobs.get(selectedRow);
+            jobToWithdraw.setStatus("WITHDRAWN");
+            jobService.createOrUpdate(jobToWithdraw);
+            loadJobData();
+            JOptionPane.showMessageDialog(this, "Job has been withdrawn.");
         }
     }
 
-    /**
-     * MO-009.1: Close recruitment for the selected job.
-     *
-     * Sets the job status to CLOSED and persists to mo_jobs.json.
-     * After closing:
-     * - The job disappears from the TA Course Catalog (listPublishedJobs only returns OPEN/PUBLISHED).
-     * - TAs can no longer submit new applications for this job.
-     * - The job remains visible here for the MO's record-keeping.
-     */
     private void closeSelectedJob() {
         int selectedRow = jobTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -359,8 +352,8 @@ public class MOJobManagementPanel extends JPanel {
             return;
         }
 
-        Long jobId = (Long) tableModel.getValueAt(selectedRow, 0);
-        String currentStatus = (String) tableModel.getValueAt(selectedRow, 7);
+        MOJob job = currentJobs.get(selectedRow);
+        String currentStatus = job.getStatus();
 
         if ("CLOSED".equalsIgnoreCase(currentStatus)) {
             JOptionPane.showMessageDialog(this,
@@ -375,12 +368,9 @@ public class MOJobManagementPanel extends JPanel {
             return;
         }
 
-        String moduleCode = (String) tableModel.getValueAt(selectedRow, 1);
-        String title      = (String) tableModel.getValueAt(selectedRow, 2);
-
         int confirm = JOptionPane.showConfirmDialog(
                 this,
-                "<html>Close recruitment for:<br><b>" + moduleCode + " — " + title + "</b>?<br><br>"
+                "<html>Close recruitment for:<br><b>" + job.getModuleCode() + " — " + job.getTitle() + "</b>?<br><br>"
                         + "TAs will no longer be able to apply for this job.<br>"
                         + "This action can only be undone by re-editing the job.</html>",
                 "Confirm Close Recruitment",
@@ -390,7 +380,7 @@ public class MOJobManagementPanel extends JPanel {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                jobService.closeJob(jobId);
+                jobService.closeJob(job.getJobId());
                 loadJobData();
                 JOptionPane.showMessageDialog(this,
                         "Recruitment closed. The job is no longer visible to TAs.",

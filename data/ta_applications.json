@@ -73,5 +73,63 @@
     "statement": "33",
     "status": "CANCELLED",
     "appliedAt": "2026-04-21T23:28:43.6352351"
+  },
+  {
+    "applicationId": 3009,
+    "taUserId": 100004,
+    "jobId": 2001,
+    "cvId": 2,
+    "statement": ".",
+    "status": "CANCELLED",
+    "appliedAt": "2026-04-23T09:33:35.8408042"
+  },
+  {
+    "applicationId": 3010,
+    "taUserId": 100004,
+    "jobId": 2001,
+    "cvId": 2,
+    "statement": "...",
+    "status": "CANCELLED",
+    "appliedAt": "2026-04-23T12:49:04.3429982"
+  },
+  {
+    "applicationId": 3011,
+    "taUserId": 100004,
+    "jobId": 2001,
+    "cvId": 2,
+    "statement": "....",
+    "status": "CANCELLED",
+    "appliedAt": "2026-04-23T13:25:35.8616444"
+  },
+  {
+    "applicationId": 3012,
+    "taUserId": 100004,
+    "jobId": 2001,
+    "cvId": 2,
+    "statement": "...",
+    "status": "SUBMITTED",
+    "appliedAt": "2026-04-23T13:46:34.3011449"
+  },
+  {
+    "applicationId": 3013,
+    "taUserId": 100005,
+    "jobId": 2001,
+    "cvId": 1,
+    "statement": "...",
+    "status": "SUBMITTED",
+    "appliedAt": "2026-04-23T16:53:38.88789"
+  },
+  {
+    "applicationId": 3014,
+    "taUserId": 100005,
+    "jobId": 2008,
+    "cvId": 1,
+    "statement": "...",
+    "status": "HIRED",
+    "appliedAt": "2026-04-23T16:53:52.7520079",
+    "offeredHours": 6,
+    "offerSentAt": "2026-04-23T17:15:11.297481",
+    "offerExpiryAt": "2026-04-30T17:15:11.297481",
+    "respondedAt": "2026-04-23T17:16:30.2298776"
   }
 ]
