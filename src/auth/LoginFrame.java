@@ -4,10 +4,29 @@ import common.entity.User;
 import common.entity.UserRole;
 import common.service.PermissionService;
 import common.service.UserService;
-import javax.swing.*;
+import common.ui.BaseFrame;
+import mo.ui.MODashboardFrame;
+import ta.ui.TAMainFrame;
+
+import javax.imageio.ImageIO;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.WindowConstants;
 import javax.swing.border.AbstractBorder;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -15,129 +34,92 @@ import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
+import java.awt.Image;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
-import javax.swing.JToggleButton;
-import javax.swing.border.AbstractBorder;
-import javax.swing.border.EmptyBorder;
-
-import common.ui.BaseFrame;
-import ta.ui.TAMainFrame;
-
-import mo.ui.MODashboardFrame;   // 导入 MO 首页
-import common.entity.AccountStatus; // 导入账号状态
-
-/**
- * 登录窗口
- * Swing 实现，处理用户登录交互
- *
- * @author Can Chen
- * @version 1.0
- *
- * @author Yiping Zheng
- * @version 2.0
- * @update 添加背景图片
- * “Remember Me”（记住我） 的多选框勾选逻辑。
- * “Password Recovery”（找回密码） 的邮件验证和密码重置流程。
- *
- * @author Yiping Zheng
- * @version 3.0
- * @update
- * 修改UI界面
- *
- * @version 3.0
- * @update
- * 修改原有只弹窗拦截的逻辑，接入根据账户状态（ACTIVE/PENDING）
- * 及 PermissionService 跳转首页的功能。
- *
- * @author Can Chen
- * @version 4.0
- * @update 继承 BaseFrame，支持窗口最大化/还原功能
- *
- * @author Can Chen
- * @version 5.0
- * @update 添加 TA 登录跳转到 TAMainFrame
- *
- * @author Jiaze Wang
- * @version 6.0
- * @update Add strict super-admin access validation before routing to Admin Portal
- *
- * @author (Your Name)
- * @version 7.0
- * @update 邮箱输入改为前缀 + 后缀下拉选择 (@qmul.ac.uk / @bupt.edu.cn)
- */
-
-/**
- * 登录窗口
- * 只处理 LoginFrame 的界面和登录按钮事件
- */
 public class LoginFrame extends BaseFrame {
+    static final int FRAME_WIDTH = 1200;
+    static final int FRAME_HEIGHT = 750;
+    static final int SHELL_WIDTH = 1120;
+    static final int SHELL_HEIGHT = 640;
+    static final int BRAND_WIDTH = 560;
+    static final int FORM_WIDTH = 560;
+    static final int CONTENT_WIDTH = 380;
+    static final int FIELD_HEIGHT = 56;
 
-    private JTextField emailPrefixField;      // 邮箱前缀输入框
-    private JComboBox<String> domainCombo;    // 邮箱后缀下拉选择
+    private final AuthService authService;
+    private final UserService userService;
+    private final String prefilledAccount;
+
+    private PromptTextField accountField;
+    private JComboBox<String> domainCombo;
     private JPasswordField passwordField;
     private JCheckBox rememberMeBox;
-    private final AuthService authService;
-    private common.entity.UserRole selectedRole = common.entity.UserRole.TA;
-    private final common.entity.UserRole initialRole;
-
-    private static final int CONTENT_WIDTH = 360;
-    private static final int FIELD_HEIGHT = 56;
+    private JCheckBox showPasswordBox;
+    private JLabel helperLabel;
+    private JPanel taChip;
+    private JPanel moChip;
+    private JPanel adminChip;
+    private JLabel taChipLabel;
+    private JLabel moChipLabel;
+    private JLabel adminChipLabel;
 
     public LoginFrame() {
-        this(common.entity.UserRole.TA);
+        this(null);
     }
 
-    /** Opens the login page with the specified role tab pre-selected. */
-    public LoginFrame(common.entity.UserRole initialRole) {
-        super("TA Recruitment System - Login", 760, 820);
+    public LoginFrame(String prefilledAccount) {
+        super("TA Recruitment System - Login", FRAME_WIDTH, FRAME_HEIGHT);
         this.authService = new AuthService();
-        this.initialRole = (initialRole != null) ? initialRole : common.entity.UserRole.TA;
-        this.selectedRole = this.initialRole;
+        this.userService = new UserService();
+        this.prefilledAccount = prefilledAccount == null ? "" : prefilledAccount.trim();
         initUI();
     }
 
     @Override
     protected void initUI() {
-        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
-        // 外层背景
-        JPanel rootPanel = new JPanel(new GridBagLayout());
-        rootPanel.setBackground(new Color(245, 247, 251));
-        rootPanel.setBorder(new EmptyBorder(24, 24, 24, 24));
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        // 中间白色卡片
-        RoundedPanel cardPanel = new RoundedPanel(28, Color.WHITE);
+        JPanel rootPanel = new JPanel(new BorderLayout());
+        rootPanel.setBackground(new Color(242, 245, 250));
 
-        // 强制锁定卡片大小
-        Dimension cardSize = new Dimension(620, 760);
-        cardPanel.setPreferredSize(cardSize);
-        cardPanel.setMinimumSize(cardSize);
-        cardPanel.setMaximumSize(cardSize);
+        JPanel shellPanel = new JPanel(new BorderLayout());
+        shellPanel.setOpaque(false);
+        shellPanel.setPreferredSize(new Dimension(SHELL_WIDTH, SHELL_HEIGHT));
+        shellPanel.setMinimumSize(new Dimension(SHELL_WIDTH, SHELL_HEIGHT));
+        shellPanel.setMaximumSize(new Dimension(SHELL_WIDTH, SHELL_HEIGHT));
 
+        shellPanel.add(createBrandPanel(), BorderLayout.WEST);
+        shellPanel.add(createFormSection(), BorderLayout.CENTER);
+
+        rootPanel.add(shellPanel, BorderLayout.CENTER);
+        setContentPane(rootPanel);
+    }
+
+    private JComponent createFormSection() {
+        JPanel formSection = new JPanel(new GridBagLayout());
+        formSection.setOpaque(true);
+        formSection.setBackground(Color.WHITE);
+        formSection.setPreferredSize(new Dimension(FORM_WIDTH, SHELL_HEIGHT));
+
+        JPanel cardPanel = new JPanel();
+        cardPanel.setOpaque(false);
         cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
-        cardPanel.setBorder(new EmptyBorder(36, 36, 36, 36));
+        cardPanel.setBorder(new EmptyBorder(24, 52, 20, 52));
 
-        // 标题
         JLabel titleLabel = new JLabel("Welcome Back");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 30));
         titleLabel.setForeground(new Color(17, 24, 39));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -147,100 +129,98 @@ public class LoginFrame extends BaseFrame {
         subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         cardPanel.add(titleLabel);
-        cardPanel.add(Box.createVerticalStrut(12));
+        cardPanel.add(Box.createVerticalStrut(10));
         cardPanel.add(subtitleLabel);
-        cardPanel.add(Box.createVerticalStrut(26));
+        cardPanel.add(Box.createVerticalStrut(18));
 
-        // 顶部角色切换栏
-        JPanel rolePanel = new RoundedPanel(18, new Color(243, 246, 251));
-        rolePanel.setLayout(new GridLayout(1, 3, 10, 0));
-        rolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setPreferredSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setMinimumSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
-        rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        cardPanel.add(createFieldLabel("Email"));
+        cardPanel.add(Box.createVerticalStrut(10));
 
-        JToggleButton taTab    = createRoleTab("TA",    initialRole == common.entity.UserRole.TA);
-        JToggleButton moTab    = createRoleTab("MO",    initialRole == common.entity.UserRole.MO);
-        JToggleButton adminTab = createRoleTab("ADMIN", initialRole == common.entity.UserRole.ADMIN);
+        accountField = new PromptTextField("Enter email prefix or full email");
+        accountField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        accountField.setBorder(new EmptyBorder(0, 0, 0, 0));
 
-        ButtonGroup roleGroup = new ButtonGroup();
-        roleGroup.add(taTab);
-        roleGroup.add(moTab);
-        roleGroup.add(adminTab);
-
-        taTab.addActionListener(e -> {
-            selectedRole = common.entity.UserRole.TA;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        moTab.addActionListener(e -> {
-            selectedRole = common.entity.UserRole.MO;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        adminTab.addActionListener(e -> {
-            selectedRole = common.entity.UserRole.ADMIN;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-
-        rolePanel.add(taTab);
-        rolePanel.add(moTab);
-        rolePanel.add(adminTab);
-
-        cardPanel.add(rolePanel);
-        cardPanel.add(Box.createVerticalStrut(34));
-
-        // 邮箱区域（前缀 + 后缀下拉）
-        JLabel emailLabel = new JLabel("University Email");
-        emailLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        emailLabel.setForeground(new Color(17, 24, 39));
-        emailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        // 创建前缀输入框
-        emailPrefixField = new JTextField();
-        emailPrefixField.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        emailPrefixField.setBorder(new EmptyBorder(0, 0, 0, 0));
-
-        // 创建后缀下拉框
-        domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
+        domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn", "@test.com"});
         domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        domainCombo.setPreferredSize(new Dimension(120, FIELD_HEIGHT - 10));
-        domainCombo.setMaximumSize(new Dimension(120, FIELD_HEIGHT - 10));
+        domainCombo.setPreferredSize(new Dimension(132, FIELD_HEIGHT - 10));
+        domainCombo.setMaximumSize(new Dimension(132, FIELD_HEIGHT - 10));
+        domainCombo.addActionListener(e -> updateDetectedRole());
 
-        // 将前缀和下拉框放入一个面板
-        JPanel emailWrapper = new JPanel(new BorderLayout(8, 0));
-        emailWrapper.setBackground(Color.WHITE);
-        emailWrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        emailWrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        emailWrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
-        emailWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
-        emailWrapper.setBorder(BorderFactory.createCompoundBorder(
+        JPanel accountWrapper = new JPanel(new BorderLayout(8, 0));
+        accountWrapper.setBackground(Color.WHITE);
+        accountWrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        accountWrapper.setPreferredSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        accountWrapper.setMinimumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
+        accountWrapper.setAlignmentX(Component.CENTER_ALIGNMENT);
+        accountWrapper.setBorder(BorderFactory.createCompoundBorder(
                 new RoundedBorder(16, new Color(220, 224, 230), 1),
                 new EmptyBorder(0, 16, 0, 16)
         ));
-        emailWrapper.add(emailPrefixField, BorderLayout.CENTER);
-        emailWrapper.add(domainCombo, BorderLayout.EAST);
+        accountWrapper.add(accountField, BorderLayout.CENTER);
+        accountWrapper.add(domainCombo, BorderLayout.EAST);
 
-        cardPanel.add(emailLabel);
+        cardPanel.add(accountWrapper);
         cardPanel.add(Box.createVerticalStrut(12));
-        cardPanel.add(emailWrapper);
-        cardPanel.add(Box.createVerticalStrut(28));
 
-        // 密码
-        JLabel passwordLabel = new JLabel("Password");
-        passwordLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
-        passwordLabel.setForeground(new Color(17, 24, 39));
-        passwordLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JPanel detectedRolePanel = new JPanel();
+        detectedRolePanel.setOpaque(false);
+        detectedRolePanel.setLayout(new BoxLayout(detectedRolePanel, BoxLayout.X_AXIS));
+        detectedRolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        detectedRolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 34));
 
+        JLabel detectedLabel = new JLabel("Detected role:");
+        detectedLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        detectedLabel.setForeground(new Color(71, 85, 105));
+
+        taChip = createRoleChip("TA");
+        taChipLabel = (JLabel) taChip.getComponent(0);
+        moChip = createRoleChip("MO");
+        moChipLabel = (JLabel) moChip.getComponent(0);
+        adminChip = createRoleChip("ADMIN");
+        adminChipLabel = (JLabel) adminChip.getComponent(0);
+
+        detectedRolePanel.add(detectedLabel);
+        detectedRolePanel.add(Box.createHorizontalStrut(10));
+        detectedRolePanel.add(taChip);
+        detectedRolePanel.add(Box.createHorizontalStrut(8));
+        detectedRolePanel.add(moChip);
+        detectedRolePanel.add(Box.createHorizontalStrut(8));
+        detectedRolePanel.add(adminChip);
+
+        helperLabel = new JLabel("Enter your email prefix or full email to detect your role automatically.");
+        helperLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        helperLabel.setForeground(new Color(100, 116, 139));
+        helperLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        helperLabel.setMaximumSize(new Dimension(CONTENT_WIDTH, 38));
+
+        cardPanel.add(detectedRolePanel);
+        cardPanel.add(Box.createVerticalStrut(6));
+        cardPanel.add(helperLabel);
+        cardPanel.add(Box.createVerticalStrut(16));
+
+        JLabel passwordLabel = createFieldLabel("Password");
         passwordField = new JPasswordField();
         passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
         passwordField.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         cardPanel.add(passwordLabel);
-        cardPanel.add(Box.createVerticalStrut(12));
-        cardPanel.add(wrapPasswordField(passwordField));
-        cardPanel.add(Box.createVerticalStrut(24));
+        cardPanel.add(Box.createVerticalStrut(10));
+        cardPanel.add(wrapTextField(passwordField));
+        cardPanel.add(Box.createVerticalStrut(10));
 
-        // Remember Me + Forgot Password
+        showPasswordBox = new JCheckBox("Show password");
+        showPasswordBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        showPasswordBox.setForeground(new Color(55, 65, 81));
+        showPasswordBox.setOpaque(false);
+        showPasswordBox.setFocusPainted(false);
+        showPasswordBox.setAlignmentX(Component.CENTER_ALIGNMENT);
+        char passwordEchoChar = passwordField.getEchoChar();
+        showPasswordBox.addActionListener(e ->
+                passwordField.setEchoChar(showPasswordBox.isSelected() ? (char) 0 : passwordEchoChar)
+        );
+        cardPanel.add(showPasswordBox);
+        cardPanel.add(Box.createVerticalStrut(16));
+
         JPanel optionsPanel = new JPanel(new BorderLayout());
         optionsPanel.setOpaque(false);
         optionsPanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 36));
@@ -266,11 +246,9 @@ public class LoginFrame extends BaseFrame {
 
         optionsPanel.add(rememberMeBox, BorderLayout.WEST);
         optionsPanel.add(forgotPwdButton, BorderLayout.EAST);
-
         cardPanel.add(optionsPanel);
-        cardPanel.add(Box.createVerticalStrut(28));
+        cardPanel.add(Box.createVerticalStrut(18));
 
-        // 登录按钮
         JButton loginButton = new JButton("Sign In");
         loginButton.setFont(new Font("SansSerif", Font.BOLD, 22));
         loginButton.setForeground(Color.WHITE);
@@ -289,9 +267,8 @@ public class LoginFrame extends BaseFrame {
         loginButtonPanel.add(loginButton, BorderLayout.CENTER);
 
         cardPanel.add(loginButtonPanel);
-        cardPanel.add(Box.createVerticalStrut(34));
+        cardPanel.add(Box.createVerticalStrut(14));
 
-        // 底部注册
         JPanel registerPanel = new JPanel();
         registerPanel.setOpaque(false);
         registerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -314,45 +291,55 @@ public class LoginFrame extends BaseFrame {
 
         registerPanel.add(noAccountLabel);
         registerPanel.add(registerButton);
-
         cardPanel.add(registerPanel);
 
-        rootPanel.add(cardPanel);
-        add(rootPanel);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.NORTH;
+        formSection.add(cardPanel, gbc);
 
+        accountField.getDocument().addDocumentListener(new SimpleDocumentListener(this::updateDetectedRole));
         getRootPane().setDefaultButton(loginButton);
-
-        // 加载记住的邮箱（如果有）
-        loadRememberedEmail();
+        applyPrefilledAccount();
+        updateDetectedRole();
+        return formSection;
     }
 
-    /**
-     * 创建角色按钮
-     */
-    private JToggleButton createRoleTab(String text, boolean selected) {
-        JToggleButton button = new JToggleButton(text, selected);
-        button.setFont(new Font("SansSerif", Font.BOLD, 15));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(new RoundedBorder(14, new Color(37, 99, 235), 1));
-        button.setPreferredSize(new Dimension(100, 44));
-        button.setOpaque(true);
-
-        if (selected) {
-            button.setBackground(new Color(37, 99, 235));
-            button.setForeground(Color.WHITE);
-        } else {
-            button.setBackground(new Color(243, 246, 251));
-            button.setForeground(new Color(107, 114, 128));
-        }
-
-        return button;
+    static JComponent createBrandPanel() {
+        BrandPanel brandPanel = new BrandPanel();
+        brandPanel.setPreferredSize(new Dimension(BRAND_WIDTH, SHELL_HEIGHT));
+        brandPanel.setMinimumSize(new Dimension(BRAND_WIDTH, SHELL_HEIGHT));
+        brandPanel.setMaximumSize(new Dimension(BRAND_WIDTH, SHELL_HEIGHT));
+        return brandPanel;
     }
 
-    /**
-     * 密码输入框外层
-     */
-    private JPanel wrapPasswordField(JPasswordField field) {
+    static JPanel createFormSectionWrapper(JComponent content) {
+        JPanel formSection = new JPanel(new GridBagLayout());
+        formSection.setOpaque(true);
+        formSection.setBackground(Color.WHITE);
+        formSection.setPreferredSize(new Dimension(FORM_WIDTH, SHELL_HEIGHT));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.NORTH;
+        formSection.add(content, gbc);
+        return formSection;
+    }
+
+    static JLabel createFieldLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("SansSerif", Font.BOLD, 16));
+        label.setForeground(new Color(17, 24, 39));
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        return label;
+    }
+
+    static JPanel wrapTextField(JTextField field) {
+        field.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        field.setBorder(new EmptyBorder(0, 0, 0, 0));
+
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBackground(Color.WHITE);
         wrapper.setMaximumSize(new Dimension(CONTENT_WIDTH, FIELD_HEIGHT));
@@ -367,104 +354,147 @@ public class LoginFrame extends BaseFrame {
         return wrapper;
     }
 
-    /**
-     * 加载记住的邮箱，并拆分到前缀输入框和下拉框
-     */
-    private void loadRememberedEmail() {
-        // 模拟从某个存储中读取完整的邮箱（实际实现中可能需要从配置文件或系统属性读取）
-        // 这里为了演示，假设没有记住功能，如需扩展可在此处添加代码
-        // 如果后期需要接入记住我功能，可在此根据 rememberMeBox 的状态从存储中读取完整邮箱，
-        // 然后拆分为前缀和后缀进行设置。
-        // 当前版本保持原有逻辑：不主动加载（原有代码中没有自动填充 remember me 的实现，因此保持原样）
-        // 注：原有代码的 rememberMeBox 只是 UI 展示，实际并未实现持久化存储，因此此处不添加额外逻辑。
+    private JPanel createRoleChip(String text) {
+        JPanel chip = new RoundedPanel(16, new Color(241, 245, 249));
+        chip.setLayout(new BorderLayout());
+        chip.setBorder(new EmptyBorder(6, 14, 6, 14));
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("SansSerif", Font.BOLD, 12));
+        label.setForeground(new Color(100, 116, 139));
+        chip.add(label, BorderLayout.CENTER);
+        return chip;
     }
 
-    /**
-     * 获取完整的邮箱地址（前缀 + 后缀）
-     */
-    private String getFullEmail() {
-        String prefix = emailPrefixField.getText().trim();
-        String domain = (String) domainCombo.getSelectedItem();
-        return prefix + domain;
+    private void updateDetectedRole() {
+        String builtAccount = getBuiltAccount();
+        AccountRules.DetectedRole detectedRole = AccountRules.detectRole(builtAccount);
+
+        setChipState(taChip, taChipLabel, detectedRole == AccountRules.DetectedRole.TA);
+        setChipState(moChip, moChipLabel, detectedRole == AccountRules.DetectedRole.MO);
+        setChipState(adminChip, adminChipLabel, detectedRole == AccountRules.DetectedRole.ADMIN);
+
+        switch (detectedRole) {
+            case UNKNOWN -> setHelperMessage(
+                    "Enter your email prefix or full email to detect your role automatically.",
+                    new Color(100, 116, 139)
+            );
+            case INVALID -> setHelperMessage(
+                    "Please enter a valid email address.",
+                    new Color(220, 38, 38)
+            );
+            default -> setHelperMessage(
+                    "Detected role: " + detectedRole.name(),
+                    new Color(37, 99, 235)
+            );
+        }
     }
 
-    /**
-     * 登录按钮事件
-     */
+    private void setChipState(JPanel chip, JLabel label, boolean active) {
+        Color bg = active ? new Color(37, 99, 235) : new Color(241, 245, 249);
+        Color fg = active ? Color.WHITE : new Color(100, 116, 139);
+        if (chip instanceof RoundedPanel roundedPanel) {
+            roundedPanel.setBackgroundColor(bg);
+        } else {
+            chip.setBackground(bg);
+        }
+        label.setForeground(fg);
+        chip.repaint();
+    }
+
+    private void setHelperMessage(String text, Color color) {
+        helperLabel.setText(text);
+        helperLabel.setForeground(color);
+    }
+
+    private String getBuiltAccount() {
+        return AccountRules.buildAccount(accountField.getText(), (String) domainCombo.getSelectedItem());
+    }
+
+    private void applyPrefilledAccount() {
+        if (prefilledAccount.isEmpty()) {
+            return;
+        }
+
+        if (!prefilledAccount.contains("@")) {
+            accountField.setText(prefilledAccount);
+            return;
+        }
+
+        String[] accountParts = prefilledAccount.split("@", 2);
+        if (accountParts.length != 2) {
+            accountField.setText(prefilledAccount);
+            return;
+        }
+
+        String suffix = "@" + accountParts[1].toLowerCase();
+        if ("@qmul.ac.uk".equals(suffix) || "@bupt.edu.cn".equals(suffix) || "@test.com".equals(suffix)) {
+            accountField.setText(accountParts[0]);
+            domainCombo.setSelectedItem(suffix);
+            return;
+        }
+
+        accountField.setText(prefilledAccount);
+    }
+
     private class LoginAction implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
-            String email = getFullEmail();  // 获取完整邮箱
+            String account = getBuiltAccount();
             String password = new String(passwordField.getPassword());
+            AccountRules.DetectedRole detectedRole = AccountRules.detectRole(account);
 
-            // 1. 基础非空校验
-            if (emailPrefixField.getText().trim().isEmpty() || password.isEmpty()) {
-                showWarning("Please enter both email and password");
+            if (detectedRole == AccountRules.DetectedRole.UNKNOWN || detectedRole == AccountRules.DetectedRole.INVALID) {
+                showWarning("Please enter a valid email address.");
+                return;
+            }
+            if (password.isEmpty()) {
+                showWarning("Password must not be empty.");
                 return;
             }
 
             try {
-                // 2. 尝试登录获取用户数据
-                User user = authService.login(email, password);
+                User user = authService.login(account, password);
+                if (user == null) {
+                    showError("Login failed. Please check your account and password.");
+                    return;
+                }
 
-                if (user != null) {
-                    // 3. 校验所选角色与账户实际角色是否匹配
-                    if (user.getRole() != selectedRole) {
-                        showWarning("Role mismatch.\nAccount Role: " + user.getRole());
+                if (user.getStatus() == common.entity.AccountStatus.DISABLED) {
+                    showError(authService.getAccountStatusMessage(user));
+                    return;
+                }
+
+                if (user.getRole() == UserRole.ADMIN) {
+                    if (!userService.isStrictAdmin(user)) {
+                        showError("Only active super admin account admin@test.com can access Admin Portal.");
                         return;
                     }
-
-                    // 4. 处理被禁用 (DISABLED) 的账户
-                    if (user.getStatus() == common.entity.AccountStatus.DISABLED) {
-                        showError(authService.getAccountStatusMessage(user));
-                        return;
-                    }
-
-                    // 5. Enforce strict super-admin rule before routing to Admin Portal.
-                    if (user.getRole() == UserRole.ADMIN) {
-                        UserService userService = new UserService();
-                        if (!userService.isStrictAdmin(user)) {
-                            showError("Only active super admin account admin@test.com can access Admin Portal.");
+                    if (user.isMustChangePassword()) {
+                        String newPassword = promptMandatoryPasswordChange(user.getEmail());
+                        if (newPassword == null) {
                             return;
                         }
-                        if (user.isMustChangePassword()) {
-                            String newPassword = promptMandatoryPasswordChange(user.getEmail());
-                            if (newPassword == null) {
-                                // Explicitly block portal access until password is changed.
-                                return;
-                            }
-                            authService.resetPassword(user.getEmail(), newPassword);
-                            // Re-login with the updated password to refresh in-memory state.
-                            user = authService.login(user.getEmail(), newPassword);
-                            if (user == null) {
-                                showError("Password updated, but automatic re-login failed. Please log in again.");
-                                return;
-                            }
+                        authService.resetPassword(user.getEmail(), newPassword);
+                        user = authService.login(user.getEmail(), newPassword);
+                        if (user == null) {
+                            showError("Password updated, but automatic re-login failed. Please log in again.");
+                            return;
                         }
                     }
+                }
 
-                    // 6. Pending accounts continue directly in demo flow.
-                    if (user.getStatus() == common.entity.AccountStatus.PENDING) {
-                        // No popup; continue to role-based routing directly.
-                    }
-
-                    // 7. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
-                    if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
-                        new AdminHomeFrame(user).setVisible(true);
-                        dispose();
-                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
-                        new MODashboardFrame(user).setVisible(true);
-                        dispose();
-                    } else if (PermissionService.hasAccess(user.getRole(), UserRole.TA)) {
-                        new TAMainFrame(user).setVisible(true);
-                        dispose();
-                    } else {
-                        showInfo("Routing to " + user.getRole() + " Dashboard...");
-                        dispose();
-                    }
-
+                if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
+                    new AdminHomeFrame(user).setVisible(true);
+                    dispose();
+                } else if (PermissionService.hasAccess(user.getRole(), UserRole.MO)) {
+                    new MODashboardFrame(user).setVisible(true);
+                    dispose();
+                } else if (PermissionService.hasAccess(user.getRole(), UserRole.TA)) {
+                    new TAMainFrame(user).setVisible(true);
+                    dispose();
                 } else {
-                    showError("Invalid email or password");
+                    showInfo("Routing to " + user.getRole() + " Dashboard...");
+                    dispose();
                 }
             } catch (Exception ex) {
                 showError("System Error: " + ex.getMessage());
@@ -472,31 +502,11 @@ public class LoginFrame extends BaseFrame {
         }
     }
 
-    private void updateRoleTabStyles(JToggleButton taTab, JToggleButton moTab, JToggleButton adminTab) {
-        applyRoleTabStyle(taTab, taTab.isSelected());
-        applyRoleTabStyle(moTab, moTab.isSelected());
-        applyRoleTabStyle(adminTab, adminTab.isSelected());
-    }
-
-    private void applyRoleTabStyle(JToggleButton button, boolean selected) {
-        if (selected) {
-            button.setBackground(new Color(37, 99, 235));
-            button.setForeground(Color.WHITE);
-        } else {
-            button.setBackground(new Color(243, 246, 251));
-            button.setForeground(new Color(107, 114, 128));
-        }
-    }
-
-    /**
-     * Forces first-login admin password update before opening AdminHomeFrame.
-     * Returning null means the user cancelled or failed validation.
-     */
-    private String promptMandatoryPasswordChange(String email) {
+    private String promptMandatoryPasswordChange(String account) {
         JPasswordField pwd1 = new JPasswordField();
         JPasswordField pwd2 = new JPasswordField();
         Object[] content = {
-                "First login security setup for " + email,
+                "First login security setup for " + account,
                 "Please set a new password:",
                 pwd1,
                 "Confirm new password:",
@@ -513,6 +523,7 @@ public class LoginFrame extends BaseFrame {
             showWarning("You must change the bootstrap password before entering Admin Portal.");
             return null;
         }
+
         String p1 = new String(pwd1.getPassword());
         String p2 = new String(pwd2.getPassword());
         if (p1.isBlank() || p2.isBlank()) {
@@ -530,39 +541,33 @@ public class LoginFrame extends BaseFrame {
         return p1;
     }
 
-    /**
-     * Password recovery with backend update.
-     * 修改：使用完整的邮箱（前缀+后缀）
-     */
     private void handlePasswordRecovery() {
-        String fullEmail = getFullEmail();
-        // 如果用户没有输入前缀，则弹出输入框让用户重新输入
-        if (emailPrefixField.getText().trim().isEmpty()) {
-            fullEmail = showInput("Enter your registered email (full address):", "Password Recovery");
-            if (fullEmail == null || fullEmail.trim().isEmpty()) {
+        String account = getBuiltAccount();
+        if (account.isEmpty()) {
+            account = showInput("Enter your registered email:", "Password Recovery");
+            if (account == null || account.trim().isEmpty()) {
                 return;
             }
         } else {
-            // 用户已输入前缀，使用组合的完整邮箱
-            // 但为了确认，可以弹出一个确认框或直接使用
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "Reset password for: " + fullEmail + " ?",
-                    "Confirm Email",
-                    JOptionPane.YES_NO_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Reset password for: " + account + " ?",
+                    "Confirm Account",
+                    JOptionPane.YES_NO_OPTION
+            );
             if (confirm != JOptionPane.YES_OPTION) {
                 return;
             }
         }
 
         try {
-            if (!authService.checkEmailExists(fullEmail.trim())) {
-                showError("Email is not registered.");
+            if (!authService.checkEmailExists(account.trim())) {
+                showError("Account is not registered.");
                 return;
             }
-            User targetUser = new UserService().findByEmail(fullEmail.trim());
+            User targetUser = userService.findByEmail(account.trim());
             if (targetUser != null && targetUser.getRole() == UserRole.ADMIN) {
-                showError("Admin password cannot be reset via self-service recovery.\n"
-                        + "Please use secure bootstrap/login flow.");
+                showError("Admin password cannot be reset via self-service recovery.\nPlease use secure bootstrap/login flow.");
                 return;
             }
 
@@ -577,7 +582,7 @@ public class LoginFrame extends BaseFrame {
                 return;
             }
 
-            authService.resetPassword(fullEmail.trim(), new String(newPasswordField.getPassword()));
+            authService.resetPassword(account.trim(), new String(newPasswordField.getPassword()));
             showInfo("Password has been reset successfully.");
         } catch (IllegalArgumentException ex) {
             showWarning(ex.getMessage());
@@ -586,17 +591,18 @@ public class LoginFrame extends BaseFrame {
         }
     }
 
-    /**
-     * 圆角面板
-     */
     static class RoundedPanel extends JPanel {
-        private final int radius;
-        private final Color backgroundColor;
+        private int radius;
+        private Color backgroundColor;
 
-        public RoundedPanel(int radius, Color backgroundColor) {
+        RoundedPanel(int radius, Color backgroundColor) {
             this.radius = radius;
             this.backgroundColor = backgroundColor;
             setOpaque(false);
+        }
+
+        void setBackgroundColor(Color backgroundColor) {
+            this.backgroundColor = backgroundColor;
         }
 
         @Override
@@ -610,15 +616,12 @@ public class LoginFrame extends BaseFrame {
         }
     }
 
-    /**
-     * 圆角边框
-     */
     static class RoundedBorder extends AbstractBorder {
         private final int radius;
         private final Color color;
         private final int thickness;
 
-        public RoundedBorder(int radius, Color color, int thickness) {
+        RoundedBorder(int radius, Color color, int thickness) {
             this.radius = radius;
             this.color = color;
             this.thickness = thickness;
@@ -655,6 +658,165 @@ public class LoginFrame extends BaseFrame {
             insets.top = radius / 2;
             insets.bottom = radius / 2;
             return insets;
+        }
+    }
+
+    static class BrandPanel extends JPanel {
+        private static final Color OVERLAY_TOP = new Color(17, 57, 156, 150);
+        private static final Color OVERLAY_BOTTOM = new Color(37, 99, 235, 120);
+        private final BufferedImage backgroundImage;
+
+        BrandPanel() {
+            setOpaque(false);
+            backgroundImage = loadBackgroundImage();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
+            paintCoverImage(g2);
+
+            GradientPaint overlay = new GradientPaint(
+                    0, 0, OVERLAY_TOP,
+                    0, getHeight(), OVERLAY_BOTTOM
+            );
+            g2.setPaint(overlay);
+            g2.fillRect(0, 0, getWidth(), getHeight());
+
+            paintBrandContent(g2);
+            g2.dispose();
+        }
+
+        private void paintCoverImage(Graphics2D g2) {
+            if (backgroundImage == null) {
+                g2.setColor(new Color(30, 64, 175));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                return;
+            }
+
+            double scale = Math.max(
+                    (double) getWidth() / backgroundImage.getWidth(),
+                    (double) getHeight() / backgroundImage.getHeight()
+            );
+            int drawWidth = (int) Math.ceil(backgroundImage.getWidth() * scale);
+            int drawHeight = (int) Math.ceil(backgroundImage.getHeight() * scale);
+            int x = (getWidth() - drawWidth) / 2;
+            int y = (getHeight() - drawHeight) / 2;
+            Image scaled = backgroundImage.getScaledInstance(drawWidth, drawHeight, Image.SCALE_SMOOTH);
+            g2.drawImage(scaled, x, y, null);
+        }
+
+        private void paintBrandContent(Graphics2D g2) {
+            int paddingX = 42;
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("SansSerif", Font.BOLD, 24));
+            g2.drawString("TA Recruit", paddingX, 58);
+
+            g2.setFont(new Font("SansSerif", Font.BOLD, 38));
+            drawWrappedText(
+                    g2,
+                    "Professional TA Recruitment System",
+                    paddingX,
+                    getHeight() / 2 - 90,
+                    getWidth() - 84,
+                    50
+            );
+
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 17));
+            g2.setColor(new Color(255, 255, 255, 225));
+            drawWrappedText(
+                    g2,
+                    "Streamline the teaching assistant recruitment process. Apply, review, and manage TA positions all in one place.",
+                    paddingX,
+                    getHeight() / 2 + 20,
+                    getWidth() - 96,
+                    30
+            );
+
+            g2.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            g2.drawString("© 2026 University TA Recruitment Platform", paddingX, getHeight() - 34);
+        }
+
+        private void drawWrappedText(Graphics2D g2, String text, int x, int startY, int maxWidth, int lineHeight) {
+            String[] words = text.split(" ");
+            StringBuilder line = new StringBuilder();
+            int y = startY;
+            for (String word : words) {
+                String candidate = line.length() == 0 ? word : line + " " + word;
+                if (g2.getFontMetrics().stringWidth(candidate) > maxWidth && line.length() > 0) {
+                    g2.drawString(line.toString(), x, y);
+                    line = new StringBuilder(word);
+                    y += lineHeight;
+                } else {
+                    line = new StringBuilder(candidate);
+                }
+            }
+            if (line.length() > 0) {
+                g2.drawString(line.toString(), x, y);
+            }
+        }
+
+        private BufferedImage loadBackgroundImage() {
+            File file = new File("src/images/background.png");
+            if (!file.exists()) {
+                return null;
+            }
+            try {
+                return ImageIO.read(file);
+            } catch (IOException ex) {
+                return null;
+            }
+        }
+    }
+
+    static class PromptTextField extends JTextField {
+        private final String placeholder;
+
+        PromptTextField(String placeholder) {
+            this.placeholder = placeholder;
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (!getText().isEmpty()) {
+                return;
+            }
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.setColor(new Color(148, 163, 184));
+            g2.setFont(getFont());
+            Insets insets = getInsets();
+            int y = (getHeight() - g2.getFontMetrics().getHeight()) / 2 + g2.getFontMetrics().getAscent();
+            g2.drawString(placeholder, insets.left + 2, y);
+            g2.dispose();
+        }
+    }
+
+    static class SimpleDocumentListener implements DocumentListener {
+        private final Runnable callback;
+
+        SimpleDocumentListener(Runnable callback) {
+            this.callback = callback;
+        }
+
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            SwingUtilities.invokeLater(callback);
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            SwingUtilities.invokeLater(callback);
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            SwingUtilities.invokeLater(callback);
         }
     }
 }
