@@ -116,7 +116,7 @@
     "title": "Offer Accepted",
     "content": "TA has accepted the offer for EBU6304 - Soft engineering",
     "type": "OFFER_RESPONSE",
-    "read": false,
+    "read": true,
     "createdAt": "2026-04-23T17:16:30.2308773"
   },
   {

@@ -27,27 +27,14 @@ public class AuthService {
     private static final UserService USER_SERVICE = new UserService();
     private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
 
-    /** Accepted school email domains enforced on registration. */
-    private static final String[] ALLOWED_DOMAINS = {"@qmul.ac.uk", "@bupt.edu.cn"};
-
-    public User register(String email, String password, UserRole role) {
-        validateEmail(email);
+    public User register(String account, String password, UserRole role) {
+        validateAccountForRegistration(account, role);
         validatePassword(password);
-        String normalized = email.trim().toLowerCase();
-        boolean domainOk = false;
-        for (String domain : ALLOWED_DOMAINS) {
-            if (normalized.endsWith(domain)) {
-                domainOk = true;
-                break;
-            }
-        }
-        if (!domainOk) {
-            throw new IllegalArgumentException(
-                    "Only university emails are allowed (e.g. user@qmul.ac.uk or user@bupt.edu.cn).");
-        }
+
+        String normalized = AccountRules.normalizeAccount(account);
 
         // Keep role-based status logic inside UserService.
-        User user = USER_SERVICE.register(email.trim(), password, role);
+        User user = USER_SERVICE.register(normalized, password, role);
 
         // Create a blank TA profile as soon as a TA account is created.
         if (user != null && user.getRole() == UserRole.TA) {
@@ -57,10 +44,10 @@ public class AuthService {
         return user;
     }
 
-    public User login(String email, String password) {
-        validateEmail(email);
+    public User login(String account, String password) {
+        validateAccountForLogin(account);
         validatePassword(password);
-        return USER_SERVICE.login(email, password);
+        return USER_SERVICE.login(AccountRules.normalizeAccount(account), password);
     }
 
     public boolean isAccountValid(User user) {
@@ -78,38 +65,64 @@ public class AuthService {
         };
     }
 
-    public boolean sendVerificationCode(String email) {
-        if (!USER_SERVICE.emailExists(email)) {
+    public boolean sendVerificationCode(String account) {
+        if (!USER_SERVICE.emailExists(account)) {
             return false;
         }
-        System.out.println("Verification code sent to: " + email);
+        System.out.println("Verification code sent to: " + account);
         return true;
     }
 
-    public boolean checkEmailExists(String email) {
-        validateEmail(email);
-        return USER_SERVICE.emailExists(email);
+    public boolean checkEmailExists(String account) {
+        validateAccountForLogin(account);
+        return USER_SERVICE.emailExists(account);
     }
 
-    public void resetPassword(String email, String newPassword) {
-        validateEmail(email);
+    public void resetPassword(String account, String newPassword) {
+        validateAccountForLogin(account);
         validatePassword(newPassword);
-        USER_SERVICE.updatePassword(email, newPassword);
+        USER_SERVICE.updatePassword(account, newPassword);
     }
 
-    public boolean isPasswordChangeRequired(String email) {
-        validateEmail(email);
-        return USER_SERVICE.isPasswordChangeRequired(email);
+    public boolean isPasswordChangeRequired(String account) {
+        validateAccountForLogin(account);
+        return USER_SERVICE.isPasswordChangeRequired(account);
     }
 
-    private static void validateEmail(String email) {
-        if (email == null || email.isBlank()) {
-            throw new IllegalArgumentException("Email must not be empty.");
+    private static void validateAccountForLogin(String account) {
+        if (account == null || account.isBlank()) {
+            throw new IllegalArgumentException("Account must not be empty.");
+        }
+        if (!AccountRules.isValidLoginAccount(account)) {
+            throw new IllegalArgumentException("Please enter a valid email address.");
+        }
+    }
+
+    private static void validateAccountForRegistration(String account, UserRole role) {
+        if (role == null) {
+            throw new IllegalArgumentException("Role must not be null.");
+        }
+        if (role == UserRole.ADMIN) {
+            throw new IllegalArgumentException("Admin accounts cannot be registered here.");
         }
 
-        String normalized = email.trim();
-        if (!normalized.contains("@") || normalized.startsWith("@") || normalized.endsWith("@")) {
-            throw new IllegalArgumentException("Invalid email format.");
+        validateAccountForLogin(account);
+        String normalized = AccountRules.normalizeAccount(account);
+
+        if (role == UserRole.TA) {
+            if (!AccountRules.isValidTaEmail(normalized)) {
+                throw new IllegalArgumentException(
+                        "TA registration requires a 10-digit @bupt.edu.cn or 9-digit @qmul.ac.uk email."
+                );
+            }
+            return;
+        }
+
+        if (!AccountRules.isValidEmail(normalized)) {
+            throw new IllegalArgumentException("MO registration requires a valid email address.");
+        }
+        if ("admin@test.com".equalsIgnoreCase(normalized)) {
+            throw new IllegalArgumentException("Admin accounts cannot be registered here.");
         }
     }
 
