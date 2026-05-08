@@ -84,7 +84,7 @@
     "description": "Skills: patience\nHeadcount: 6\nDeadline: 2026-05-01\nDetails: nothing else",
     "requiredSkills": [],
     "weeklyHours": 6,
-    "status": "OPEN",
+    "status": "CLOSED",
     "createdAt": "2026-04-23T09:30:12.4890765"
   }
 ]

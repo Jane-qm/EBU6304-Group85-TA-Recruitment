@@ -1,13 +1,12 @@
-import auth.LoginFrame;
-import common.dao.JsonPersistenceManager;
-import common.entity.User;
-import common.entity.UserRole;
-import common.service.MOJobService;
+import ui.auth.LoginFrame;
+import infrastructure.persistence.JsonPersistenceManager;
+import modules.user.User;
+import modules.user.UserRole;
+import modules.job.JobService;
+import modules.user.UserService;
 
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-
-import mo.ui.MODashboardFrame; // 导入新写的 MO 首页
 
 /**
  * 程序入口类
@@ -32,8 +31,8 @@ public class Main {
     private static void initializeJsonStorage() {
         JSON_PERSISTENCE_MANAGER.initializeBaseFiles();
         // ADM-001: guarantee default super-admin exists before any login attempt
-        new common.service.UserService().ensureDefaultAdmin();
-        new MOJobService().autoCloseExpiredJobs();
+        new UserService().ensureDefaultAdmin();
+        new JobService().autoCloseExpiredJobs();
     }
 
     /**

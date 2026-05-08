@@ -69,7 +69,7 @@
 |------|------|------|
 | 语言 / 构建 | **Java 17** + **Maven** | `pom.xml` 指定编译级别；`mvn exec:java` 启动 Swing。 |
 | UI | **Java Swing** | `JFrame` / `BaseFrame`、表格与自定义渲染、卡片布局等。 |
-| 持久化 | **JSON + Gson** | `common.util.GsonUtils`（若存在）与 `JsonPersistenceManager` 管理文件清单。 |
+| 持久化 | **JSON + Gson** | `infrastructure.util.GsonUtils`（若存在）与 `JsonPersistenceManager` 管理文件清单。 |
 | 数据 | **本地 `data/` 目录** | 用户、岗位、申请、Offer、通知、TA 资料与 CV 元数据等 JSON 列表。 |
 | 协作 | **Git + GitHub PR** | `main` 集成；标签用于里程碑（见下节 release）。 |
 
