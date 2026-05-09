@@ -1,7 +1,7 @@
 [
   {
     "userId": 100001,
-    "email": "admin@test.com",
+    "email": "admin@qmul.ac.uk",
     "passwordHash": "PBKDF2$120000$<base64-salt>$<base64-hash>",
     "role": "ADMIN",
     "status": "ACTIVE",

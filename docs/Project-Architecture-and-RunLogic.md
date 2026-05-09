@@ -13,8 +13,8 @@
 ```mermaid
 flowchart TD
     A[Main Entry<br/>Main.java] --> B[UI Layer<br/>auth, ta.ui, mo.ui]
-    B --> C[Controller Layer<br/>ta.controller]
-    C --> D[Service Layer<br/>common.service, ta.service, auth.AuthService]
+    B --> C[Controller Layer<br/>modules.ta]
+    C --> D[Service Layer<br/>common.service, ta.service, modules.auth.AuthService]
     D --> E[DAO Layer<br/>common.dao, ta.dao]
     E --> F[JSON Persistence<br/>data/*.json + data/cvs/* + data/admin_audit.log]
 ```
@@ -24,7 +24,7 @@ flowchart TD
 | Package | Responsibility |
 |---|---|
 | `auth` | Login, registration, role-based routing, AdminHomeFrame |
-| `ta.ui` + `ta.controller` + `ta.service` + `ta.dao` | TA workflows: profile, CV, applications, offer decisions |
+| `ta.ui` + `modules.ta` + `ta.service` + `ta.dao` | TA workflows: profile, CV, applications, offer decisions |
 | `mo.ui` + `common.service` | MO workflows: job management, applicant review, offer dispatch, waitlist, hired-TA list, CSV export |
 | `common.service` + `common.dao` | Shared services: users, jobs, offers, notifications, system config, RBAC |
 | `common.entity` + `ta.entity` | Domain objects and state models |
@@ -562,7 +562,7 @@ JUnit 5 tests live under `src/test/java/` and run with `mvn test`.
 
 | Test class | Coverage |
 |---|---|
-| `common.domain.ApplicationStatusTest` | All `ApplicationStatus` static helpers |
+| `test.java.modules.application.ApplicationStatusTest` | All `ApplicationStatus` static helpers |
 | `ta.entity.TAProfileTest` | `TAProfile` field validation, completion %, `saveProfile()` |
 | `auth.AuthServiceTest` | Email domain enforcement, password validation, login null-return |
 
@@ -610,7 +610,7 @@ New persisted fields in `User` / `UserFileDAO`:
 
 ### 12.4 Security test minimum set
 
-Automated coverage added in `common.service.SecurityHardeningTest`:
+Automated coverage added in `test.java.common.SecurityHardeningTest`:
 
 1. Legacy SHA-256 verification remains functional.
 2. Legacy hash is upgraded to PBKDF2 after successful login.

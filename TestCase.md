@@ -36,7 +36,7 @@ Run command:
 mvn test
 ```
 
-### Test Class: `common.domain.ApplicationStatusTest`
+### Test Class: `test.java.modules.application.ApplicationStatusTest`
 
 | Test Method | Input | Expected | Pass |
 | ----------- | ----- | -------- | ---- |
@@ -113,7 +113,7 @@ mvn test
 
 ---
 
-### Test Class: `common.service.SecurityHardeningTest` (Iteration 3 security minimum set)
+### Test Class: `test.java.common.SecurityHardeningTest` (Iteration 3 security minimum set)
 
 | Test Method | What is tested | Pass |
 | ----------- | -------------- | ---- |
