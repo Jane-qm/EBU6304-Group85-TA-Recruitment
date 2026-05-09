@@ -33,6 +33,7 @@ import modules.user.AccountStatus;
 import modules.user.User;
 import modules.user.UserRole;
 import modules.user.UserService;
+import modules.user.MO;
 
 /**
  * MO Management Panel for Admin
@@ -106,6 +107,8 @@ public class MOManagementPanel extends JPanel {
         return button;
     }
 
+    // ui/admin/MOManagementPanel.java
+
     private void loadData() {
         tableModel.setRowCount(0);
         moUsers = userService.listAllUsers().stream()
@@ -113,7 +116,13 @@ public class MOManagementPanel extends JPanel {
                 .toList();
 
         for (User user : moUsers) {
-            String name = extractNameFromEmail(user.getEmail());
+            // 优先使用存储的姓名，如果没有则从邮箱提取前缀
+            String name;
+            if (user instanceof MO && ((MO) user).getName() != null && !((MO) user).getName().isEmpty()) {
+                name = ((MO) user).getName();
+            } else {
+                name = extractNameFromEmail(user.getEmail());
+            }
             String email = user.getEmail();
             String status = getStatusText(user.getStatus());
 
@@ -227,10 +236,7 @@ public class MOManagementPanel extends JPanel {
             String buttonText = "";
 
             if (column == 3) {
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    buttonText = "Approve";
-                    setForeground(new Color(34, 197, 94));
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     buttonText = "Disable";
                     setForeground(new Color(239, 68, 68));
                 } else {
@@ -271,10 +277,7 @@ public class MOManagementPanel extends JPanel {
             User user = moUsers.get(row);
 
             if (column == 3) {
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    button.setText("Approve");
-                    button.setForeground(new Color(34, 197, 94));
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     button.setText("Disable");
                     button.setForeground(new Color(239, 68, 68));
                 } else {
@@ -299,9 +302,7 @@ public class MOManagementPanel extends JPanel {
             User user = moUsers.get(currentRow);
 
             if (currentColumn == 3) {
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    approveMO(user);
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     disableMO(user);
                 } else {
                     activateMO(user);
@@ -314,9 +315,9 @@ public class MOManagementPanel extends JPanel {
         }
     }
 
-    private void approveMO(User user) {
-        userService.approveMoAccount(user.getEmail());
-        JOptionPane.showMessageDialog(this, "MO approved: " + user.getEmail());
+    private void activateMO(User user) {
+        userService.updateAccountStatus(user.getEmail(), AccountStatus.ACTIVE);
+        JOptionPane.showMessageDialog(this, "MO activated: " + user.getEmail());
         loadData();
         if (refreshCallback != null) refreshCallback.run();
     }
@@ -328,13 +329,6 @@ public class MOManagementPanel extends JPanel {
         if (refreshCallback != null) refreshCallback.run();
     }
 
-    private void activateMO(User user) {
-        userService.updateAccountStatus(user.getEmail(), AccountStatus.ACTIVE);
-        JOptionPane.showMessageDialog(this, "MO activated: " + user.getEmail());
-        loadData();
-        if (refreshCallback != null) refreshCallback.run();
-    }
-
     private void resetPassword(User user) {
         userService.resetPasswordByAdmin(user.getEmail(), "000000");
         JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
@@ -342,7 +336,7 @@ public class MOManagementPanel extends JPanel {
 
     private String getStatusText(AccountStatus status) {
         if (status == AccountStatus.ACTIVE) return "Active";
-        if (status == AccountStatus.PENDING) return "Pending";
+        if (status == AccountStatus.PENDING) return "Inactive";
         return "Disabled";
     }
 

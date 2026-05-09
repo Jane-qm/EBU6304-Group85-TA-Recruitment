@@ -47,7 +47,10 @@ public class AuthService {
                     "Only university emails are allowed (e.g. user@qmul.ac.uk or user@bupt.edu.cn).");
         }
 
-        // Keep role-based status logic inside UserService.
+        if (role != UserRole.TA) {
+            throw new IllegalArgumentException("Only TA (Teaching Assistant) self-registration is allowed.");
+        }
+
         User user = USER_SERVICE.register(email.trim(), password, role);
 
         // Create a blank TA profile as soon as a TA account is created.

@@ -7,23 +7,18 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import javax.swing.JToggleButton;
 import javax.swing.border.EmptyBorder;
 
 import modules.auth.AuthService;
-import modules.user.User;
 import modules.user.UserRole;
 import infrastructure.ui.BaseFrame;
 
@@ -42,14 +37,13 @@ public class RegisterFrame extends BaseFrame {
     private JComboBox<String> domainCombo;        // 邮箱后缀下拉
     private JPasswordField passwordField;
     private JPasswordField confirmField;
-    private UserRole selectedRole = UserRole.TA; // 默认选中 TA 角色
 
     // 统一输入框的尺寸常量
     private static final int CONTENT_WIDTH = 360;
     private static final int FIELD_HEIGHT = 56;
 
     public RegisterFrame() {
-        super("TA Recruitment System - Register", 760, 820);
+        super("TA Registration", 760, 720);
         this.authService = new AuthService();
         initUI();
     }
@@ -65,7 +59,7 @@ public class RegisterFrame extends BaseFrame {
         LoginFrame.RoundedPanel cardPanel = new LoginFrame.RoundedPanel(28, Color.WHITE);
 
         // 强制锁定卡片大小为 620x760
-        Dimension cardSize = new Dimension(620, 760);
+        Dimension cardSize = new Dimension(620, 660);
         cardPanel.setPreferredSize(cardSize);
         cardPanel.setMinimumSize(cardSize);
         cardPanel.setMaximumSize(cardSize);
@@ -73,51 +67,22 @@ public class RegisterFrame extends BaseFrame {
         cardPanel.setLayout(new BoxLayout(cardPanel, BoxLayout.Y_AXIS));
         cardPanel.setBorder(new EmptyBorder(36, 36, 36, 36));
 
-        // 3. 标题区域
+        // 3. 标题：直接显示 TA
+        JLabel taLabel = new JLabel("TA");
+        taLabel.setFont(new Font("SansSerif", Font.BOLD, 42));
+        taLabel.setForeground(new Color(37, 99, 235));
+        taLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        cardPanel.add(taLabel);
+        cardPanel.add(Box.createVerticalStrut(8));
+
         JLabel titleLabel = new JLabel("Create an Account");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
         titleLabel.setForeground(new Color(17, 24, 39));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         cardPanel.add(titleLabel);
-        cardPanel.add(Box.createVerticalStrut(26));
+        cardPanel.add(Box.createVerticalStrut(28));
 
-        // 4. 角色选择区域 (Tabs)
-        JPanel rolePanel = new LoginFrame.RoundedPanel(18, new Color(243, 246, 251));
-        rolePanel.setLayout(new GridLayout(1, 3, 10, 0));
-        rolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
-        rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JToggleButton taTab = createRoleTab("TA", true);
-        JToggleButton moTab = createRoleTab("MO", false);
-        JToggleButton adminTab = createRoleTab("ADMIN", false);
-
-        ButtonGroup roleGroup = new ButtonGroup();
-        roleGroup.add(taTab);
-        roleGroup.add(moTab);
-        roleGroup.add(adminTab);
-
-        // 绑定角色切换事件，更新 selectedRole 并重绘按钮样式
-        taTab.addActionListener(e -> {
-            selectedRole = UserRole.TA;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        moTab.addActionListener(e -> {
-            selectedRole = UserRole.MO;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        adminTab.addActionListener(e -> {
-            selectedRole = UserRole.ADMIN;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-
-        rolePanel.add(taTab);
-        rolePanel.add(moTab);
-        rolePanel.add(adminTab);
-        cardPanel.add(rolePanel);
-        cardPanel.add(Box.createVerticalStrut(24));
-
-        // 5. 表单输入区域（邮箱改为前缀+后缀）
+        // 表单输入区域（邮箱改为前缀+后缀）
         prefixField = new JTextField();
         domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
         domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
@@ -170,7 +135,7 @@ public class RegisterFrame extends BaseFrame {
         backBtn.setBorderPainted(false);
         backBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         backBtn.addActionListener(e -> {
-            new LoginFrame(selectedRole).setVisible(true);
+            new LoginFrame().setVisible(true);
             dispose();
         });
 
@@ -239,36 +204,6 @@ public class RegisterFrame extends BaseFrame {
     }
 
     /**
-     * 辅助方法：创建角色选择切换按钮
-     */
-    private JToggleButton createRoleTab(String text, boolean selected) {
-        JToggleButton btn = new JToggleButton(text, selected);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 15));
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btn.setBorder(new LoginFrame.RoundedBorder(14, new Color(37, 99, 235), 1));
-        applyRoleTabStyle(btn, selected);
-        return btn;
-    }
-
-    /**
-     * 更新所有角色按钮的样式状态
-     */
-    private void updateRoleTabStyles(JToggleButton ta, JToggleButton mo, JToggleButton admin) {
-        applyRoleTabStyle(ta, ta.isSelected());
-        applyRoleTabStyle(mo, mo.isSelected());
-        applyRoleTabStyle(admin, admin.isSelected());
-    }
-
-    /**
-     * 应用选中/未选中的按钮颜色
-     */
-    private void applyRoleTabStyle(JToggleButton btn, boolean selected) {
-        btn.setBackground(selected ? new Color(37, 99, 235) : new Color(243, 246, 251));
-        btn.setForeground(selected ? Color.WHITE : new Color(107, 114, 128));
-    }
-
-    /**
      * 处理注册提交逻辑
      */
     private void handleRegister() {
@@ -289,12 +224,10 @@ public class RegisterFrame extends BaseFrame {
         }
 
         try {
-            // 调用 AuthService 进行注册
-            User user = authService.register(email, pwd, selectedRole);
-            showInfo("Registration Successful!\nStatus: " + user.getStatus());
+            authService.register(email, pwd, UserRole.TA);
+            showInfo("Registration successful!");
 
-            // Return to login page with the same role tab pre-selected.
-            new LoginFrame(selectedRole).setVisible(true);
+            new LoginFrame().setVisible(true);
             dispose();
         } catch (Exception ex) {
             // 捕获异常（如邮箱已存在、格式错误等）

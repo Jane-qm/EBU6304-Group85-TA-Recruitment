@@ -62,6 +62,21 @@ class AuthServiceTest {
         assertTrue(ex.getMessage().contains("Only university"));
     }
 
+    @Test
+    void register_withMoRole_throwsOnlyTaAllowed() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.register("mo.junit@qmul.ac.uk", "Password123", UserRole.MO));
+        assertTrue(ex.getMessage().toLowerCase().contains("ta")
+                        || ex.getMessage().toLowerCase().contains("only"),
+                "Expected TA-only registration error; got: " + ex.getMessage());
+    }
+
+    @Test
+    void register_withAdminRole_throwsOnlyTaAllowed() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.register("admin.junit@qmul.ac.uk", "Password123", UserRole.ADMIN));
+    }
+
     // ── email format validation ───────────────────────────────────────────────
 
     @Test

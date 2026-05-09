@@ -18,7 +18,7 @@ import infrastructure.security.PasswordService;
 /**
  * 用户业务服务
  * 负责用户注册、登录等核心业务逻辑
- * 
+ *
  * @author Can Chen
  * @version 2.0
  *
@@ -120,13 +120,7 @@ public class UserService {
 
         User user = createUser(normalizedEmail, password, role);
         user.setUserId(idGenerator.incrementAndGet());
-
-        // MO 需要管理员激活，TA 和 ADMIN 直接激活
-        if (role == UserRole.MO) {
-            user.setStatus(AccountStatus.PENDING);
-        } else {
-            user.setStatus(AccountStatus.ACTIVE);
-        }
+        user.setStatus(AccountStatus.ACTIVE);
 
         usersByEmail.put(normalizedEmail, user);
         saveToFile();
@@ -376,6 +370,8 @@ public class UserService {
      * 从 CSV 文件路径批量导入 MO 账号
      * CSV 格式: email,password,name
      */
+// modules/user/UserService.java
+
     public MOImportResult importMOFromCSV(String filePath) {
         int successCount = 0;
         int failCount = 0;
@@ -404,6 +400,7 @@ public class UserService {
 
                 String email = parts[0].trim();
                 String password = parts.length > 1 ? parts[1].trim() : "123456";
+                String name = parts.length > 2 ? parts[2].trim() : "";
 
                 if (!email.contains("@")) {
                     failCount++;
@@ -418,7 +415,15 @@ public class UserService {
                         continue;
                     }
 
-                    register(email, password, UserRole.MO);
+                    // 注册MO账号
+                    User user = register(email, password, UserRole.MO);
+
+                    // 设置姓名
+                    if (user instanceof MO && !name.isEmpty()) {
+                        ((MO) user).setName(name);
+                        saveUser(user);  // 保存更新后的用户
+                    }
+
                     successCount++;
 
                 } catch (Exception ex) {

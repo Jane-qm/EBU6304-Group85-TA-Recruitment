@@ -136,10 +136,7 @@ public class TAManagementPanel extends JPanel {
                 setText("View CV");
                 setForeground(Color.BLACK);
             } else if (column == 5) { // Status Action
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    setText("Approve");
-                    setForeground(new Color(34, 197, 94));
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     setText("Disable");
                     setForeground(new Color(239, 68, 68));
                 } else {
@@ -185,10 +182,7 @@ public class TAManagementPanel extends JPanel {
                 button.setText("View CV");
                 button.setForeground(Color.BLACK);
             } else if (column == 5) { // Status Action
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    button.setText("Approve");
-                    button.setForeground(new Color(34, 197, 94));
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     button.setText("Disable");
                     button.setForeground(new Color(239, 68, 68));
                 } else {
@@ -217,9 +211,7 @@ public class TAManagementPanel extends JPanel {
             } else if (currentColumn == 4) { // View CV
                 viewCV(user);
             } else if (currentColumn == 5) { // Status Action
-                if (user.getStatus() == AccountStatus.PENDING) {
-                    approveTA(user);
-                } else if (user.getStatus() == AccountStatus.ACTIVE) {
+                if (user.getStatus() == AccountStatus.ACTIVE) {
                     disableTA(user);
                 } else {
                     activateTA(user);
@@ -306,13 +298,6 @@ public class TAManagementPanel extends JPanel {
         }
     }
 
-    private void approveTA(User user) {
-        userService.updateAccountStatus(user.getEmail(), AccountStatus.ACTIVE);
-        JOptionPane.showMessageDialog(this, "TA approved: " + user.getEmail());
-        loadData();
-        if (refreshCallback != null) refreshCallback.run();
-    }
-
     private void disableTA(User user) {
         userService.disableAccount(user.getEmail());
         JOptionPane.showMessageDialog(this, "TA disabled: " + user.getEmail());
@@ -334,7 +319,7 @@ public class TAManagementPanel extends JPanel {
 
     private String getStatusText(AccountStatus status) {
         if (status == AccountStatus.ACTIVE) return "Active";
-        if (status == AccountStatus.PENDING) return "Pending";
+        if (status == AccountStatus.PENDING) return "Inactive";
         return "Disabled";
     }
 

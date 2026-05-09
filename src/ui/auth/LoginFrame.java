@@ -19,7 +19,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridBagLayout;
-import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
@@ -28,7 +27,6 @@ import java.awt.event.ActionListener;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
@@ -36,7 +34,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import javax.swing.JToggleButton;
 
 import infrastructure.ui.BaseFrame;
 import ui.admin.AdminHomeFrame;
@@ -96,22 +93,13 @@ public class LoginFrame extends BaseFrame {
     private JPasswordField passwordField;
     private JCheckBox rememberMeBox;
     private final AuthService authService;
-    private UserRole selectedRole = UserRole.TA;
-    private final UserRole initialRole;
 
     private static final int CONTENT_WIDTH = 360;
     private static final int FIELD_HEIGHT = 56;
 
     public LoginFrame() {
-        this(UserRole.TA);
-    }
-
-    /** Opens the login page with the specified role tab pre-selected. */
-    public LoginFrame(UserRole initialRole) {
-        super("TA Recruitment System - Login", 760, 820);
+        super("TA Recruitment System - Login", 760, 720);
         this.authService = new AuthService();
-        this.initialRole = (initialRole != null) ? initialRole : UserRole.TA;
-        this.selectedRole = this.initialRole;
         initUI();
     }
 
@@ -127,7 +115,7 @@ public class LoginFrame extends BaseFrame {
         RoundedPanel cardPanel = new RoundedPanel(28, Color.WHITE);
 
         // 强制锁定卡片大小
-        Dimension cardSize = new Dimension(620, 760);
+        Dimension cardSize = new Dimension(620, 660);
         cardPanel.setPreferredSize(cardSize);
         cardPanel.setMinimumSize(cardSize);
         cardPanel.setMaximumSize(cardSize);
@@ -141,53 +129,8 @@ public class LoginFrame extends BaseFrame {
         titleLabel.setForeground(new Color(17, 24, 39));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel subtitleLabel = new JLabel("Sign in to your account to continue");
-        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        subtitleLabel.setForeground(new Color(107, 114, 128));
-        subtitleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
         cardPanel.add(titleLabel);
-        cardPanel.add(Box.createVerticalStrut(12));
-        cardPanel.add(subtitleLabel);
-        cardPanel.add(Box.createVerticalStrut(26));
-
-        // 顶部角色切换栏
-        JPanel rolePanel = new RoundedPanel(18, new Color(243, 246, 251));
-        rolePanel.setLayout(new GridLayout(1, 3, 10, 0));
-        rolePanel.setMaximumSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setPreferredSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setMinimumSize(new Dimension(CONTENT_WIDTH, 62));
-        rolePanel.setBorder(new EmptyBorder(8, 8, 8, 8));
-        rolePanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JToggleButton taTab    = createRoleTab("TA",    initialRole == UserRole.TA);
-        JToggleButton moTab    = createRoleTab("MO",    initialRole == UserRole.MO);
-        JToggleButton adminTab = createRoleTab("ADMIN", initialRole == UserRole.ADMIN);
-
-        ButtonGroup roleGroup = new ButtonGroup();
-        roleGroup.add(taTab);
-        roleGroup.add(moTab);
-        roleGroup.add(adminTab);
-
-        taTab.addActionListener(e -> {
-            selectedRole = UserRole.TA;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        moTab.addActionListener(e -> {
-            selectedRole = UserRole.MO;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-        adminTab.addActionListener(e -> {
-            selectedRole = UserRole.ADMIN;
-            updateRoleTabStyles(taTab, moTab, adminTab);
-        });
-
-        rolePanel.add(taTab);
-        rolePanel.add(moTab);
-        rolePanel.add(adminTab);
-
-        cardPanel.add(rolePanel);
-        cardPanel.add(Box.createVerticalStrut(34));
+        cardPanel.add(Box.createVerticalStrut(28));
 
         // 邮箱区域（前缀 + 后缀下拉）
         JLabel emailLabel = new JLabel("University Email");
@@ -327,29 +270,6 @@ public class LoginFrame extends BaseFrame {
     }
 
     /**
-     * 创建角色按钮
-     */
-    private JToggleButton createRoleTab(String text, boolean selected) {
-        JToggleButton button = new JToggleButton(text, selected);
-        button.setFont(new Font("SansSerif", Font.BOLD, 15));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(new RoundedBorder(14, new Color(37, 99, 235), 1));
-        button.setPreferredSize(new Dimension(100, 44));
-        button.setOpaque(true);
-
-        if (selected) {
-            button.setBackground(new Color(37, 99, 235));
-            button.setForeground(Color.WHITE);
-        } else {
-            button.setBackground(new Color(243, 246, 251));
-            button.setForeground(new Color(107, 114, 128));
-        }
-
-        return button;
-    }
-
-    /**
      * 密码输入框外层
      */
     private JPanel wrapPasswordField(JPasswordField field) {
@@ -408,19 +328,13 @@ public class LoginFrame extends BaseFrame {
                 User user = authService.login(email, password);
 
                 if (user != null) {
-                    // 3. 校验所选角色与账户实际角色是否匹配
-                    if (user.getRole() != selectedRole) {
-                        showWarning("Role mismatch.\nAccount Role: " + user.getRole());
-                        return;
-                    }
-
-                    // 4. 处理被禁用 (DISABLED) 的账户
+                    // 3. 处理被禁用 (DISABLED) 的账户
                     if (user.getStatus() == AccountStatus.DISABLED) {
                         showError(authService.getAccountStatusMessage(user));
                         return;
                     }
 
-                    // 5. Enforce strict super-admin rule before routing to Admin Portal.
+                    // 4. Enforce strict super-admin rule before routing to Admin Portal.
                     if (user.getRole() == UserRole.ADMIN) {
                         UserService userService = new UserService();
                         if (!userService.isStrictAdmin(user)) {
@@ -443,12 +357,7 @@ public class LoginFrame extends BaseFrame {
                         }
                     }
 
-                    // 6. Pending accounts continue directly in demo flow.
-                    if (user.getStatus() == AccountStatus.PENDING) {
-                        // No popup; continue to role-based routing directly.
-                    }
-
-                    // 7. Role-based home (Admin/MO: demo consoles; TA: full TAMainFrame)
+                    // 5. Route by account role (no role picker on login)
                     if (PermissionService.hasAccess(user.getRole(), UserRole.ADMIN)) {
                         new AdminHomeFrame(user).setVisible(true);
                         dispose();
@@ -469,22 +378,6 @@ public class LoginFrame extends BaseFrame {
             } catch (Exception ex) {
                 showError("System Error: " + ex.getMessage());
             }
-        }
-    }
-
-    private void updateRoleTabStyles(JToggleButton taTab, JToggleButton moTab, JToggleButton adminTab) {
-        applyRoleTabStyle(taTab, taTab.isSelected());
-        applyRoleTabStyle(moTab, moTab.isSelected());
-        applyRoleTabStyle(adminTab, adminTab.isSelected());
-    }
-
-    private void applyRoleTabStyle(JToggleButton button, boolean selected) {
-        if (selected) {
-            button.setBackground(new Color(37, 99, 235));
-            button.setForeground(Color.WHITE);
-        } else {
-            button.setBackground(new Color(243, 246, 251));
-            button.setForeground(new Color(107, 114, 128));
         }
     }
 

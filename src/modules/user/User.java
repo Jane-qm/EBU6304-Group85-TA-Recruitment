@@ -37,8 +37,7 @@ public abstract class User {
         this.email = email.trim();
         this.passwordHash = PasswordService.hash(password);
         this.role = role;
-        // MO 需要管理员激活，TA 和 ADMIN 直接激活
-        this.status = (role == UserRole.MO) ? AccountStatus.PENDING : AccountStatus.ACTIVE;
+        this.status = AccountStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
         this.lastLogin = null;
         this.mustChangePassword = false;

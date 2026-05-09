@@ -13,9 +13,10 @@ import infrastructure.persistence.JsonPersistenceManager;
 /**
  * 用户数据访问对象
  * 负责用户数据的 JSON 文件读写操作
- * 
+ *
  * @author Can Chen
  * @version 3.0 - 移除 TA 冗余字段的序列化
+ * @version 3.1 - 添加 MO 姓名字段支持
  */
 public class UserDAO {
 
@@ -28,7 +29,7 @@ public class UserDAO {
 
     /**
      * 保存所有用户到文件
-     * 
+     *
      * @param users 用户 Map
      */
     public void saveAll(Map<String, User> users) {
@@ -45,7 +46,7 @@ public class UserDAO {
 
     /**
      * 从文件加载所有用户
-     * 
+     *
      * @return 用户列表
      */
     public List<User> loadAll() {
@@ -65,8 +66,7 @@ public class UserDAO {
 
     /**
      * 用于 JSON 存储的中间结构
-     * 修改：移除 TA 的冗余个人资料字段
-     * 个人资料已移至 modules.profile.TAProfile 独立存储
+     * 支持 MO 姓名字段
      */
     private static class PersistedUser {
         private Long userId;
@@ -80,10 +80,8 @@ public class UserDAO {
         private int failedLoginCount;
         private LocalDateTime lockedUntil;
 
-        // 已移除所有 TA profile 相关字段：
-        // name, major, grade, skillTags, availableWorkingHours, 
-        // profileSaved, profileLastUpdated
-        // 个人资料由 TAProfileService 通过 ta_profiles.json 独立管理
+        // 新增：MO 姓名（仅对 MO 角色有效）
+        private String name;
 
         public PersistedUser() {
         }
@@ -101,8 +99,10 @@ public class UserDAO {
             row.failedLoginCount = user.getFailedLoginCount();
             row.lockedUntil = user.getLockedUntil();
 
-            // 移除 TA profile 字段的序列化
-            // 个人资料由 TAProfileService 独立管理
+            // 新增：保存 MO 姓名
+            if (user instanceof MO) {
+                row.name = ((MO) user).getName();
+            }
 
             return row;
         }
@@ -120,7 +120,14 @@ public class UserDAO {
 
             User user = switch (role) {
                 case TA -> new TA(email, "temp_password");
-                case MO -> new MO(email, "temp_password");
+                case MO -> {
+                    MO mo = new MO(email, "temp_password");
+                    // 新增：恢复 MO 姓名
+                    if (name != null && !name.isBlank()) {
+                        mo.setName(name);
+                    }
+                    yield mo;
+                }
                 case ADMIN -> new Admin(email, "temp_password");
             };
 
@@ -140,9 +147,6 @@ public class UserDAO {
             user.setMustChangePassword(mustChangePassword);
             user.setFailedLoginCount(failedLoginCount);
             user.setLockedUntil(lockedUntil);
-            
-            // 移除 TA profile 字段的恢复代码
-            // 个人资料由 TAProfileService 独立加载
 
             return user;
         }
