@@ -129,6 +129,14 @@ public class TAMainFrame extends BaseFrame {
         if (workloadPanel != null) workloadPanel.refresh();
     }
 
+    /** Refresh all TA views except profile (avoids wiping unsaved profile edits). */
+    public void refreshNonProfilePanels() {
+        if (dashboardPanel != null) dashboardPanel.refresh();
+        if (courseCatalogPanel != null) courseCatalogPanel.refresh();
+        if (applicationsPanel != null) applicationsPanel.refresh();
+        if (workloadPanel != null) workloadPanel.refresh();
+    }
+
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));

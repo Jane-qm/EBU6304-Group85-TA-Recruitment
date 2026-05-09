@@ -20,7 +20,10 @@ public final class NotificationButtonFactory {
         JButton button = new JButton(unreadCount > 0 ? String.valueOf(unreadCount) : "");
         button.setIcon(new BellIcon(16, new Color(55, 65, 81)));
         button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        button.setForeground(Color.BLACK);
         button.setBackground(Color.WHITE);
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
         button.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));

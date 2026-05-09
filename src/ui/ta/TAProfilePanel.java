@@ -7,6 +7,9 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.awt.GridLayout;
 import java.io.File;
 import java.nio.file.Files;
@@ -23,6 +26,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTextArea;
@@ -32,6 +36,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import modules.auth.AuthService;
 import modules.user.TA;
 import modules.profile.TAProfileController;
 import modules.cv.CVInfo;
@@ -81,6 +86,10 @@ public class TAProfilePanel extends JPanel {
     private JPanel skillTagsPanel;
     private JSpinner hoursSpinner;
     private List<String> skillTags;
+
+    private JPasswordField pwdCurrentField;
+    private JPasswordField pwdNewField;
+    private JPasswordField pwdConfirmField;
     
     // CV 相关组件 - 改为列表
     private JPanel cvInfoPanel;
@@ -129,10 +138,12 @@ public class TAProfilePanel extends JPanel {
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
         
-        // 内容区域（可滚动）
+        // 内容区域（可滚动；单外层滚动条，避免嵌套导致滚轮卡顿）
         JScrollPane scrollPane = new JScrollPane(createContentPanel());
         scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(24);
+        scrollPane.getVerticalScrollBar().setBlockIncrement(120);
         add(scrollPane, BorderLayout.CENTER);
     }
     
@@ -155,25 +166,160 @@ public class TAProfilePanel extends JPanel {
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(new EmptyBorder(0, 30, 30, 30));
-        
-        // 个人信息卡片
+
+        panel.add(createChangePasswordCard());
+        panel.add(Box.createVerticalStrut(20));
+
         panel.add(createPersonalInfoCard());
         panel.add(Box.createVerticalStrut(25));
-        
-        // 技能卡片
+
         panel.add(createSkillsCard());
         panel.add(Box.createVerticalStrut(25));
-        
-        // CV 卡片
+
+        panel.add(createSaveProfileBar());
+        panel.add(Box.createVerticalStrut(20));
+
         panel.add(createCvCard());
-        
-        // 保存按钮区域
-        panel.add(Box.createVerticalStrut(25));
-        panel.add(createButtonPanel());
-        
+
         return panel;
     }
-    
+
+    private JPanel createChangePasswordCard() {
+        JPanel card = new JPanel(new GridBagLayout());
+        card.setBackground(Color.WHITE);
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(220, 224, 230), 1),
+                new EmptyBorder(20, 25, 20, 25)
+        ));
+
+        JLabel cardTitle = new JLabel("Change Password");
+        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardTitle.setForeground(new Color(30, 35, 45));
+
+        pwdCurrentField = new JPasswordField(22);
+        pwdNewField = new JPasswordField(22);
+        pwdConfirmField = new JPasswordField(22);
+        stylePasswordField(pwdCurrentField);
+        stylePasswordField(pwdNewField);
+        stylePasswordField(pwdConfirmField);
+
+        JButton updatePwdBtn = new JButton("Update Password");
+        updatePwdBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        updatePwdBtn.setBackground(Color.WHITE);
+        updatePwdBtn.setForeground(Color.BLACK);
+        updatePwdBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+        updatePwdBtn.setFocusPainted(false);
+        updatePwdBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        updatePwdBtn.addActionListener(e -> changeTaPassword());
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        card.add(cardTitle, gbc);
+
+        gbc.gridwidth = 1;
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        card.add(labelFor("Current password:"), gbc);
+        gbc.gridx = 1;
+        card.add(pwdCurrentField, gbc);
+
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        card.add(labelFor("New password:"), gbc);
+        gbc.gridx = 1;
+        card.add(pwdNewField, gbc);
+
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        card.add(labelFor("Confirm new password:"), gbc);
+        gbc.gridx = 1;
+        card.add(pwdConfirmField, gbc);
+
+        gbc.gridy = 4;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
+        card.add(updatePwdBtn, gbc);
+
+        return card;
+    }
+
+    private JLabel labelFor(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("SansSerif", Font.BOLD, 12));
+        l.setForeground(LABEL_FOREGROUND);
+        return l;
+    }
+
+    private void stylePasswordField(JPasswordField f) {
+        f.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        f.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(220, 224, 230)),
+                new EmptyBorder(8, 10, 8, 10)
+        ));
+    }
+
+    private void changeTaPassword() {
+        String oldP = new String(pwdCurrentField.getPassword());
+        String newP = new String(pwdNewField.getPassword());
+        String cfm = new String(pwdConfirmField.getPassword());
+        if (oldP.isEmpty() || newP.isEmpty() || cfm.isEmpty()) {
+            showWarning("All password fields are required.");
+            return;
+        }
+        if (!newP.equals(cfm)) {
+            showWarning("New passwords do not match.");
+            return;
+        }
+        if (newP.length() < 6) {
+            showWarning("Password must be at least 6 characters.");
+            return;
+        }
+        AuthService auth = new AuthService();
+        if (auth.login(ta.getEmail(), oldP) == null) {
+            showWarning("Current password is incorrect.");
+            return;
+        }
+        try {
+            auth.resetPassword(ta.getEmail(), newP);
+            pwdCurrentField.setText("");
+            pwdNewField.setText("");
+            pwdConfirmField.setText("");
+            showInfo("Password updated successfully.");
+        } catch (Exception ex) {
+            showError("Failed to update password: " + ex.getMessage());
+        }
+    }
+
+    private JPanel createSaveProfileBar() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        panel.setOpaque(false);
+        panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton saveBtn = new JButton("Save Profile");
+        saveBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        saveBtn.setBackground(Color.WHITE);
+        saveBtn.setForeground(Color.BLACK);
+        saveBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_BLUE, 2));
+        saveBtn.setFocusPainted(false);
+        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        saveBtn.setPreferredSize(new Dimension(180, 42));
+        saveBtn.addActionListener(e -> saveProfile());
+        panel.add(saveBtn);
+
+        JLabel hint = new JLabel("  Save profile details before switching pages if you edited them.");
+        hint.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        hint.setForeground(new Color(107, 114, 128));
+        panel.add(hint);
+
+        return panel;
+    }
+
     private JPanel createPersonalInfoCard() {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(Color.WHITE);
@@ -262,11 +408,8 @@ public class TAProfilePanel extends JPanel {
         experienceArea.setLineWrap(true);
         experienceArea.setWrapStyleWord(true);
         
-        JScrollPane expScroll = new JScrollPane(experienceArea);
-        expScroll.setBorder(null);
-        
         experiencePanel.add(expLabel, BorderLayout.NORTH);
-        experiencePanel.add(expScroll, BorderLayout.CENTER);
+        experiencePanel.add(experienceArea, BorderLayout.CENTER);
         
         card.add(experiencePanel, BorderLayout.SOUTH);
         
@@ -417,7 +560,7 @@ public class TAProfilePanel extends JPanel {
             JLabel listTitle = new JLabel("My CVs (" + cvList.size() + ")");
             listTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
             listTitle.setForeground(LABEL_FOREGROUND);
-            listTitle.setAlignmentX(LEFT_ALIGNMENT);
+            listTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
             cvListPanel.add(listTitle);
             cvListPanel.add(Box.createVerticalStrut(10));
             
@@ -426,12 +569,8 @@ public class TAProfilePanel extends JPanel {
                 cvListPanel.add(cvItemPanel);
                 cvListPanel.add(Box.createVerticalStrut(8));
             }
-            
-            JScrollPane scrollPane = new JScrollPane(cvListPanel);
-            scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-            scrollPane.setPreferredSize(new Dimension(450, 200));
-            scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-            cvInfoPanel.add(scrollPane, BorderLayout.CENTER);
+
+            cvInfoPanel.add(cvListPanel, BorderLayout.CENTER);
         }
         
         cvInfoPanel.revalidate();
@@ -581,25 +720,6 @@ public class TAProfilePanel extends JPanel {
         return field;
     }
     
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));
-        panel.setBackground(new Color(248, 250, 252));
-        
-        JButton saveBtn = new JButton("Save Profile");
-        saveBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        saveBtn.setBackground(Color.WHITE);
-        saveBtn.setForeground(Color.BLACK);
-        saveBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        saveBtn.setFocusPainted(false);
-        saveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        saveBtn.setPreferredSize(new Dimension(160, 42));
-        saveBtn.addActionListener(e -> saveProfile());
-        
-        panel.add(saveBtn);
-        
-        return panel;
-    }
-    
     private java.awt.Component fileChooserParent() {
         java.awt.Window w = SwingUtilities.getWindowAncestor(this);
         return w != null ? w : this;
@@ -655,7 +775,7 @@ public class TAProfilePanel extends JPanel {
             );
             
             showInfo("CV uploaded successfully!");
-            refresh();
+            refreshCvSectionOnly();
             
         } catch (IllegalArgumentException e) {
             showWarning(e.getMessage());
@@ -713,7 +833,7 @@ public class TAProfilePanel extends JPanel {
             boolean success = cvService.setDefaultCV(ta.getUserId(), cv.getCvId());
             if (success) {
                 showInfo("Default CV updated successfully!");
-                refresh();
+                refreshCvSectionOnly();
             } else {
                 showError("Failed to set default CV");
             }
@@ -738,7 +858,7 @@ public class TAProfilePanel extends JPanel {
             boolean deleted = cvService.deleteCV(ta.getUserId(), cv.getCvId());
             if (deleted) {
                 showInfo("CV deleted successfully");
-                refresh();
+                refreshCvSectionOnly();
             } else {
                 showError("Failed to delete CV");
             }
@@ -747,8 +867,6 @@ public class TAProfilePanel extends JPanel {
 
     private void saveProfile() {
         try {
-            System.out.println("=== TAProfilePanel.saveProfile ===");
-            
             // 读取所有字段值
             String surname = surnameField.getText().trim();
             String forename = forenameField.getText().trim();
@@ -785,17 +903,19 @@ public class TAProfilePanel extends JPanel {
             
             if (success) {
                 showInfo("Profile saved successfully!");
-                
+                loadProfile();
+                applyProfileToForm();
+                updateSkillTagsDisplay();
+                updateCVInfoDisplay();
                 TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
                 if (mainFrame != null) {
-                    mainFrame.refreshAllPanels();
+                    mainFrame.refreshNonProfilePanels();
                 }
-                refresh();
+                revalidate();
+                repaint();
             }
             
         } catch (Exception e) {
-            System.out.println("保存异常: " + e.getMessage());
-            e.printStackTrace();
             showError("Save failed: " + e.getMessage());
         }
     }
@@ -812,11 +932,53 @@ public class TAProfilePanel extends JPanel {
         JOptionPane.showMessageDialog(this, message, "Error", JOptionPane.ERROR_MESSAGE);
     }
     
+    private void refreshCvSectionOnly() {
+        refreshCVList();
+        updateCVInfoDisplay();
+        revalidate();
+        repaint();
+    }
+
+    /**
+     * Push persisted profile into form fields (keeps UI instance; does not rebuild the panel).
+     */
+    private void applyProfileToForm() {
+        if (profile == null || surnameField == null) {
+            return;
+        }
+        surnameField.setText(safeTxt(profile.getSurname()));
+        forenameField.setText(safeTxt(profile.getForename()));
+        chineseNameField.setText(safeTxt(profile.getChineseName()));
+        studentIdField.setText(safeTxt(profile.getStudentId()));
+        phoneField.setText(safeTxt(profile.getPhone()));
+        schoolField.setText(safeTxt(profile.getSchool()));
+        supervisorField.setText(safeTxt(profile.getSupervisor()));
+        majorField.setText(safeTxt(profile.getMajor()));
+        if (profile.getGender() != null) {
+            genderCombo.setSelectedItem(profile.getGender().getEnglishName());
+        }
+        if (profile.getStudentType() != null) {
+            studentTypeCombo.setSelectedItem(profile.getStudentType().getEnglishName());
+        }
+        if (profile.getCurrentYear() != null) {
+            yearCombo.setSelectedItem(profile.getCurrentYear().getEnglishName());
+        }
+        if (profile.getCampus() != null) {
+            campusCombo.setSelectedItem(profile.getCampus().getEnglishName());
+        }
+        hoursSpinner.setValue(profile.getAvailableWorkingHours());
+        experienceArea.setText(safeTxt(profile.getPreviousExperience()));
+    }
+
+    private static String safeTxt(String s) {
+        return s != null ? s : "";
+    }
+
     public void refresh() {
         loadProfile();
-        // 重新创建UI以更新数据
-        removeAll();
-        initUI();
+        applyProfileToForm();
+        updateSkillTagsDisplay();
+        updateCVInfoDisplay();
         revalidate();
         repaint();
     }

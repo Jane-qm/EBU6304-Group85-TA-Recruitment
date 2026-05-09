@@ -30,7 +30,7 @@ src/
 │   ├── LoginFrame.java                # Login UI with role-tab selector
 │   ├── RegisterFrame.java             # Multi-step registration UI
 │   ├── AdminHomeFrame.java            # Admin portal (account mgmt, data viewer, cycle config)
-│   └── MOHomeFrame.java              # Legacy MO home (superseded by MODashboardFrame)
+│   └── MODashboardFrame.java         # MO portal (sidebar + cards)
 ├── common/
 │   ├── dao/
 │   │   ├── JsonPersistenceManager.java  # Central JSON read/write; creates data/ on startup

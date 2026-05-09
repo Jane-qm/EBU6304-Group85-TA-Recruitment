@@ -17,6 +17,8 @@ public class Job {
     private String description;
     private List<String> requiredSkills = new ArrayList<>();
     private int weeklyHours;
+    /** Number of TA positions to recruit (persisted; legacy jobs may use description only). */
+    private int headcount;
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime applicationDeadline;  // 新增：申请截止日期
@@ -78,6 +80,14 @@ public class Job {
     public void setWeeklyHours(int weeklyHours) { 
         this.weeklyHours = weeklyHours; 
     }
+
+    public int getHeadcount() {
+        return headcount;
+    }
+
+    public void setHeadcount(int headcount) {
+        this.headcount = Math.max(0, headcount);
+    }
     
     public String getStatus() { 
         return status; 
@@ -109,6 +119,9 @@ public class Job {
      * 判断职位是否可申请
      */
     public boolean isApplicable() {
+        if ("DRAFT".equalsIgnoreCase(status)) {
+            return false;
+        }
         if (!"PUBLISHED".equals(status) && !"OPEN".equals(status)) {
             return false;
         }

@@ -2,370 +2,591 @@ package ui.mo;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Frame;
-import java.awt.Window;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
-import javax.swing.JDialog;
+import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
-import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 
-import modules.application.ApplicationStatus;
-import modules.job.Job;
-import modules.user.User;
-import modules.job.JobService;
-import modules.user.UserService;
 import modules.application.Application;
 import modules.application.ApplicationService;
+import modules.application.ApplicationStatus;
+import modules.cv.CVInfo;
+import modules.cv.CVService;
+import modules.job.Job;
+import modules.job.JobService;
+import modules.profile.TAProfile;
+import modules.profile.TAProfileService;
+import modules.user.User;
+import modules.user.UserService;
 
 /**
- * MO 申请人审核面板 - 增强版
- * 包含自动刷新、调试日志和状态栏
+ * MO applicant review: filter by course and status; per-row profile, CV, accept, reject, shortlist.
  */
 public class MOApplicantReviewPanel extends JPanel {
+
+    private static final String ALL_STATUSES = "All statuses";
+    private static final String ST_PENDING = "Pending review (not seen)";
+    private static final String ST_SHORTLIST = "Shortlisted";
+    private static final String ST_REJECTED = "Rejected";
+    private static final String ST_OFFER_SENT = "Offer sent";
+    private static final String ST_HIRED = "Hired";
+
     private final User currentUser;
     private final UserService userService = new UserService();
     private final JobService jobService = new JobService();
     private final ApplicationService appService = new ApplicationService();
-    
+    private final TAProfileService profileService = new TAProfileService();
+    private final CVService cvService = new CVService();
+
     private JTable appTable;
     private DefaultTableModel tableModel;
-    private List<Application> currentApplications;
-    private JLabel statusLabel;          // 状态栏
-    private Timer refreshTimer;          // 自动刷新定时器
+    /** All applications for this MO's jobs (unfiltered). */
+    private List<Application> allMoApplications = new ArrayList<>();
+    /** Rows currently shown after course + status filters. */
+    private List<Application> filteredApplications = new ArrayList<>();
+    private List<Job> myJobs = new ArrayList<>();
+
+    private JComboBox<String> courseCombo;
+    private JComboBox<String> statusCombo;
+    private JLabel statusLabel;
+    private Timer refreshTimer;
 
     public MOApplicantReviewPanel(User currentUser) {
         this.currentUser = currentUser;
-        setLayout(new BorderLayout(20, 20));
+        setLayout(new BorderLayout(16, 16));
         setBackground(new Color(248, 250, 252));
-        setBorder(new EmptyBorder(30, 40, 30, 40));
+        setBorder(new EmptyBorder(24, 32, 24, 32));
 
-        initHeader();
-        initStatusBar();          // 新增状态栏
+        initNorth();
         initTable();
-        initActionButtons();
+        initSouth();
+
         loadApplications();
 
-        // 每 10 秒自动刷新
         refreshTimer = new Timer(10000, e -> loadApplications());
         refreshTimer.start();
     }
 
-    private void initHeader() {
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setOpaque(false);
-        
-        JLabel titleLabel = new JLabel("Applicant Review & Offer Management");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
-        headerPanel.add(titleLabel, BorderLayout.WEST);
-        
-        JButton refreshBtn = new JButton("⟳ Refresh Now");
-        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        refreshBtn.setBackground(new Color(59, 130, 246));
-        //refreshBtn.setForeground(Color.WHITE);
-        refreshBtn.setFocusPainted(false);
-        refreshBtn.addActionListener(e -> loadApplications());
-        headerPanel.add(refreshBtn, BorderLayout.EAST);
-        
-        add(headerPanel, BorderLayout.NORTH);
-    }
+    private void initNorth() {
+        JPanel north = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 6));
+        north.setOpaque(false);
 
-    private void initStatusBar() {
-        statusLabel = new JLabel("Loading...");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        statusLabel.setForeground(new Color(100, 116, 139));
-        statusLabel.setBorder(new EmptyBorder(5, 10, 5, 10));
-        add(statusLabel, BorderLayout.SOUTH);
+        north.add(new JLabel("Course:"));
+        courseCombo = new JComboBox<>();
+        courseCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        courseCombo.addActionListener(e -> applyFiltersAndRefreshTable());
+        north.add(courseCombo);
+
+        north.add(Box.createHorizontalStrut(16));
+        north.add(new JLabel("Application status:"));
+        statusCombo = new JComboBox<>(new String[]{
+                ALL_STATUSES, ST_PENDING, ST_SHORTLIST, ST_REJECTED, ST_OFFER_SENT, ST_HIRED
+        });
+        statusCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        statusCombo.addActionListener(e -> applyFiltersAndRefreshTable());
+        north.add(statusCombo);
+
+        north.add(Box.createHorizontalStrut(24));
+        JButton exportCsvBtn = new JButton("Export CSV");
+        exportCsvBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        MoUiStyles.applyTextButton(exportCsvBtn);
+        exportCsvBtn.addActionListener(e -> exportFilteredApplicationsToCsv());
+        north.add(exportCsvBtn);
+
+        north.add(Box.createHorizontalStrut(12));
+        JButton refreshBtn = new JButton("Refresh");
+        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        MoUiStyles.applyTextButton(refreshBtn);
+        refreshBtn.addActionListener(e -> loadApplications());
+        north.add(refreshBtn);
+
+        add(north, BorderLayout.NORTH);
     }
 
     private void initTable() {
-        String[] columns = {"App ID", "Module", "TA Email", "Statement", "Status", "Date"};
+        String[] columns = {
+                "TA name", "Email", "Course", "Application status",
+                "Profile", "CV", "Accept (offer)", "Reject", "Shortlist"
+        };
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) { return false; }
+            public boolean isCellEditable(int row, int column) {
+                return column >= 4;
+            }
         };
         appTable = new JTable(tableModel);
-        appTable.setRowHeight(35);
-        appTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        appTable.setRowHeight(40);
+        appTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        appTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        appTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+
+        ActionButtonRenderer renderer = new ActionButtonRenderer();
+        ActionButtonEditor editor = new ActionButtonEditor();
+        for (int c = 4; c < columns.length; c++) {
+            appTable.getColumnModel().getColumn(c).setCellRenderer(renderer);
+            appTable.getColumnModel().getColumn(c).setCellEditor(editor);
+        }
+
         add(new JScrollPane(appTable), BorderLayout.CENTER);
     }
 
-    private void initActionButtons() {
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 15, 10));
-        btnPanel.setOpaque(false);
-
-        JButton viewBtn = new JButton("📄 View TA Profile");
-        viewBtn.addActionListener(e -> viewProfile());
-
-        JButton rejectBtn = new JButton("Reject");
-        rejectBtn.addActionListener(e -> updateAppStatus(ApplicationStatus.REJECTED));
-
-        JButton waitlistBtn = new JButton("Waitlist");
-        waitlistBtn.addActionListener(e -> updateAppStatus(ApplicationStatus.WAITLISTED));
-
-        JButton acceptBtn = new JButton("Accept & Send Offer");
-        acceptBtn.setBackground(new Color(16, 185, 129));
-        //acceptBtn.setForeground(Color.WHITE);
-        acceptBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        acceptBtn.addActionListener(e -> sendOfferToSelected());
-
-        JButton waitlistOfferBtn = new JButton("From Waitlist");
-        waitlistOfferBtn.setBackground(new Color(59, 130, 246));
-        //waitlistOfferBtn.setForeground(Color.WHITE);
-        waitlistOfferBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-        waitlistOfferBtn.setToolTipText("Select a waitlisted candidate for the same job and send them an offer");
-        waitlistOfferBtn.addActionListener(e -> {
-            int row = appTable.getSelectedRow();
-            if (row == -1) {
-                JOptionPane.showMessageDialog(this,
-                        "Select any application row to identify the job, then click 'From Waitlist'.",
-                        "No Row Selected", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            showWaitlistDialog(currentApplications.get(row));
-        });
-
-        btnPanel.add(viewBtn);
-        btnPanel.add(Box.createHorizontalStrut(20));
-        btnPanel.add(rejectBtn);
-        btnPanel.add(waitlistBtn);
-        btnPanel.add(acceptBtn);
-        btnPanel.add(Box.createHorizontalStrut(20));
-        btnPanel.add(waitlistOfferBtn);
-
-        add(btnPanel, BorderLayout.SOUTH);
+    private void initSouth() {
+        statusLabel = new JLabel(" ");
+        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        statusLabel.setForeground(new Color(100, 116, 139));
+        statusLabel.setBorder(new EmptyBorder(8, 4, 0, 4));
+        add(statusLabel, BorderLayout.SOUTH);
     }
 
     private void loadApplications() {
-        // 调试输出：当前 MO 用户 ID
-        System.out.println("========== MOApplicantReviewPanel.loadApplications ==========");
-        System.out.println("Current MO User ID: " + currentUser.getUserId());
-
-        // 获取当前 MO 的所有职位 ID
-        List<Long> myJobIds = jobService.listAll().stream()
-                .filter(j -> j.getMoUserId().equals(currentUser.getUserId()))
-                .map(Job::getJobId)
+        myJobs = jobService.listAll().stream()
+                .filter(j -> j.getMoUserId() != null && j.getMoUserId().equals(currentUser.getUserId()))
                 .collect(Collectors.toList());
-        System.out.println("MO job IDs: " + myJobIds);
 
-        // 获取系统中所有申请
+        Set<Long> myJobIds = myJobs.stream().map(Job::getJobId).filter(Objects::nonNull).collect(Collectors.toSet());
+
         List<Application> allApps = jobService.listAllApplications();
-        System.out.println("Total applications in system: " + allApps.size());
-
-        // 过滤出属于当前 MO 的申请
-        currentApplications = allApps.stream()
+        allMoApplications = allApps.stream()
                 .filter(app -> myJobIds.contains(app.getJobId()))
                 .collect(Collectors.toList());
-        System.out.println("Filtered applications for MO: " + currentApplications.size());
 
-        // 更新表格
-        tableModel.setRowCount(0);
-        for (Application app : currentApplications) {
-            User taUser = userService.getUserById(app.getTaUserId());
-            Job job = jobService.listAll().stream()
-                    .filter(j -> j.getJobId().equals(app.getJobId()))
-                    .findFirst().orElse(null);
-
-            String statusDisplay = ApplicationStatus.getDisplayText(app.getStatus());
-            tableModel.addRow(new Object[]{
-                    app.getApplicationId(),
-                    job != null ? job.getModuleCode() : "N/A",
-                    taUser != null ? taUser.getEmail() : "Unknown",
-                    app.getStatement(),
-                    statusDisplay,
-                    app.getAppliedAt() != null ? app.getAppliedAt().toLocalDate() : "N/A"
-            });
-        }
-
-        // 更新状态栏
-        statusLabel.setText(String.format("✅ %d application(s) for your %d job(s) | Last refresh: %s",
-                currentApplications.size(), myJobIds.size(),
-                java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))));
-
-        if (currentApplications.isEmpty() && !allApps.isEmpty()) {
-            System.err.println("WARNING: There are " + allApps.size() + " total applications but none belong to your jobs.");
-            System.err.println("Your job IDs: " + myJobIds);
-            System.err.println("Application job IDs: " + allApps.stream().map(Application::getJobId).collect(Collectors.toList()));
-        }
+        rebuildCourseCombo();
+        applyFiltersAndRefreshTable();
     }
 
-    private void viewProfile() {
-        int row = appTable.getSelectedRow();
-        if (row == -1) return;
-        Application app = currentApplications.get(row);
-        JOptionPane.showMessageDialog(this, "TA Statement:\n" + app.getStatement(), 
-                "Applicant Profile", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    private void updateAppStatus(String status) {
-        int[] rows = appTable.getSelectedRows();
-        if (rows.length == 0) return;
-        
-        for (int row : rows) {
-            Application app = currentApplications.get(row);
-            if (ApplicationStatus.SUBMITTED.equals(app.getStatus()) || 
-                ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
-                app.setStatus(status);
-                jobService.updateApplication(app);
-            }
+    private void rebuildCourseCombo() {
+        String previous = (String) courseCombo.getSelectedItem();
+        courseCombo.removeAllItems();
+        List<String> modules = myJobs.stream()
+                .map(Job::getModuleCode)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.toList());
+        for (String m : modules) {
+            courseCombo.addItem(m);
         }
-        loadApplications();
-        JOptionPane.showMessageDialog(this, "Status updated to: " + status);
-    }
-
-    private void sendOfferToSelected() {
-        int[] rows = appTable.getSelectedRows();
-        if (rows.length == 0) {
-            JOptionPane.showMessageDialog(this, "Please select applicants to send offers.");
+        if (courseCombo.getItemCount() == 0) {
             return;
         }
-
-        int count = 0;
-        for (int row : rows) {
-            Application app = currentApplications.get(row);
-            
-            if (!ApplicationStatus.SUBMITTED.equals(app.getStatus()) && 
-                !ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
-                continue;
-            }
-
-            Job job = jobService.listAll().stream()
-                    .filter(j -> j.getJobId().equals(app.getJobId()))
-                    .findFirst().orElse(null);
-
-            if (job != null) {
-                try {
-                    appService.sendOffer(app.getApplicationId(), job.getWeeklyHours(), 7);
-                    count++;
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, 
-                        "Error sending offer: " + ex.getMessage(), 
-                        "Error", JOptionPane.ERROR_MESSAGE);
+        if (previous != null) {
+            for (int i = 0; i < courseCombo.getItemCount(); i++) {
+                if (previous.equals(courseCombo.getItemAt(i))) {
+                    courseCombo.setSelectedIndex(i);
+                    return;
                 }
             }
         }
-        loadApplications();
-        if (count > 0) {
-            JOptionPane.showMessageDialog(this, 
-                "Successfully sent " + count + " offers.\nWaiting for TA's final decision.");
-        } else {
-            JOptionPane.showMessageDialog(this, 
-                "Offers can only be sent to applicants with SUBMITTED or WAITLISTED status.");
+        courseCombo.setSelectedIndex(0);
+    }
+
+    private void applyFiltersAndRefreshTable() {
+        if (courseCombo.getItemCount() == 0) {
+            filteredApplications = new ArrayList<>();
+            tableModel.setRowCount(0);
+            statusLabel.setText("No courses (jobs) for your account. Post a job first.");
+            return;
+        }
+        String c = (String) courseCombo.getSelectedItem();
+        if (c == null) {
+            courseCombo.setSelectedIndex(0);
+            c = (String) courseCombo.getSelectedItem();
+        }
+        final String courseSel = c;
+        String statusRaw = (String) statusCombo.getSelectedItem();
+        final String statusSel = (statusRaw == null) ? ALL_STATUSES : statusRaw;
+
+        Set<Long> jobIdsForCourse = myJobs.stream()
+                .filter(j -> courseSel.equals(j.getModuleCode()))
+                .map(Job::getJobId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        filteredApplications = allMoApplications.stream()
+                .filter(app -> jobIdsForCourse.contains(app.getJobId()))
+                .filter(app -> matchesStatusFilter(app, statusSel))
+                .sorted(Comparator.comparing(Application::getAppliedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+
+        tableModel.setRowCount(0);
+        for (Application app : filteredApplications) {
+            User taUser = userService.getUserById(app.getTaUserId());
+            String email = taUser != null ? taUser.getEmail() : ("TA #" + app.getTaUserId());
+            String name = displayTaName(taUser);
+            String module = moduleCodeForApplication(app);
+            String statusText = ApplicationStatus.getDisplayText(app.getStatus());
+            tableModel.addRow(new Object[]{name, email, module, statusText, "", "", "", "", ""});
+        }
+
+        statusLabel.setText(String.format(
+                "%d application(s) shown (of %d for your jobs) | Courses: %d | Last refresh: %s",
+                filteredApplications.size(),
+                allMoApplications.size(),
+                myJobs.stream().map(Job::getModuleCode).filter(Objects::nonNull).distinct().count(),
+                java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"))));
+    }
+
+    private void exportFilteredApplicationsToCsv() {
+        if (courseCombo.getItemCount() == 0) {
+            JOptionPane.showMessageDialog(this, "No course to export (no jobs for your account).",
+                    "Export", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (filteredApplications.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No applications match the current filters.",
+                    "Export", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        String courseCode = (String) courseCombo.getSelectedItem();
+        JFileChooser fc = new JFileChooser();
+        fc.setSelectedFile(new File("applicants_"
+                + (courseCode != null ? courseCode.replaceAll("[^a-zA-Z0-9_-]", "_") : "export")
+                + ".csv"));
+        if (fc.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        File target = fc.getSelectedFile();
+        if (!target.getName().toLowerCase().endsWith(".csv")) {
+            target = new File(target.getParentFile(), target.getName() + ".csv");
+        }
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append(csvEscape("TA name")).append(',')
+                    .append(csvEscape("Email")).append(',')
+                    .append(csvEscape("Course")).append(',')
+                    .append(csvEscape("Application status")).append(',')
+                    .append(csvEscape("Application ID")).append(',')
+                    .append(csvEscape("Job ID")).append(',')
+                    .append(csvEscape("Applied at")).append(',')
+                    .append(csvEscape("Statement")).append('\n');
+            for (Application app : filteredApplications) {
+                User taUser = userService.getUserById(app.getTaUserId());
+                String email = taUser != null ? taUser.getEmail() : ("TA #" + app.getTaUserId());
+                String name = displayTaName(taUser);
+                String module = moduleCodeForApplication(app);
+                String statusText = ApplicationStatus.getDisplayText(app.getStatus());
+                String applied = app.getAppliedAt() != null ? app.getAppliedAt().toString() : "";
+                sb.append(csvEscape(name)).append(',')
+                        .append(csvEscape(email)).append(',')
+                        .append(csvEscape(module)).append(',')
+                        .append(csvEscape(statusText)).append(',')
+                        .append(app.getApplicationId() != null ? app.getApplicationId() : "").append(',')
+                        .append(app.getJobId() != null ? app.getJobId() : "").append(',')
+                        .append(csvEscape(applied)).append(',')
+                        .append(csvEscape(app.getStatement())).append('\n');
+            }
+            Files.writeString(target.toPath(), sb.toString(), StandardCharsets.UTF_8);
+            JOptionPane.showMessageDialog(this, "Exported to:\n" + target.getAbsolutePath(),
+                    "Export", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Export failed: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    private void showWaitlistDialog(Application referenceApp) {
-        Long jobId = referenceApp.getJobId();
-        Job job = jobService.listAll().stream()
-                .filter(j -> j.getJobId().equals(jobId))
-                .findFirst().orElse(null);
-        if (job == null) {
-            JOptionPane.showMessageDialog(this, "Job record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+    private static String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    private boolean matchesStatusFilter(Application app, String selected) {
+        if (ALL_STATUSES.equals(selected)) {
+            return true;
+        }
+        String st = app.getStatus();
+        if (ST_PENDING.equals(selected)) {
+            return ApplicationStatus.SUBMITTED.equals(st);
+        }
+        if (ST_SHORTLIST.equals(selected)) {
+            return ApplicationStatus.WAITLISTED.equals(st);
+        }
+        if (ST_REJECTED.equals(selected)) {
+            return ApplicationStatus.REJECTED.equals(st);
+        }
+        if (ST_OFFER_SENT.equals(selected)) {
+            return ApplicationStatus.OFFER_SENT.equals(st);
+        }
+        if (ST_HIRED.equals(selected)) {
+            return ApplicationStatus.HIRED.equals(st);
+        }
+        return true;
+    }
+
+    private String moduleCodeForApplication(Application app) {
+        Job j = findJob(app.getJobId());
+        if (j != null && j.getModuleCode() != null) {
+            return j.getModuleCode();
+        }
+        return "—";
+    }
+
+    private String displayTaName(User taUser) {
+        if (taUser == null) {
+            return "—";
+        }
+        TAProfile profile = profileService.getProfileByTaId(taUser.getUserId());
+        if (profile != null) {
+            String full = profile.getFullName();
+            if (full != null && !full.isBlank()) {
+                return full.trim();
+            }
+        }
+        String email = taUser.getEmail();
+        if (email == null) {
+            return "—";
+        }
+        int at = email.indexOf('@');
+        return at > 0 ? email.substring(0, at) : email;
+    }
+
+    private void showTaProfileDialog(Application app) {
+        User user = userService.getUserById(app.getTaUserId());
+        if (user == null) {
+            JOptionPane.showMessageDialog(this, "TA user not found.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
-        List<Application> waitlist = appService.listAll().stream()
-                .filter(app -> jobId.equals(app.getJobId()) && 
-                        ApplicationStatus.WAITLISTED.equals(app.getStatus()))
-                .collect(Collectors.toList());
-        
-        if (waitlist.isEmpty()) {
+        TAProfile profile = profileService.getProfileByTaId(user.getUserId());
+        if (profile == null) {
             JOptionPane.showMessageDialog(this,
-                    "No waitlisted candidates for " + job.getModuleCode() + ".",
-                    "Empty Waitlist", JOptionPane.INFORMATION_MESSAGE);
+                    "Profile not completed yet.\nEmail: " + user.getEmail(),
+                    "TA Profile", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
-        Window ancestor = SwingUtilities.getWindowAncestor(this);
-        JDialog dialog = new JDialog(
-                ancestor instanceof Frame ? (Frame) ancestor : null,
-                "Waitlist - " + job.getModuleCode() + " - " + job.getTitle(),
-                true);
-        dialog.setSize(750, 380);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(new BorderLayout(10, 10));
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== TA Profile ===\n\n");
+        sb.append("Name: ").append(profile.getFullName() != null ? profile.getFullName() : "N/A").append("\n");
+        sb.append("Chinese Name: ").append(profile.getChineseName() != null ? profile.getChineseName() : "N/A").append("\n");
+        sb.append("Email: ").append(profile.getEmail()).append("\n");
+        sb.append("Student ID: ").append(profile.getStudentId() != null ? profile.getStudentId() : "N/A").append("\n");
+        sb.append("Phone: ").append(profile.getPhone() != null ? profile.getPhone() : "N/A").append("\n");
+        sb.append("Gender: ").append(profile.getGender() != null ? profile.getGender().getEnglishName() : "N/A").append("\n");
+        sb.append("School: ").append(profile.getSchool() != null ? profile.getSchool() : "N/A").append("\n");
+        sb.append("Supervisor: ").append(profile.getSupervisor() != null ? profile.getSupervisor() : "N/A").append("\n");
+        sb.append("Major: ").append(profile.getMajor() != null ? profile.getMajor() : "N/A").append("\n");
+        sb.append("Student Type: ").append(profile.getStudentType() != null ? profile.getStudentType().getEnglishName() : "N/A").append("\n");
+        sb.append("Current Year: ").append(profile.getCurrentYear() != null ? profile.getCurrentYear().getEnglishName() : "N/A").append("\n");
+        sb.append("Campus: ").append(profile.getCampus() != null ? profile.getCampus().getChineseName() : "N/A").append("\n");
+        sb.append("Available Hours: ").append(profile.getAvailableWorkingHours()).append(" hours/week\n");
+        sb.append("\nSkills: ").append(profile.getSkillTags() != null && !profile.getSkillTags().isEmpty()
+                ? String.join(", ", profile.getSkillTags()) : "None").append("\n");
+        sb.append("\nApplication statement:\n").append(app.getStatement() != null ? app.getStatement() : "None");
+        sb.append("\n\nPrevious Experience:\n").append(profile.getPreviousExperience() != null ? profile.getPreviousExperience() : "None");
 
-        JLabel header = new JLabel("<html><b>" + waitlist.size()
-                + "</b> candidate(s) on waitlist - sorted by earliest application date</html>");
-        header.setBorder(BorderFactory.createEmptyBorder(12, 14, 0, 14));
-        dialog.add(header, BorderLayout.NORTH);
+        JOptionPane.showMessageDialog(this, sb.toString(),
+                "TA Profile - " + user.getEmail(), JOptionPane.INFORMATION_MESSAGE);
+    }
 
-        String[] cols = {"#", "TA Email", "Applied Date", "Statement"};
-        DefaultTableModel wModel = new DefaultTableModel(cols, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-        };
-        for (int i = 0; i < waitlist.size(); i++) {
-            Application wa = waitlist.get(i);
-            User taUser = userService.getUserById(wa.getTaUserId());
-            wModel.addRow(new Object[]{
-                    i + 1,
-                    taUser != null ? taUser.getEmail() : "TA #" + wa.getTaUserId(),
-                    wa.getAppliedAt() != null ? wa.getAppliedAt().toLocalDate() : "N/A",
-                    wa.getStatement()
-            });
+    private void viewTaCv(Application app) {
+        User user = userService.getUserById(app.getTaUserId());
+        if (user == null) {
+            JOptionPane.showMessageDialog(this, "TA user not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
         }
-        JTable wTable = new JTable(wModel);
-        wTable.setRowHeight(30);
-        wTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        wTable.getColumnModel().getColumn(0).setMaxWidth(40);
-        wTable.getColumnModel().getColumn(2).setMaxWidth(110);
-        dialog.add(new JScrollPane(wTable), BorderLayout.CENTER);
-
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 10));
-        JButton cancelBtn = new JButton("Cancel");
-        JButton sendBtn   = new JButton("Send Offer to Selected");
-        sendBtn.setBackground(new Color(16, 185, 129));
-        sendBtn.setForeground(Color.WHITE);
-        sendBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
-
-        cancelBtn.addActionListener(e -> dialog.dispose());
-        sendBtn.addActionListener(e -> {
-            int sel = wTable.getSelectedRow();
-            if (sel == -1) {
-                JOptionPane.showMessageDialog(dialog, "Please select a candidate first.");
+        cvService.refreshCVs(user.getUserId());
+        CVInfo defaultCV = cvService.getDefaultCV(user.getUserId());
+        if (defaultCV == null) {
+            JOptionPane.showMessageDialog(this,
+                    "No CV uploaded yet.\nEmail: " + user.getEmail(),
+                    "CV Not Found", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        try {
+            byte[] fileData = cvService.downloadCV(user.getUserId(), defaultCV.getCvId());
+            if (fileData == null || fileData.length == 0) {
+                JOptionPane.showMessageDialog(this, "Failed to read CV file.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-            Application chosen = waitlist.get(sel);
-            dialog.dispose();
-            sendOfferFromWaitlist(chosen, job);
-        });
-
-        btnPanel.add(cancelBtn);
-        btnPanel.add(sendBtn);
-        dialog.add(btnPanel, BorderLayout.SOUTH);
-
-        dialog.setVisible(true);
+            String extension = defaultCV.getOriginalFileName() != null && defaultCV.getOriginalFileName().contains(".")
+                    ? defaultCV.getOriginalFileName().substring(defaultCV.getOriginalFileName().lastIndexOf('.') + 1)
+                    : "pdf";
+            java.io.File tempFile = java.io.File.createTempFile("cv_", "." + extension);
+            tempFile.deleteOnExit();
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile)) {
+                fos.write(fileData);
+            }
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(tempFile);
+            } else {
+                JOptionPane.showMessageDialog(this, "CV saved to: " + tempFile.getAbsolutePath(),
+                        "CV File", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Failed to open CV: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
-    private void sendOfferFromWaitlist(Application app, Job job) {
+    private Job findJob(Long jobId) {
+        if (jobId == null) {
+            return null;
+        }
+        return myJobs.stream().filter(j -> jobId.equals(j.getJobId())).findFirst().orElse(null);
+    }
+
+    private void acceptApplication(Application app) {
+        if (!ApplicationStatus.SUBMITTED.equals(app.getStatus())
+                && !ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
+            JOptionPane.showMessageDialog(this,
+                    "Offers can only be sent for applications in Pending review or Shortlisted status.",
+                    "Cannot send offer", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        Job job = findJob(app.getJobId());
+        if (job == null) {
+            JOptionPane.showMessageDialog(this, "Job not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         try {
             appService.sendOffer(app.getApplicationId(), job.getWeeklyHours(), 7);
             loadApplications();
-
-            User taUser = userService.getUserById(app.getTaUserId());
-            String taEmail = taUser != null ? taUser.getEmail() : "TA #" + app.getTaUserId();
             JOptionPane.showMessageDialog(this,
-                    "Offer sent to " + taEmail + " (promoted from waitlist).\n"
-                            + "Module: " + job.getModuleCode() + " - " + job.getTitle() + "\n"
-                            + "Application status updated to OFFER_SENT.",
-                    "Offer Sent", JOptionPane.INFORMATION_MESSAGE);
+                    "Offer sent. Waiting for the TA to respond.",
+                    "Offer sent", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error sending offer: " + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void rejectApplication(Application app) {
+        if (ApplicationStatus.isTerminal(app.getStatus())) {
+            JOptionPane.showMessageDialog(this, "This application is already in a final state.",
+                    "No change", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (!ApplicationStatus.SUBMITTED.equals(app.getStatus())
+                && !ApplicationStatus.WAITLISTED.equals(app.getStatus())) {
+            JOptionPane.showMessageDialog(this,
+                    "Reject is only available for Pending review or Shortlisted applications.",
+                    "Cannot reject", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        app.setStatus(ApplicationStatus.REJECTED);
+        jobService.updateApplication(app);
+        loadApplications();
+        JOptionPane.showMessageDialog(this, "Application marked as rejected.", "Updated", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void shortlistApplication(Application app) {
+        if (!ApplicationStatus.SUBMITTED.equals(app.getStatus())) {
+            JOptionPane.showMessageDialog(this,
+                    "Shortlist is only available for applications that are still pending review.",
+                    "Cannot shortlist", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        app.setStatus(ApplicationStatus.WAITLISTED);
+        jobService.updateApplication(app);
+        loadApplications();
+        JOptionPane.showMessageDialog(this, "Candidate moved to shortlist.", "Updated", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private class ActionButtonRenderer extends JButton implements TableCellRenderer {
+        ActionButtonRenderer() {
+            setOpaque(true);
+            setFocusPainted(false);
+            setFont(new Font("SansSerif", Font.PLAIN, 11));
+            setBackground(Color.WHITE);
+            setForeground(Color.BLACK);
+            setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int column) {
+            setText(buttonLabelForColumn(column));
+            return this;
+        }
+    }
+
+    private String buttonLabelForColumn(int column) {
+        return switch (column) {
+            case 4 -> "View profile";
+            case 5 -> "View CV";
+            case 6 -> "Accept";
+            case 7 -> "Reject";
+            case 8 -> "Shortlist";
+            default -> "";
+        };
+    }
+
+    private class ActionButtonEditor extends AbstractCellEditor implements TableCellEditor {
+        private final JButton button = new JButton();
+        private int row;
+        private int col;
+
+        ActionButtonEditor() {
+            button.setFont(new Font("SansSerif", Font.PLAIN, 11));
+            button.setBackground(Color.WHITE);
+            button.setForeground(Color.BLACK);
+            button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+            button.setFocusPainted(false);
+            button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            button.addActionListener(evt -> handleButtonClick());
+        }
+
+        private void handleButtonClick() {
+            if (row < 0 || row >= filteredApplications.size()) {
+                fireEditingStopped();
+                return;
+            }
+            Application app = filteredApplications.get(row);
+            switch (col) {
+                case 4 -> showTaProfileDialog(app);
+                case 5 -> viewTaCv(app);
+                case 6 -> acceptApplication(app);
+                case 7 -> rejectApplication(app);
+                case 8 -> shortlistApplication(app);
+                default -> { }
+            }
+            fireEditingStopped();
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value,
+                                                   boolean isSelected, int row, int column) {
+            this.row = row;
+            this.col = column;
+            button.setText(buttonLabelForColumn(column));
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return button.getText();
         }
     }
 }

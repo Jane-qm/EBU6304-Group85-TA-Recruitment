@@ -57,7 +57,7 @@ import modules.profile.TAProfile;
 
 /**
  * Admin Portal
- * Layout: Top - Change Password, Middle - Application Cycle Settings, Bottom - System Data Export
+ * Layout: Top - Change Password, Middle - Recruitment period (MO publish window), Bottom - System Data Export
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
@@ -84,7 +84,7 @@ public class AdminHomeFrame extends JFrame {
     private JPasswordField newPasswordField;
     private JPasswordField confirmPasswordField;
 
-    // Application Cycle components (JCalendar)
+    // Recruitment period (JCalendar); stored as applicationStart/applicationEnd in config
     private JDateChooser startDateChooser;
     private JDateChooser endDateChooser;
 
@@ -151,7 +151,7 @@ public class AdminHomeFrame extends JFrame {
         mainCardPanel = new JPanel(cardLayout);
         mainCardPanel.setBackground(APP_BG);
 
-        // Create dashboard panel (Change Password + Application Cycle + System Data)
+        // Dashboard: Change Password + Recruitment period + System Data Export
         mainCardPanel.add(createDashboardPanel(), CARD_DASHBOARD);
 
         // Management panels
@@ -173,7 +173,7 @@ public class AdminHomeFrame extends JFrame {
     }
 
     /**
-     * Dashboard Panel - contains Change Password, Application Cycle Settings, System Data Export
+     * Dashboard Panel - contains Change Password, Recruitment period, System Data Export
      */
     private JPanel createDashboardPanel() {
         JPanel inner = new JPanel(new BorderLayout(15, 15));
@@ -279,7 +279,7 @@ public class AdminHomeFrame extends JFrame {
         return panel;
     }
 
-    // ==================== Center Panel: Application Cycle ====================
+    // ==================== Center Panel: Recruitment period ====================
 
     private JPanel createApplicationCyclePanel() {
         JPanel panel = new JPanel(new BorderLayout());
@@ -292,16 +292,17 @@ public class AdminHomeFrame extends JFrame {
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
         titlePanel.setBackground(Color.WHITE);
 
-        JLabel titleLabel = new JLabel("Application Cycle Settings");
+        JLabel titleLabel = new JLabel("Recruitment Period");
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         titlePanel.add(titleLabel);
 
         titlePanel.add(Box.createVerticalStrut(6));
 
-        String hintHtml = "<html><body style='width:320px;color:rgb(107,114,128);font-size:12px'>"
-                + "During this period, recruitment is open: TAs can submit applications and the hiring "
-                + "workflow runs within this window (see job deadlines and system rules)."
+        String hintHtml = "<html><body style='width:380px;color:rgb(107,114,128);font-size:12px'>"
+                + "Set the window when Module Organisers may <b>first publish</b> jobs. "
+                + "Both dates must be <b>after today</b> (system local date). "
+                + "Each job's application deadline must fall inside this period and after the current time."
                 + "</body></html>";
         JLabel hintLabel = new JLabel(hintHtml);
         hintLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -323,7 +324,7 @@ public class AdminHomeFrame extends JFrame {
         gbc.gridy = 0;
         gbc.gridwidth = 1;
         gbc.weightx = 0;
-        contentPanel.add(new JLabel("Start Date:"), gbc);
+        contentPanel.add(new JLabel("Recruitment start (date):"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1;
@@ -335,7 +336,7 @@ public class AdminHomeFrame extends JFrame {
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0;
-        contentPanel.add(new JLabel("End Date:"), gbc);
+        contentPanel.add(new JLabel("Recruitment end (date):"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1;
@@ -658,7 +659,8 @@ public class AdminHomeFrame extends JFrame {
             systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
             AdminAuditLogger.log(currentUser.getEmail(), "SAVE_CYCLE",
                     "start=" + start + " end=" + end);
-            showMessage("Application cycle saved successfully.");
+            loadCycleFields();
+            showMessage("Recruitment period saved successfully.");
 
         } catch (Exception ex) {
             showMessage("Save failed: " + ex.getMessage());

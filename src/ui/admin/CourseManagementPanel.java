@@ -11,7 +11,9 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import javax.swing.AbstractCellEditor;
 import javax.swing.BorderFactory;
@@ -36,6 +38,7 @@ import modules.course.Course;
 import modules.course.CourseService;
 import modules.job.Job;
 import modules.job.JobService;
+import modules.user.MO;
 import modules.user.User;
 import modules.user.UserService;
 
@@ -267,17 +270,35 @@ public class CourseManagementPanel extends JPanel {
     }
 
     private String getMONameForCourse(String moduleCode) {
+        if (moduleCode == null) {
+            return "—";
+        }
         List<Job> jobs = jobService.listAll();
-        for (Job job : jobs) {
-            if (moduleCode.equals(job.getModuleCode())) {
-                User mo = userService.findById(job.getMoUserId());
-                if (mo != null) {
-                    return extractNameFromEmail(mo.getEmail());
-                }
-                return "MO #" + job.getMoUserId();
+        Optional<Job> published = jobs.stream()
+                .filter(j -> moduleCode.equals(j.getModuleCode()))
+                .filter(j -> {
+                    String s = j.getStatus();
+                    return s != null && ("OPEN".equalsIgnoreCase(s) || "PUBLISHED".equalsIgnoreCase(s));
+                })
+                .min(Comparator.comparing(Job::getJobId));
+        Optional<Job> any = jobs.stream()
+                .filter(j -> moduleCode.equals(j.getModuleCode()))
+                .min(Comparator.comparing(Job::getJobId));
+        Job job = published.or(() -> any).orElse(null);
+        if (job == null) {
+            return "—";
+        }
+        User mo = userService.findById(job.getMoUserId());
+        if (mo == null) {
+            return "MO #" + job.getMoUserId();
+        }
+        if (mo instanceof MO) {
+            String n = ((MO) mo).getName();
+            if (n != null && !n.isBlank()) {
+                return n.trim();
             }
         }
-        return "—";
+        return extractNameFromEmail(mo.getEmail());
     }
 
     private void viewApplicants(Course course) {

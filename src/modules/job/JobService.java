@@ -71,6 +71,18 @@ public class JobService {
         return null;
     }
 
+    private static boolean isDraft(Job job) {
+        return job != null && job.getStatus() != null && "DRAFT".equalsIgnoreCase(job.getStatus());
+    }
+
+    private static boolean isOpenOrPublished(Job job) {
+        if (job == null || job.getStatus() == null) {
+            return false;
+        }
+        String s = job.getStatus();
+        return "OPEN".equalsIgnoreCase(s) || "PUBLISHED".equalsIgnoreCase(s);
+    }
+
     public Job createOrUpdate(Job job) {
         if (job == null) {
             throw new IllegalArgumentException("Job must not be null.");
@@ -81,9 +93,16 @@ public class JobService {
 
         // 同步 deadline 字段
         syncApplicationDeadline(job);
-        
-        // 验证 deadline 格式（会抛出异常，阻止保存格式错误的职位）
-        validateDeadlineWithinCycle(job);
+
+        Job previous = job.getJobId() != null ? getJobById(job.getJobId()) : null;
+        boolean wasAlreadyOpen = previous != null && isOpenOrPublished(previous);
+
+        if (!isDraft(job)) {
+            if (!wasAlreadyOpen) {
+                systemConfigService.requireOpenRecruitmentWindowForPublish();
+            }
+            validateDeadlineWithinCycle(job);
+        }
         return dao.save(job);
     }
 
@@ -141,6 +160,7 @@ public class JobService {
         for (Job job : dao.findAll()) {
             if (jobId != null && jobId.equals(job.getJobId())) {
                 syncApplicationDeadline(job);
+                systemConfigService.requireOpenRecruitmentWindowForPublish();
                 validateDeadlineWithinCycle(job);
                 job.setStatus("PUBLISHED");
                 return dao.save(job);
@@ -206,13 +226,14 @@ public class JobService {
             throw new IllegalArgumentException("Job deadline is required and must use format YYYY-MM-DD.");
         }
         systemConfigService.validateDateWithinApplicationCycle(deadline);
+        systemConfigService.validateDeadlineAfterNow(deadline);
     }
 
     /**
      * 自动关闭过期职位
      */
     public int autoCloseExpiredJobs() {
-        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
         int closedCount = 0;
 
         for (Job job : dao.findAll()) {
@@ -222,25 +243,25 @@ public class JobService {
                 continue;
             }
 
-            LocalDate deadline = extractDeadlineSilently(job);
-            if (deadline == null) {
-                // 无法解析 deadline 的职位，跳过自动关闭（但输出警告）
-                System.err.println("[MOJobService] autoCloseExpiredJobs: skipping job " + job.getJobId() 
+            syncApplicationDeadline(job);
+            LocalDateTime deadlineInstant = job.getApplicationDeadline();
+            if (deadlineInstant == null) {
+                System.err.println("[MOJobService] autoCloseExpiredJobs: skipping job " + job.getJobId()
                         + " (" + job.getModuleCode() + ") — deadline missing or invalid format");
                 continue;
             }
 
-            if (deadline.isBefore(today)) {
+            if (now.isAfter(deadlineInstant)) {
                 job.setStatus("CLOSED");
                 dao.save(job);
-                
+
                 // 处理关联的未完成申请
                 getApplicationService().processExpiredApplicationsForJob(job.getJobId());
-                
+
                 closedCount++;
                 System.out.println("[MOJobService] Auto-closed expired job #" + job.getJobId()
                         + " (" + job.getModuleCode() + " – " + job.getTitle()
-                        + ") deadline was " + deadline);
+                        + ") deadline was " + deadlineInstant);
             }
         }
 

@@ -31,6 +31,7 @@ import modules.user.AccountStatus;
 import modules.user.User;
 import modules.user.UserRole;
 import modules.user.UserService;
+import modules.auth.AuthService;
 
 /**
  * TA Management Panel for Admin
@@ -313,8 +314,12 @@ public class TAManagementPanel extends JPanel {
     }
 
     private void resetPassword(User user) {
-        userService.resetPasswordByAdmin(user.getEmail(), "000000");
-        JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
+        try {
+            new AuthService().resetPassword(user.getEmail(), "000000");
+            JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Reset failed", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private String getStatusText(AccountStatus status) {

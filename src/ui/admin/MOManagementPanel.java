@@ -34,6 +34,7 @@ import modules.user.User;
 import modules.user.UserRole;
 import modules.user.UserService;
 import modules.user.MO;
+import modules.auth.AuthService;
 
 /**
  * MO Management Panel for Admin
@@ -330,8 +331,12 @@ public class MOManagementPanel extends JPanel {
     }
 
     private void resetPassword(User user) {
-        userService.resetPasswordByAdmin(user.getEmail(), "000000");
-        JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
+        try {
+            new AuthService().resetPassword(user.getEmail(), "000000");
+            JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Reset failed", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private String getStatusText(AccountStatus status) {
