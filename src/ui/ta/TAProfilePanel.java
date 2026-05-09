@@ -10,7 +10,6 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.GridLayout;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -134,16 +133,22 @@ public class TAProfilePanel extends JPanel {
     }
     
     private void initUI() {
-        // 标题区域
         JPanel headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
-        
-        // 内容区域（可滚动；单外层滚动条，避免嵌套导致滚轮卡顿）
-        JScrollPane scrollPane = new JScrollPane(createContentPanel());
+
+        // 外层 BorderLayout 让内容区横向铺满视口，避免 BoxLayout 偏好宽度过大时右侧被裁切
+        JPanel scrollRoot = new JPanel(new BorderLayout());
+        scrollRoot.setBackground(new Color(248, 250, 252));
+        JPanel contentColumn = createContentPanel();
+        contentColumn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        scrollRoot.add(contentColumn, BorderLayout.NORTH);
+
+        JScrollPane scrollPane = new JScrollPane(scrollRoot);
         scrollPane.setBorder(null);
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.getVerticalScrollBar().setUnitIncrement(24);
         scrollPane.getVerticalScrollBar().setBlockIncrement(120);
+        scrollPane.getViewport().setBackground(new Color(248, 250, 252));
         add(scrollPane, BorderLayout.CENTER);
     }
     
@@ -167,21 +172,29 @@ public class TAProfilePanel extends JPanel {
         panel.setBackground(new Color(248, 250, 252));
         panel.setBorder(new EmptyBorder(0, 30, 30, 30));
 
-        panel.add(createChangePasswordCard());
+        addFullWidthBlock(panel, createChangePasswordCard());
         panel.add(Box.createVerticalStrut(20));
 
-        panel.add(createPersonalInfoCard());
+        addFullWidthBlock(panel, createPersonalInfoCard());
         panel.add(Box.createVerticalStrut(25));
 
-        panel.add(createSkillsCard());
+        addFullWidthBlock(panel, createSkillsCard());
         panel.add(Box.createVerticalStrut(25));
 
-        panel.add(createSaveProfileBar());
+        addFullWidthBlock(panel, createSaveProfileBar());
         panel.add(Box.createVerticalStrut(20));
 
-        panel.add(createCvCard());
+        addFullWidthBlock(panel, createCvCard());
 
         return panel;
+    }
+
+    /** BoxLayout 子项默认按 preferred 宽度排版；限制最大宽度为视口宽，避免裁切右侧。 */
+    private static void addFullWidthBlock(JPanel column, JComponent block) {
+        block.setAlignmentX(Component.LEFT_ALIGNMENT);
+        Dimension max = block.getMaximumSize();
+        block.setMaximumSize(new Dimension(Integer.MAX_VALUE, max.height));
+        column.add(block);
     }
 
     private JPanel createChangePasswordCard() {
@@ -204,6 +217,53 @@ public class TAProfilePanel extends JPanel {
         stylePasswordField(pwdNewField);
         stylePasswordField(pwdConfirmField);
 
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 8, 6, 8);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        card.add(cardTitle, gbc);
+
+        gbc.gridwidth = 1;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.gridy = 1;
+        gbc.gridx = 0;
+        card.add(labelFor("Current password:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        card.add(pwdCurrentField, gbc);
+
+        gbc.gridy = 2;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        card.add(labelFor("New password:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        card.add(pwdNewField, gbc);
+
+        gbc.gridy = 3;
+        gbc.gridx = 0;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        card.add(labelFor("Confirm new password:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        card.add(pwdConfirmField, gbc);
+
+        gbc.gridy = 4;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 0;
+        gbc.fill = GridBagConstraints.NONE;
+        gbc.anchor = GridBagConstraints.CENTER;
         JButton updatePwdBtn = new JButton("Update Password");
         updatePwdBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
         updatePwdBtn.setBackground(Color.WHITE);
@@ -212,38 +272,6 @@ public class TAProfilePanel extends JPanel {
         updatePwdBtn.setFocusPainted(false);
         updatePwdBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         updatePwdBtn.addActionListener(e -> changeTaPassword());
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 8, 6, 8);
-        gbc.anchor = GridBagConstraints.WEST;
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 2;
-        card.add(cardTitle, gbc);
-
-        gbc.gridwidth = 1;
-        gbc.gridy = 1;
-        gbc.gridx = 0;
-        card.add(labelFor("Current password:"), gbc);
-        gbc.gridx = 1;
-        card.add(pwdCurrentField, gbc);
-
-        gbc.gridy = 2;
-        gbc.gridx = 0;
-        card.add(labelFor("New password:"), gbc);
-        gbc.gridx = 1;
-        card.add(pwdNewField, gbc);
-
-        gbc.gridy = 3;
-        gbc.gridx = 0;
-        card.add(labelFor("Confirm new password:"), gbc);
-        gbc.gridx = 1;
-        card.add(pwdConfirmField, gbc);
-
-        gbc.gridy = 4;
-        gbc.gridx = 0;
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
         card.add(updatePwdBtn, gbc);
 
         return card;
@@ -327,18 +355,22 @@ public class TAProfilePanel extends JPanel {
                 BorderFactory.createLineBorder(new Color(220, 224, 230), 1),
                 new EmptyBorder(20, 25, 20, 25)
         ));
-        
-        // 卡片标题
+
         JLabel cardTitle = new JLabel("Personal Information");
         cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
         cardTitle.setForeground(new Color(30, 35, 45));
         card.add(cardTitle, BorderLayout.NORTH);
-        
-        // 表单内容
-        JPanel formPanel = new JPanel(new GridLayout(0, 2, 20, 15));
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         formPanel.setBorder(new EmptyBorder(20, 0, 10, 0));
-        
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(8, 8, 8, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.weightx = 0.5;
+
         surnameField = createTextField(profile.getSurname());
         forenameField = createTextField(profile.getForename());
         chineseNameField = createTextField(profile.getChineseName());
@@ -347,72 +379,99 @@ public class TAProfilePanel extends JPanel {
         schoolField = createTextField(profile.getSchool());
         supervisorField = createTextField(profile.getSupervisor());
         majorField = createTextField(profile.getMajor());
-        
+
         genderCombo = new JComboBox<>(new String[]{"Male", "Female"});
         genderCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
         if (profile.getGender() != null) {
             genderCombo.setSelectedItem(profile.getGender().getEnglishName());
         }
-        
+
         studentTypeCombo = new JComboBox<>(new String[]{"Masters/MSc", "PhD"});
         studentTypeCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
         if (profile.getStudentType() != null) {
             studentTypeCombo.setSelectedItem(profile.getStudentType().getEnglishName());
         }
-        
+
         yearCombo = new JComboBox<>(new String[]{"Year 1", "Year 2", "Year 3", "Year 4", "Year 5"});
         yearCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
         if (profile.getCurrentYear() != null) {
             yearCombo.setSelectedItem(profile.getCurrentYear().getEnglishName());
         }
-        
-        // 校区选择
+
         campusCombo = new JComboBox<>(new String[]{"XituCheng", "ShaHe"});
         campusCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
         if (profile.getCampus() != null) {
             campusCombo.setSelectedItem(profile.getCampus().getEnglishName());
         }
-        
+
         hoursSpinner = new JSpinner(new SpinnerNumberModel(profile.getAvailableWorkingHours(), 0, 40, 1));
         hoursSpinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        
-        formPanel.add(createLabeledField("Surname *", surnameField));
-        formPanel.add(createLabeledField("Forename *", forenameField));
-        formPanel.add(createLabeledField("Chinese Name", chineseNameField));
-        formPanel.add(createLabeledField("Student ID *", studentIdField));
-        formPanel.add(createLabeledField("Phone Number *", phoneField));
-        formPanel.add(createLabeledField("Gender *", genderCombo));
-        formPanel.add(createLabeledField("School *", schoolField));
-        formPanel.add(createLabeledField("Supervisor *", supervisorField));
-        formPanel.add(createLabeledField("Major", majorField));
-        formPanel.add(createLabeledField("Student Type *", studentTypeCombo));
-        formPanel.add(createLabeledField("Current Year *", yearCombo));
-        formPanel.add(createLabeledField("Campus *", campusCombo));
-        formPanel.add(createLabeledField("Available Hours/Week", hoursSpinner));
-        
+
+        int row = 0;
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("Surname *", surnameField), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Forename *", forenameField), gbc);
+
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("Chinese Name", chineseNameField), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Student ID *", studentIdField), gbc);
+
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("Phone Number *", phoneField), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Gender *", genderCombo), gbc);
+
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("School *", schoolField), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Supervisor *", supervisorField), gbc);
+
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("Major", majorField), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Student Type *", studentTypeCombo), gbc);
+
+        gbc.gridy = row++;
+        gbc.gridx = 0;
+        formPanel.add(createLabeledField("Current Year *", yearCombo), gbc);
+        gbc.gridx = 1;
+        formPanel.add(createLabeledField("Campus *", campusCombo), gbc);
+
+        gbc.gridy = row;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1;
+        formPanel.add(createLabeledField("Available Hours/Week", hoursSpinner), gbc);
+
         card.add(formPanel, BorderLayout.CENTER);
-        
-        // 过往经历区域
+
         JPanel experiencePanel = new JPanel(new BorderLayout());
         experiencePanel.setBackground(Color.WHITE);
         experiencePanel.setBorder(new EmptyBorder(15, 0, 0, 0));
-        
+
         JLabel expLabel = new JLabel("Previous Experience");
         expLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
         expLabel.setForeground(LABEL_FOREGROUND);
-        
-        experienceArea = new JTextArea(4, 30);
+
+        experienceArea = new JTextArea(4, 0);
         experienceArea.setText(profile.getPreviousExperience());
         experienceArea.setFont(new Font("SansSerif", Font.PLAIN, 13));
         experienceArea.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         experienceArea.setLineWrap(true);
         experienceArea.setWrapStyleWord(true);
-        
+
         experiencePanel.add(expLabel, BorderLayout.NORTH);
         experiencePanel.add(experienceArea, BorderLayout.CENTER);
-        
+
         card.add(experiencePanel, BorderLayout.SOUTH);
-        
+
         return card;
     }
     
