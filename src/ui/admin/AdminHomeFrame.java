@@ -10,7 +10,8 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -24,10 +25,11 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
+
+import com.toedter.calendar.JDateChooser;
 
 import ui.auth.LoginFrame;
 import modules.job.JobDAO;
@@ -49,22 +51,16 @@ import modules.application.Application;
 import modules.profile.TAProfile;
 
 /**
- * Admin portal.
- * Supports administrator operations such as account management,
- * system data inspection, and global configuration.
- *
- * @version 6.0
- * @contributor System
- * @update
- * - Removed MOOffer/MOOfferDAO references (merged into TAApplication)
- * - Removed "Offers" dataset option from System Data panel
+ * Admin Portal
+ * Layout: Sidebar + Main Content Area
+ * Main Content: Application Cycle Settings + System Data Export
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
     private final UserService userService = new UserService();
     private final SystemConfigService systemConfigService = new SystemConfigService();
 
-    // Align visual style with TA portal (TAMainFrame)
+    // Color scheme for sidebar
     private static final Color APP_BG = new Color(248, 250, 252);
     private static final Color SIDEBAR_BG = new Color(30, 35, 45);
     private static final Color NAV_ACTIVE_BG = new Color(37, 99, 235);
@@ -73,66 +69,71 @@ public class AdminHomeFrame extends JFrame {
     private static final Color NAV_INACTIVE_FG = new Color(156, 163, 175);
 
     private JButton currentActiveBtn = null;
-    private JButton navAccountsBtn;
-    private JButton navDataBtn;
-    private JButton navCycleBtn;
+    private JButton navDashboardBtn;
+    private JButton navMOBtn;
+    private JButton navTABtn;
+    private JButton navCourseBtn;
     private JLabel topBarTitleLabel;
 
+    // Application Cycle components (JCalendar)
+    private JDateChooser startDateChooser;
+    private JDateChooser endDateChooser;
+
+    // System Data fields
     private final TAProfileDAO taProfileDAO = new TAProfileDAO();
     private final JobDAO moJobDAO = new JobDAO();
     private final ApplicationDAO applicationDAO = new ApplicationDAO();
     private final CVDao cvDao = new CVDao();
     private final NotificationDAO notificationDAO = new NotificationDAO();
-
-    private JTable userTable;
-    private DefaultTableModel userTableModel;
-
     private JTable dataTable;
     private DefaultTableModel dataTableModel;
     private JComboBox<String> datasetCombo;
 
-    private JTextField cycleStartField;
-    private JTextField cycleEndField;
-
+    // Main content
     private JPanel mainCardPanel;
     private CardLayout cardLayout;
 
-    private static final String CARD_ACCOUNTS = "ACCOUNTS";
-    private static final String CARD_DATA = "DATA";
-    private static final String CARD_CYCLE = "CYCLE";
+    // Panel instances
+    private MOManagementPanel moPanel;
+    private TAManagementPanel taPanel;
+    private CourseManagementPanel coursePanel;
+
+    // Card constants
+    private static final String CARD_DASHBOARD = "DASHBOARD";
+    private static final String CARD_MO = "MO";
+    private static final String CARD_TA = "TA";
+    private static final String CARD_COURSE = "COURSE";
 
     public AdminHomeFrame(User user) {
         this.currentUser = user;
 
         if (!userService.isStrictAdmin(user)) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Access denied. Only active super admin account admin@test.com can enter Admin Portal.",
-                    "Permission Denied",
-                    JOptionPane.ERROR_MESSAGE
-            );
+            JOptionPane.showMessageDialog(null,
+                    "Access denied. Only active super admin account can enter Admin Portal.",
+                    "Permission Denied", JOptionPane.ERROR_MESSAGE);
             new LoginFrame().setVisible(true);
             dispose();
             return;
         }
 
         setTitle("Admin Portal");
-        setSize(1100, 720);
+        setSize(1200, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        initUi();
-        refreshUserTable();
-        refreshDataTable();
+        initUI();
         loadCycleFields();
+        refreshDataTable();
     }
 
-    private void initUi() {
+    private void initUI() {
         setLayout(new BorderLayout());
         getContentPane().setBackground(APP_BG);
 
+        // Sidebar
         add(createSidebar(), BorderLayout.WEST);
 
+        // Main content area with CardLayout
         JPanel main = new JPanel(new BorderLayout());
         main.setBackground(APP_BG);
         main.add(createTopBar(), BorderLayout.NORTH);
@@ -140,26 +141,154 @@ public class AdminHomeFrame extends JFrame {
         cardLayout = new CardLayout();
         mainCardPanel = new JPanel(cardLayout);
         mainCardPanel.setBackground(APP_BG);
-        mainCardPanel.add(createUserManagementPanel(), CARD_ACCOUNTS);
-        mainCardPanel.add(createDataPanel(), CARD_DATA);
-        mainCardPanel.add(createCyclePanel(), CARD_CYCLE);
-        main.add(mainCardPanel, BorderLayout.CENTER);
 
+        // Create dashboard panel (Application Cycle + System Data)
+        mainCardPanel.add(createDashboardPanel(), CARD_DASHBOARD);
+
+        // Management panels
+        moPanel = new MOManagementPanel(this::refreshAllPanels);
+        taPanel = new TAManagementPanel(this::refreshAllPanels);
+        coursePanel = new CourseManagementPanel();
+
+        mainCardPanel.add(moPanel, CARD_MO);
+        mainCardPanel.add(taPanel, CARD_TA);
+        mainCardPanel.add(coursePanel, CARD_COURSE);
+
+        main.add(mainCardPanel, BorderLayout.CENTER);
         add(main, BorderLayout.CENTER);
 
-        // Default selection
-        setActiveButton(navAccountsBtn);
-        cardLayout.show(mainCardPanel, CARD_ACCOUNTS);
-        updateTopBarTitle(CARD_ACCOUNTS);
+        // Default selection - show dashboard
+        setActiveButton(navDashboardBtn);
+        cardLayout.show(mainCardPanel, CARD_DASHBOARD);
+        updateTopBarTitle(CARD_DASHBOARD);
     }
+
+    /**
+     * Dashboard Panel - contains Application Cycle Settings and System Data Export
+     */
+    private JPanel createDashboardPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(APP_BG);
+        panel.setBorder(new EmptyBorder(20, 30, 20, 30));
+
+        // Top: Application Cycle Settings
+        panel.add(createApplicationCyclePanel(), BorderLayout.NORTH);
+
+        // Bottom: System Data Export
+        panel.add(createSystemDataPanel(), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // ==================== Application Cycle Panel ====================
+
+    private JPanel createApplicationCyclePanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                new EmptyBorder(20, 30, 20, 30)));
+
+        // Title panel
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        titlePanel.setBackground(Color.WHITE);
+
+        JLabel titleLabel = new JLabel("Application Cycle Settings");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titlePanel.add(titleLabel);
+
+        panel.add(titlePanel, BorderLayout.NORTH);
+
+        // Form panel
+        JPanel formPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 20));
+        formPanel.setBackground(Color.WHITE);
+        formPanel.setBorder(new EmptyBorder(15, 0, 15, 0));
+
+        // Start Date
+        formPanel.add(new JLabel("Start Date:"));
+        startDateChooser = new JDateChooser();
+        startDateChooser.setDateFormatString("yyyy-MM-dd");
+        startDateChooser.setPreferredSize(new Dimension(150, 30));
+        formPanel.add(startDateChooser);
+
+        // End Date
+        formPanel.add(new JLabel("End Date:"));
+        endDateChooser = new JDateChooser();
+        endDateChooser.setDateFormatString("yyyy-MM-dd");
+        endDateChooser.setPreferredSize(new Dimension(150, 30));
+        formPanel.add(endDateChooser);
+
+        // Buttons
+        JButton saveBtn = createButton("Save Settings");
+        saveBtn.addActionListener(e -> saveApplicationCycle());
+        formPanel.add(saveBtn);
+
+        JButton refreshBtn = createButton("Refresh");
+        refreshBtn.addActionListener(e -> loadCycleFields());
+        formPanel.add(refreshBtn);
+
+        panel.add(formPanel, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    // ==================== System Data Export Panel ====================
+
+    private JPanel createSystemDataPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                new EmptyBorder(20, 30, 20, 30)));
+
+        // Title
+        JLabel titleLabel = new JLabel("System Data Export");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        panel.add(titleLabel, BorderLayout.NORTH);
+
+        // Dataset selector controls
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
+        datasetCombo = new JComboBox<>(new String[]{
+                "Users", "TA Profiles", "Jobs", "Applications", "CV Infos", "Notifications"
+        });
+        datasetCombo.setPreferredSize(new Dimension(150, 28));
+
+        JButton loadBtn = createButton("Load Dataset");
+        loadBtn.addActionListener(e -> refreshDataTable());
+
+        JButton exportBtn = createButton("Export CSV");
+        exportBtn.addActionListener(e -> exportCurrentDataset());
+
+        controlPanel.add(new JLabel("Dataset:"));
+        controlPanel.add(datasetCombo);
+        controlPanel.add(loadBtn);
+        controlPanel.add(exportBtn);
+        panel.add(controlPanel, BorderLayout.CENTER);
+
+        // Data table
+        dataTableModel = new DefaultTableModel();
+        dataTable = new JTable(dataTableModel);
+        dataTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        dataTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+
+        JScrollPane scrollPane = new JScrollPane(dataTable);
+        scrollPane.setPreferredSize(new Dimension(900, 300));
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+        panel.add(scrollPane, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    // ==================== Sidebar ====================
 
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(SIDEBAR_BG);
-        sidebar.setPreferredSize(new Dimension(280, getHeight()));
+        sidebar.setPreferredSize(new Dimension(260, getHeight()));
         sidebar.setBorder(new EmptyBorder(28, 20, 28, 20));
 
+        // Logo
         JPanel logoPanel = new JPanel();
         logoPanel.setLayout(new BoxLayout(logoPanel, BoxLayout.Y_AXIS));
         logoPanel.setBackground(SIDEBAR_BG);
@@ -180,54 +309,27 @@ public class AdminHomeFrame extends JFrame {
         logoPanel.add(logoSubLabel);
 
         sidebar.add(logoPanel);
-        sidebar.add(Box.createVerticalStrut(26));
+        sidebar.add(Box.createVerticalStrut(36));
 
-        JPanel userPanel = new JPanel();
-        userPanel.setLayout(new BoxLayout(userPanel, BoxLayout.Y_AXIS));
-        userPanel.setBackground(SIDEBAR_BG);
-        userPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // Navigation buttons
+        navDashboardBtn = createNavButton("Dashboard", CARD_DASHBOARD);
+        navMOBtn = createNavButton("MO Management", CARD_MO);
+        navTABtn = createNavButton("TA Management", CARD_TA);
+        navCourseBtn = createNavButton("Course Management", CARD_COURSE);
 
-        JLabel userLabel = new JLabel(currentUser.getEmail());
-        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        userLabel.setForeground(Color.WHITE);
-        userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel metaLabel = new JLabel("SUPER ADMIN");
-        metaLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        metaLabel.setForeground(new Color(107, 114, 128));
-        metaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        userPanel.add(userLabel);
-        userPanel.add(Box.createVerticalStrut(4));
-        userPanel.add(metaLabel);
-
-        sidebar.add(userPanel);
-        sidebar.add(Box.createVerticalStrut(26));
-
-        navAccountsBtn = createNavButton("MO Account Approval", CARD_ACCOUNTS);
-        navDataBtn = createNavButton("System Data", CARD_DATA);
-        navCycleBtn = createNavButton("Application Cycle", CARD_CYCLE);
-
-        sidebar.add(navAccountsBtn);
+        sidebar.add(navDashboardBtn);
         sidebar.add(Box.createVerticalStrut(4));
-        sidebar.add(navDataBtn);
+        sidebar.add(navMOBtn);
         sidebar.add(Box.createVerticalStrut(4));
-        sidebar.add(navCycleBtn);
+        sidebar.add(navTABtn);
+        sidebar.add(Box.createVerticalStrut(4));
+        sidebar.add(navCourseBtn);
 
         sidebar.add(Box.createVerticalGlue());
 
-        JButton logoutBtn = new JButton("Logout");
-        logoutBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
-        logoutBtn.setForeground(Color.WHITE);
-        logoutBtn.setBackground(new Color(239, 68, 68));
-        logoutBtn.setOpaque(true);
-        logoutBtn.setContentAreaFilled(true);
-        logoutBtn.setBorderPainted(false);
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        logoutBtn.setMaximumSize(new Dimension(240, 46));
-        logoutBtn.setBorder(new EmptyBorder(10, 16, 10, 16));
+        // Logout button
+        JButton logoutBtn = createNavButton("Logout", null);
+        logoutBtn.setForeground(new Color(239, 68, 68));
         logoutBtn.addActionListener(e -> {
             new LoginFrame().setVisible(true);
             dispose();
@@ -249,16 +351,18 @@ public class AdminHomeFrame extends JFrame {
         btn.setFocusPainted(false);
         btn.setAlignmentX(Component.LEFT_ALIGNMENT);
         btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setMaximumSize(new Dimension(240, 46));
+        btn.setMaximumSize(new Dimension(220, 46));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        btn.addActionListener(e -> {
-            if (cardLayout != null && mainCardPanel != null) {
-                cardLayout.show(mainCardPanel, cardName);
-            }
-            setActiveButton(btn);
-            updateTopBarTitle(cardName);
-        });
+        if (cardName != null) {
+            btn.addActionListener(e -> {
+                if (cardLayout != null && mainCardPanel != null) {
+                    cardLayout.show(mainCardPanel, cardName);
+                }
+                setActiveButton(btn);
+                updateTopBarTitle(cardName);
+            });
+        }
 
         btn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -299,7 +403,7 @@ public class AdminHomeFrame extends JFrame {
         topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
 
         topBarTitleLabel = new JLabel("Admin Portal");
-        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         topBarTitleLabel.setForeground(new Color(30, 35, 45));
 
         topBar.add(topBarTitleLabel, BorderLayout.WEST);
@@ -307,208 +411,80 @@ public class AdminHomeFrame extends JFrame {
     }
 
     private void updateTopBarTitle(String cardName) {
-        if (topBarTitleLabel == null) {
-            return;
-        }
-        if (CARD_ACCOUNTS.equals(cardName)) {
-            topBarTitleLabel.setText("MO Account Approval");
-            return;
-        }
-        if (CARD_DATA.equals(cardName)) {
-            topBarTitleLabel.setText("System Data");
-            return;
-        }
-        if (CARD_CYCLE.equals(cardName)) {
-            topBarTitleLabel.setText("Application Cycle");
-            return;
-        }
-        topBarTitleLabel.setText("Admin Portal");
-    }
-
-    private JPanel createUserManagementPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        userTableModel = new DefaultTableModel(
-                new Object[]{"User ID", "Email", "Role", "Status", "Last Login"}, 0
-        ) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        userTable = new JTable(userTableModel);
-        panel.add(new JScrollPane(userTable), BorderLayout.CENTER);
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-
-        JButton refreshBtn = new JButton("Refresh");
-        JButton approveBtn = new JButton("Approve MO");
-        JButton disableBtn = new JButton("Disable Account");
-        JButton reactivateBtn = new JButton("Reactivate Account");
-        JButton resetPwdBtn = new JButton("Reset Password");
-
-        refreshBtn.addActionListener(e -> refreshUserTable());
-
-        approveBtn.addActionListener(e -> {
-            String email = getSelectedEmail();
-            if (email == null) {
-                return;
-            }
-
-            User user = userService.findByEmail(email);
-            if (user == null) {
-                showMessage("User not found.");
-                return;
-            }
-            if (user.getRole() != UserRole.MO) {
-                showMessage("Only MO accounts can be approved.");
-                return;
-            }
-
-            userService.approveMoAccount(email);
-            AdminAuditLogger.log(currentUser.getEmail(), "APPROVE_MO", email);
-            refreshUserTable();
-            showMessage("MO account approved: " + email);
-        });
-
-        disableBtn.addActionListener(e -> {
-            String email = getSelectedEmail();
-            if (email == null) {
-                return;
-            }
-
-            if ("admin@test.com".equalsIgnoreCase(email)) {
-                showMessage("Super admin cannot be disabled.");
-                return;
-            }
-
-            userService.disableAccount(email);
-            AdminAuditLogger.log(currentUser.getEmail(), "DISABLE_ACCOUNT", email);
-            refreshUserTable();
-            showMessage("Account disabled: " + email);
-        });
-
-        reactivateBtn.addActionListener(e -> {
-            String email = getSelectedEmail();
-            if (email == null) {
-                return;
-            }
-
-            userService.updateAccountStatus(email, AccountStatus.ACTIVE);
-            AdminAuditLogger.log(currentUser.getEmail(), "REACTIVATE_ACCOUNT", email);
-            refreshUserTable();
-            showMessage("Account reactivated: " + email);
-        });
-
-        resetPwdBtn.addActionListener(e -> {
-            String email = getSelectedEmail();
-            if (email == null) {
-                return;
-            }
-
-            String newPassword = JOptionPane.showInputDialog(this, "Enter new password for " + email);
-            if (newPassword == null || newPassword.isBlank()) {
-                return;
-            }
-
-            userService.resetPasswordByAdmin(email, newPassword.trim());
-            AdminAuditLogger.log(currentUser.getEmail(), "RESET_PASSWORD", email);
-            showMessage("Password reset completed for: " + email);
-        });
-
-        buttonPanel.add(refreshBtn);
-        buttonPanel.add(approveBtn);
-        buttonPanel.add(disableBtn);
-        buttonPanel.add(reactivateBtn);
-        buttonPanel.add(resetPwdBtn);
-
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-        return panel;
-    }
-
-    private JPanel createDataPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        // 移除 "Offers" 选项，因为已合并到 Applications
-        datasetCombo = new JComboBox<>(new String[]{
-                "Users",
-                "TA Profiles",
-                "Jobs",
-                "Applications",
-                "CV Infos",
-                "Notifications"
-        });
-
-        JButton loadBtn = new JButton("Load Dataset");
-        loadBtn.addActionListener(e -> refreshDataTable());
-
-        JButton exportBtn = new JButton("Export CSV");
-        exportBtn.addActionListener(e -> exportCurrentDataset());
-
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        top.add(new JLabel("Dataset: "));
-        top.add(datasetCombo);
-        top.add(loadBtn);
-        top.add(exportBtn);
-
-        dataTableModel = new DefaultTableModel();
-        dataTable = new JTable(dataTableModel);
-
-        panel.add(top, BorderLayout.NORTH);
-        panel.add(new JScrollPane(dataTable), BorderLayout.CENTER);
-        return panel;
-    }
-
-    private JPanel createCyclePanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        JLabel tip = new JLabel("Datetime format example: 2026-04-07T09:00:00");
-        tip.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        cycleStartField = new JTextField();
-        cycleEndField = new JTextField();
-
-        JButton saveBtn = new JButton("Save Application Cycle");
-        saveBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        saveBtn.addActionListener(e -> saveApplicationCycle());
-
-        panel.add(new JLabel("Application Start"));
-        panel.add(cycleStartField);
-        panel.add(Box.createVerticalStrut(12));
-        panel.add(new JLabel("Application End"));
-        panel.add(cycleEndField);
-        panel.add(Box.createVerticalStrut(12));
-        panel.add(tip);
-        panel.add(Box.createVerticalStrut(16));
-        panel.add(saveBtn);
-
-        return panel;
-    }
-
-    /**
-     * Reloads all users into the table.
-     */
-    private void refreshUserTable() {
-        userTableModel.setRowCount(0);
-        for (User user : userService.listAllUsers()) {
-            userTableModel.addRow(new Object[]{
-                    user.getUserId(),
-                    user.getEmail(),
-                    user.getRole(),
-                    user.getStatus(),
-                    user.getLastLogin()
-            });
+        if (topBarTitleLabel == null) return;
+        switch (cardName) {
+            case CARD_DASHBOARD:
+                topBarTitleLabel.setText("Dashboard");
+                break;
+            case CARD_MO:
+                topBarTitleLabel.setText("MO Management");
+                break;
+            case CARD_TA:
+                topBarTitleLabel.setText("TA Management");
+                break;
+            case CARD_COURSE:
+                topBarTitleLabel.setText("Course Management");
+                break;
+            default:
+                topBarTitleLabel.setText("Admin Portal");
         }
     }
 
-    /**
-     * Reloads the selected dataset into the data table.
-     */
+    // ==================== Helper Methods ====================
+
+    private JButton createButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        button.setBackground(Color.WHITE);
+        button.setForeground(Color.BLACK);
+        button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        return button;
+    }
+
+    private void loadCycleFields() {
+        var config = systemConfigService.getConfig();
+        if (config.getApplicationStart() != null) {
+            startDateChooser.setDate(Date.from(config.getApplicationStart()
+                    .atZone(ZoneId.systemDefault()).toInstant()));
+        }
+        if (config.getApplicationEnd() != null) {
+            endDateChooser.setDate(Date.from(config.getApplicationEnd()
+                    .atZone(ZoneId.systemDefault()).toInstant()));
+        }
+    }
+
+    private void saveApplicationCycle() {
+        try {
+            Date startDate = startDateChooser.getDate();
+            Date endDate = endDateChooser.getDate();
+
+            if (startDate == null || endDate == null) {
+                showMessage("Please select both start and end dates.");
+                return;
+            }
+
+            LocalDateTime start = LocalDateTime.ofInstant(startDate.toInstant(), ZoneId.systemDefault());
+            LocalDateTime end = LocalDateTime.ofInstant(endDate.toInstant(), ZoneId.systemDefault());
+
+            if (end.isBefore(start)) {
+                showMessage("End date must be after start date.");
+                return;
+            }
+
+            systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
+            AdminAuditLogger.log(currentUser.getEmail(), "SAVE_CYCLE",
+                    "start=" + start + " end=" + end);
+            showMessage("Application cycle saved successfully.");
+
+        } catch (Exception ex) {
+            showMessage("Save failed: " + ex.getMessage());
+        }
+    }
+
+    // ==================== System Data Methods ====================
+
     private void refreshDataTable() {
         String selected = datasetCombo == null ? "Users" : (String) datasetCombo.getSelectedItem();
         if (selected == null) {
@@ -541,8 +517,8 @@ public class AdminHomeFrame extends JFrame {
                             .toList()
             );
             case "Applications" -> loadGenericTable(
-                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At", 
-                                 "Offered Hours", "Offer Expiry", "Responded At"},
+                    new String[]{"Application ID", "TA User ID", "Job ID", "Status", "Applied At",
+                            "Offered Hours", "Offer Expiry", "Responded At"},
                     applicationDAO.findAll().stream()
                             .map(this::toApplicationRow)
                             .toList()
@@ -565,6 +541,42 @@ public class AdminHomeFrame extends JFrame {
             );
         }
     }
+
+    private void loadGenericTable(String[] columns, List<Object[]> rows) {
+        dataTableModel.setDataVector(new Object[0][0], columns);
+        for (Object[] row : rows) {
+            dataTableModel.addRow(row);
+        }
+    }
+
+    private void exportCurrentDataset() {
+        String selected = (String) datasetCombo.getSelectedItem();
+        if (selected == null) {
+            return;
+        }
+
+        try {
+            Path filePath = switch (selected) {
+                case "Users" -> CsvExportUtil.exportUsers("users.csv", userService.listAllUsers());
+                case "TA Profiles" -> CsvExportUtil.exportObjects("ta_profiles.csv", taProfileDAO.findAll());
+                case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
+                case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
+                case "CV Infos" -> CsvExportUtil.exportObjects("ta_cvs.csv", cvDao.findAll());
+                case "Notifications" -> CsvExportUtil.exportObjects("notifications.csv", notificationDAO.findAll());
+                default -> null;
+            };
+
+            if (filePath != null) {
+                AdminAuditLogger.log(currentUser.getEmail(), "EXPORT_CSV",
+                        selected + " -> " + filePath.toAbsolutePath());
+                showMessage("CSV exported successfully:\n" + filePath.toAbsolutePath());
+            }
+        } catch (Exception ex) {
+            showMessage("Export failed: " + ex.getMessage());
+        }
+    }
+
+    // ==================== Row Mapping Methods ====================
 
     private Object[] toTaProfileRow(TAProfile profile) {
         String fullName = profile.getFullName();
@@ -626,85 +638,11 @@ public class AdminHomeFrame extends JFrame {
         };
     }
 
-    /**
-     * Loads rows into the generic data table.
-     */
-    private void loadGenericTable(String[] columns, List<Object[]> rows) {
-        dataTableModel.setDataVector(new Object[0][0], columns);
-        for (Object[] row : rows) {
-            dataTableModel.addRow(row);
-        }
-    }
-
-    /**
-     * Exports the current dataset to a CSV file.
-     */
-    private void exportCurrentDataset() {
-        String selected = (String) datasetCombo.getSelectedItem();
-        if (selected == null) {
-            return;
-        }
-
-        try {
-            Path filePath = switch (selected) {
-                case "Users" -> CsvExportUtil.exportUsers("users.csv", userService.listAllUsers());
-                case "TA Profiles" -> CsvExportUtil.exportObjects("ta_profiles.csv", taProfileDAO.findAll());
-                case "Jobs" -> CsvExportUtil.exportObjects("jobs.csv", moJobDAO.findAll());
-                case "Applications" -> CsvExportUtil.exportObjects("applications.csv", applicationDAO.findAll());
-                case "CV Infos" -> CsvExportUtil.exportObjects("ta_cvs.csv", cvDao.findAll());
-                case "Notifications" -> CsvExportUtil.exportObjects("notifications.csv", notificationDAO.findAll());
-                default -> null;
-            };
-
-            if (filePath != null) {
-                AdminAuditLogger.log(currentUser.getEmail(), "EXPORT_CSV",
-                        selected + " -> " + filePath.toAbsolutePath());
-                showMessage("CSV exported successfully:\n" + filePath.toAbsolutePath());
-            }
-        } catch (Exception ex) {
-            showMessage("Export failed: " + ex.getMessage());
-        }
-    }
-
-    /**
-     * Loads saved application cycle values into the form.
-     */
-    private void loadCycleFields() {
-        var config = systemConfigService.getConfig();
-        cycleStartField.setText(config.getApplicationStart() == null ? "" : config.getApplicationStart().toString());
-        cycleEndField.setText(config.getApplicationEnd() == null ? "" : config.getApplicationEnd().toString());
-    }
-
-    /**
-     * Saves the application cycle to system_config.json.
-     */
-    private void saveApplicationCycle() {
-        try {
-            LocalDateTime start = LocalDateTime.parse(cycleStartField.getText().trim());
-            LocalDateTime end = LocalDateTime.parse(cycleEndField.getText().trim());
-
-            systemConfigService.updateApplicationCycle(start, end, currentUser.getEmail());
-            AdminAuditLogger.log(currentUser.getEmail(), "SAVE_CYCLE",
-                    "start=" + start + " end=" + end);
-            showMessage("Application cycle saved successfully.");
-        } catch (DateTimeParseException ex) {
-            showMessage("Invalid datetime format. Use format like 2026-04-07T09:00:00");
-        } catch (Exception ex) {
-            showMessage("Save failed: " + ex.getMessage());
-        }
-    }
-
-    /**
-     * Returns the email from the selected row.
-     */
-    private String getSelectedEmail() {
-        int row = userTable.getSelectedRow();
-        if (row < 0) {
-            showMessage("Please select a user first.");
-            return null;
-        }
-        Object email = userTableModel.getValueAt(row, 1);
-        return email == null ? null : email.toString();
+    private void refreshAllPanels() {
+        if (moPanel != null) moPanel.refresh();
+        if (taPanel != null) taPanel.refresh();
+        if (coursePanel != null) coursePanel.refresh();
+        refreshDataTable();
     }
 
     private void showMessage(String message) {

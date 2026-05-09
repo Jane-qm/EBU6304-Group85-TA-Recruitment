@@ -1,12 +1,11 @@
-import ui.auth.LoginFrame;
-import infrastructure.persistence.JsonPersistenceManager;
-import modules.user.User;
-import modules.user.UserRole;
-import modules.job.JobService;
-import modules.user.UserService;
-
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+
+import infrastructure.persistence.JsonPersistenceManager;
+import modules.job.JobService;
+import modules.user.User;
+import modules.user.UserRole;
+import ui.auth.LoginFrame;
 
 /**
  * 程序入口类
@@ -30,8 +29,6 @@ public class Main {
      */
     private static void initializeJsonStorage() {
         JSON_PERSISTENCE_MANAGER.initializeBaseFiles();
-        // ADM-001: guarantee default super-admin exists before any login attempt
-        new UserService().ensureDefaultAdmin();
         new JobService().autoCloseExpiredJobs();
     }
 

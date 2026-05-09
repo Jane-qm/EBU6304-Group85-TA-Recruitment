@@ -42,6 +42,7 @@ public class JsonPersistenceManager {
     public static final String NOTIFICATIONS_FILE = "notifications.json";
     public static final String TA_CVS_FILE = "ta_cvs.json";
     public static final String SYSTEM_CONFIG_FILE = "system_config.json";
+    public static final String COURSES_FILE = "courses.json";
 
     /**
      * Compatibility alias kept because some older code still refers to ALL_FILES.
@@ -54,7 +55,8 @@ public class JsonPersistenceManager {
             CV_INFOS_FILE,
             MO_OFFERS_FILE,
             NOTIFICATIONS_FILE,
-            TA_CVS_FILE
+            TA_CVS_FILE,
+            COURSES_FILE
     );
 
     private final Path dataDirectory;

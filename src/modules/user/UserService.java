@@ -7,6 +7,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 
 import infrastructure.audit.AuthAuditLogger;
 import infrastructure.security.PasswordService;
@@ -41,19 +45,15 @@ import infrastructure.security.PasswordService;
 public class UserService {
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
     private static final int ACCOUNT_LOCK_MINUTES = 15;
-    private static final String DEFAULT_ADMIN_EMAIL = "admin@test.com";
-    private static final String BOOTSTRAP_ENV = "TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD";
-    
+
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(100000L);
     private final UserDAO fileDAO = new UserDAO();
 
     public UserService() {
         loadFromFile();
-        if (usersByEmail.isEmpty()) {
-            seedDemoUsers();
-            saveToFile();
-        }
+        // 不再创建演示账号，管理员从 users.json 加载
+        // 如果 users.json 为空，系统启动后需要手动创建第一个用户
     }
 
     /**
@@ -63,8 +63,7 @@ public class UserService {
         try {
             List<User> users = fileDAO.loadAll();
 
-            // First pass: establish the true maximum ID so the generator
-            // is already above every existing entry before we start reassigning.
+            // First pass: establish the true maximum ID
             for (User user : users) {
                 Long uid = user.getUserId();
                 if (uid != null && uid > idGenerator.get()) {
@@ -72,18 +71,17 @@ public class UserService {
                 }
             }
 
-            // Second pass: load into map, reassigning any duplicate ID in-place.
+            // Second pass: load into map, reassigning any duplicate ID
             Set<Long> seenIds = new HashSet<>();
             boolean needsResave = false;
             for (User user : users) {
                 String normalizedEmail = normalizeEmail(user.getEmail());
                 Long uid = user.getUserId();
                 if (uid != null && !seenIds.add(uid)) {
-                    // Collision: assign the next fresh ID and keep the entry.
                     Long newId = idGenerator.incrementAndGet();
                     System.err.println("[UserService] WARNING: duplicate userId " + uid
                             + " for email " + user.getEmail()
-                            + " — reassigned to " + newId + " and will be persisted.");
+                            + " — reassigned to " + newId);
                     user.setUserId(newId);
                     seenIds.add(newId);
                     needsResave = true;
@@ -122,12 +120,14 @@ public class UserService {
 
         User user = createUser(normalizedEmail, password, role);
         user.setUserId(idGenerator.incrementAndGet());
+
         // MO 需要管理员激活，TA 和 ADMIN 直接激活
         if (role == UserRole.MO) {
             user.setStatus(AccountStatus.PENDING);
         } else {
             user.setStatus(AccountStatus.ACTIVE);
         }
+
         usersByEmail.put(normalizedEmail, user);
         saveToFile();
         return user;
@@ -165,7 +165,7 @@ public class UserService {
             return null;
         }
 
-        // Successful login: clear lock counters and transparently upgrade legacy hash.
+        // Successful login: clear lock counters and upgrade legacy hash
         user.setFailedLoginCount(0);
         user.setLockedUntil(null);
         if (PasswordService.needsUpgrade(user.getPasswordHash())) {
@@ -240,23 +240,6 @@ public class UserService {
     }
 
     /**
-     * 添加演示用户
-     */
-    private void seedDemoUsers() {
-        // 演示 TA 用户（状态 ACTIVE）
-        User activeTa = new TA("ta@test.com", "123456");
-        activeTa.setUserId(idGenerator.incrementAndGet());
-        activeTa.setStatus(AccountStatus.ACTIVE);
-        usersByEmail.put(normalizeEmail(activeTa.getEmail()), activeTa);
-
-        // 演示 MO 用户（状态 PENDING，需管理员激活）
-        User pendingMo = new MO("mo@test.com", "123456");
-        pendingMo.setUserId(idGenerator.incrementAndGet());
-        pendingMo.setStatus(AccountStatus.PENDING);
-        usersByEmail.put(normalizeEmail(pendingMo.getEmail()), pendingMo);
-    }
-
-    /**
      * 根据 ID 查找用户
      */
     public User findById(Long userId) {
@@ -280,16 +263,14 @@ public class UserService {
     }
 
     /**
-     * 【新增】：返回所有用户列表
-     * 解决 MOApplicantReviewPanel 报 listAll() 找不到的问题
+     * 返回所有用户列表
      */
     public List<User> listAll() {
         return new java.util.ArrayList<>(usersByEmail.values());
     }
 
     /**
-     * 【新增】：根据用户 ID 获取用户对象（更高效的版本）
-     * 方便在 ReviewPanel 中直接通过 ID 获取 TA 的姓名和邮箱
+     * 根据用户 ID 获取用户对象
      */
     public User getUserById(Long userId) {
         if (userId == null) {
@@ -304,46 +285,13 @@ public class UserService {
     }
 
     /**
-     * Validates the strict super-admin rule.
-     * Only admin@test.com with ACTIVE status can enter the admin portal.
+     * Validates admin access.
+     * 修改：移除硬编码邮箱限制，只要 role 是 ADMIN 且状态 ACTIVE 即可
      */
     public boolean isStrictAdmin(User user) {
         return user != null
                 && user.getRole() == UserRole.ADMIN
-                && "admin@test.com".equalsIgnoreCase(user.getEmail())
                 && user.getStatus() == AccountStatus.ACTIVE;
-    }
-
-    /**
-     * Ensures the bootstrap super-admin account exists.
-     *
-     * <p>Security policy:
-     * - Password is loaded from environment variable {@code TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD}
-     * - If env var is absent/blank, account creation is skipped and a warning is logged.
-     * - Newly bootstrapped admin is forced to change password at first login.
-     */
-    public void ensureDefaultAdmin() {
-        if (findByEmail(DEFAULT_ADMIN_EMAIL) != null) {
-            return;
-        }
-        String bootstrapPassword = System.getenv(BOOTSTRAP_ENV);
-        if (bootstrapPassword == null || bootstrapPassword.isBlank()) {
-            System.err.println("[UserService] Bootstrap admin missing and cannot be auto-created: "
-                    + "environment variable " + BOOTSTRAP_ENV + " is not set.");
-            System.err.println("[UserService] Please initialize admin@test.com manually or set "
-                    + BOOTSTRAP_ENV + " before startup.");
-            return;
-        }
-
-        System.out.println("[UserService] Default admin account not found — creating from environment bootstrap.");
-        Admin admin = new Admin(DEFAULT_ADMIN_EMAIL, bootstrapPassword);
-        Long newId = idGenerator.incrementAndGet();
-        admin.setUserId(newId);
-        admin.setMustChangePassword(true);
-        usersByEmail.put(normalizeEmail(DEFAULT_ADMIN_EMAIL), admin);
-        saveToFile();
-        System.out.println("[UserService] Bootstrap admin created with userId=" + newId
-                + ". First login requires password change.");
     }
 
     /**
@@ -352,8 +300,9 @@ public class UserService {
     public List<User> listAllUsers() {
         return usersByEmail.values().stream()
                 .sorted((a, b) -> {
-                    Long aId = a.getUserId() == null ? 0L : a.getUserId();
-                    Long bId = b.getUserId() == null ? 0L : b.getUserId();
+                    // 修复空值警告
+                    Long aId = a.getUserId() != null ? a.getUserId() : 0L;
+                    Long bId = b.getUserId() != null ? b.getUserId() : 0L;
                     return aId.compareTo(bId);
                 })
                 .toList();
@@ -405,5 +354,82 @@ public class UserService {
     public boolean isPasswordChangeRequired(String email) {
         User user = findByEmail(email);
         return user != null && user.isMustChangePassword();
+    }
+    // modules/user/UserService.java
+
+    /**
+     * 批量导入 MO 账号的结果
+     */
+    public static class MOImportResult {
+        public final int successCount;
+        public final int failCount;
+        public final List<String> errors;
+
+        public MOImportResult(int successCount, int failCount, List<String> errors) {
+            this.successCount = successCount;
+            this.failCount = failCount;
+            this.errors = errors;
+        }
+    }
+
+    /**
+     * 从 CSV 文件路径批量导入 MO 账号
+     * CSV 格式: email,password,name
+     */
+    public MOImportResult importMOFromCSV(String filePath) {
+        int successCount = 0;
+        int failCount = 0;
+        List<String> errors = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            boolean isFirstLine = true;
+
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+
+                // 跳过表头
+                if (isFirstLine && line.toLowerCase().contains("email")) {
+                    isFirstLine = false;
+                    continue;
+                }
+                isFirstLine = false;
+
+                String[] parts = line.split(",");
+                if (parts.length < 2) {
+                    failCount++;
+                    errors.add("格式错误: " + line);
+                    continue;
+                }
+
+                String email = parts[0].trim();
+                String password = parts.length > 1 ? parts[1].trim() : "123456";
+
+                if (!email.contains("@")) {
+                    failCount++;
+                    errors.add("邮箱格式错误: " + email);
+                    continue;
+                }
+
+                try {
+                    if (findByEmail(email) != null) {
+                        failCount++;
+                        errors.add("MO已存在: " + email);
+                        continue;
+                    }
+
+                    register(email, password, UserRole.MO);
+                    successCount++;
+
+                } catch (Exception ex) {
+                    failCount++;
+                    errors.add(email + " - " + ex.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            return new MOImportResult(0, 1, List.of("读取文件失败: " + e.getMessage()));
+        }
+
+        return new MOImportResult(successCount, failCount, errors);
     }
 }
