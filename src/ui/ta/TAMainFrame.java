@@ -64,6 +64,8 @@ public class TAMainFrame extends BaseFrame {
     // 当前选中的按钮
     private JButton currentActiveBtn = null;
 
+    private JButton notificationBtn;
+
     public TAMainFrame(User user) {
         super("TA Recruitment System - Dashboard", 1200, 750);
 
@@ -130,6 +132,7 @@ public class TAMainFrame extends BaseFrame {
         if (applicationsPanel != null) applicationsPanel.refresh();
         if (profilePanel != null) profilePanel.refresh();
         if (workloadPanel != null) workloadPanel.refresh();
+        refreshNotificationButton();
     }
 
     /** Refresh all TA views except profile (avoids wiping unsaved profile edits). */
@@ -138,6 +141,7 @@ public class TAMainFrame extends BaseFrame {
         if (courseCatalogPanel != null) courseCatalogPanel.refresh();
         if (applicationsPanel != null) applicationsPanel.refresh();
         if (workloadPanel != null) workloadPanel.refresh();
+        refreshNotificationButton();
     }
 
     private JPanel createSidebar() {
@@ -468,20 +472,28 @@ public class TAMainFrame extends BaseFrame {
         welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         welcomeLabel.setForeground(new Color(30, 35, 45));
         
-        // 通知按钮
-        int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
-        JButton notifyBtn = new JButton("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
-        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        notifyBtn.setBackground(Color.WHITE);
-        notifyBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        notifyBtn.setFocusPainted(false);
-        notifyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        notifyBtn.addActionListener(e -> 
-                NotificationPopup.showUnreadNotifications(this, ta, notificationService));
-        
+        // 通知按钮（关闭弹窗后会刷新未读数）
+        notificationBtn = new JButton();
+        refreshNotificationButton();
+        notificationBtn.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        notificationBtn.setBackground(Color.WHITE);
+        notificationBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
+        notificationBtn.setFocusPainted(false);
+        notificationBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        notificationBtn.addActionListener(e ->
+                NotificationPopup.showUnreadNotifications(this, ta, notificationService, this::refreshNotificationButton));
+
         topBar.add(welcomeLabel, BorderLayout.WEST);
-        topBar.add(notifyBtn, BorderLayout.EAST);
+        topBar.add(notificationBtn, BorderLayout.EAST);
         
         return topBar;
+    }
+
+    private void refreshNotificationButton() {
+        if (notificationBtn == null || ta == null || applicationController == null) {
+            return;
+        }
+        int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
+        notificationBtn.setText("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
     }
 }

@@ -39,28 +39,51 @@ public final class NotificationPopup {
     }
 
     public static void showUnreadNotifications(JFrame parent, User user, NotificationService notificationService) {
+        showUnreadNotifications(parent, user, notificationService, null);
+    }
+
+    /**
+     * Opens the in-app notification list: shows all messages for the user (newest first).
+     * Unread items use the "New" style; after the dialog closes, those are marked read so the bell count clears,
+     * but every message remains in this list on the next open (as "Read").
+     *
+     * @param onAfterClose run on the EDT after the dialog closes (e.g. refresh bell badge)
+     */
+    public static void showUnreadNotifications(JFrame parent, User user, NotificationService notificationService,
+                                               Runnable onAfterClose) {
         if (user == null || notificationService == null) {
             return;
         }
 
-        List<NotificationMessage> unreadNotifications = notificationService.listUnreadByUser(user.getUserId());
-        if (unreadNotifications.isEmpty()) {
-            showNotificationDialog(parent, "Notifications", "You're all caught up.", unreadNotifications, notificationService);
-            return;
+        List<NotificationMessage> allForUser = notificationService.listByUser(user.getUserId());
+        int unreadCount = notificationService.getUnreadCount(user.getUserId());
+        String subtitle = user.getEmail();
+        if (unreadCount > 0) {
+            subtitle = subtitle + "  ·  " + unreadCount + " unread";
         }
 
-        showNotificationDialog(parent, "New Notifications", "Unread items for " + user.getEmail(),
-                unreadNotifications, notificationService);
+        showNotificationDialog(parent, "Notifications", subtitle, allForUser, notificationService);
         notificationService.markAllAsRead(user.getUserId());
+        if (onAfterClose != null) {
+            onAfterClose.run();
+        }
     }
 
     public static void showAllNotifications(JFrame parent, User user, NotificationService notificationService) {
+        showAllNotifications(parent, user, notificationService, null);
+    }
+
+    public static void showAllNotifications(JFrame parent, User user, NotificationService notificationService,
+                                            Runnable onAfterClose) {
         if (user == null || notificationService == null) {
             return;
         }
 
         List<NotificationMessage> notifications = notificationService.listByUser(user.getUserId());
         showNotificationDialog(parent, "Notification Center", user.getEmail(), notifications, notificationService);
+        if (onAfterClose != null) {
+            onAfterClose.run();
+        }
     }
 
     private static void showNotificationDialog(JFrame parent, String title, String subtitle,

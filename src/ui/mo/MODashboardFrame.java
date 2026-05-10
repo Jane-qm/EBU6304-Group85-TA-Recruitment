@@ -74,6 +74,7 @@ public class MODashboardFrame extends BaseFrame {
     private JPasswordField moConfirmPasswordField;
 
     private JLabel topBarTitleLabel;
+    private JButton moNotificationBtn;
 
     private JLabel moCoursesValueLabel;
     private JLabel moApplicantsValueLabel;
@@ -322,14 +323,22 @@ public class MODashboardFrame extends BaseFrame {
         topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         topBarTitleLabel.setForeground(new Color(30, 35, 45));
 
-        int unreadCount = notificationService.getUnreadCount(currentUser.getUserId());
-        JButton notifyBtn = NotificationButtonFactory.createButton(unreadCount);
-        notifyBtn.addActionListener(e ->
-                NotificationPopup.showUnreadNotifications(this, currentUser, notificationService));
+        moNotificationBtn = NotificationButtonFactory.createButton(
+                notificationService.getUnreadCount(currentUser.getUserId()));
+        moNotificationBtn.addActionListener(e ->
+                NotificationPopup.showUnreadNotifications(this, currentUser, notificationService, this::refreshMoNotificationButton));
 
         topBar.add(topBarTitleLabel, BorderLayout.WEST);
-        topBar.add(notifyBtn, BorderLayout.EAST);
+        topBar.add(moNotificationBtn, BorderLayout.EAST);
         return topBar;
+    }
+
+    private void refreshMoNotificationButton() {
+        if (moNotificationBtn == null || currentUser == null) {
+            return;
+        }
+        int n = notificationService.getUnreadCount(currentUser.getUserId());
+        moNotificationBtn.setText(n > 0 ? String.valueOf(n) : "");
     }
 
     private JPanel createWelcomePanel() {

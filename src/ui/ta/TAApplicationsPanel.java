@@ -14,6 +14,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;          // <-- Added missing import
+import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -21,6 +22,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
@@ -202,72 +204,27 @@ public class TAApplicationsPanel extends JPanel {
     }
     
     private void handleAcceptOffer(Application app) {
-        if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
-            JOptionPane.showMessageDialog(this, 
-                "No pending offer for this application.",
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (app.isOfferExpired()) {
-            JOptionPane.showMessageDialog(this, 
-                "This offer has expired. You cannot accept it.",
-                "Offer Expired", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        int confirm = JOptionPane.showConfirmDialog(this,
-            "Do you want to ACCEPT this offer?\n\n" +
-            "Course: " + applicationController.getCourseName(app.getJobId()) + "\n" +
-            "Offered Hours: " + (app.getOfferedHours() != null ? app.getOfferedHours() : 0) + " hours/week\n\n" +
-            "This action cannot be undone.",
-            "Confirm Accept Offer",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            boolean success = applicationController.acceptOfferWithFeedback(app.getApplicationId(), null);
-            if (success) {
-                refresh();
-                TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
-                if (mainFrame != null) {
-                    mainFrame.refreshAllPanels();
-                }
+        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+        JFrame parent = w instanceof JFrame ? (JFrame) w : null;
+        boolean success = applicationController.acceptOfferWithFeedback(app.getApplicationId(), parent);
+        if (success) {
+            refresh();
+            TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
+            if (mainFrame != null) {
+                mainFrame.refreshAllPanels();
             }
         }
     }
-    
+
     private void handleRejectOffer(Application app) {
-        if (!ApplicationStatus.OFFER_SENT.equals(app.getStatus())) {
-            JOptionPane.showMessageDialog(this, 
-                "No pending offer for this application.",
-                "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        
-        if (app.isOfferExpired()) {
-            JOptionPane.showMessageDialog(this, 
-                "This offer has expired.",
-                "Offer Expired", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        int confirm = JOptionPane.showConfirmDialog(this,
-            "Are you sure you want to REJECT this offer?\n\n" +
-            "Course: " + applicationController.getCourseName(app.getJobId()) + "\n" +
-            "This action cannot be undone.",
-            "Confirm Reject Offer",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            boolean success = applicationController.rejectOfferWithFeedback(app.getApplicationId(), null);
-            if (success) {
-                refresh();
-                TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
-                if (mainFrame != null) {
-                    mainFrame.refreshAllPanels();
-                }
+        java.awt.Window w = SwingUtilities.getWindowAncestor(this);
+        JFrame parent = w instanceof JFrame ? (JFrame) w : null;
+        boolean success = applicationController.rejectOfferWithFeedback(app.getApplicationId(), parent);
+        if (success) {
+            refresh();
+            TAMainFrame mainFrame = (TAMainFrame) getTopLevelAncestor();
+            if (mainFrame != null) {
+                mainFrame.refreshAllPanels();
             }
         }
     }

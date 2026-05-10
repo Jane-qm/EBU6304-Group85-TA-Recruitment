@@ -1,5 +1,6 @@
 package ui.common;
 
+import java.awt.FontMetrics;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
@@ -8,6 +9,7 @@ import java.util.Arrays;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
+import javax.swing.table.JTableHeader;
 import javax.swing.table.TableColumn;
 
 /**
@@ -18,6 +20,9 @@ import javax.swing.table.TableColumn;
 public final class TableScrollUtil {
 
     private static final String VIEWPORT_LISTENER_KEY = "TableScrollUtil.viewportResponsive";
+
+    /** Horizontal padding added to measured header text width (each side). */
+    private static final int HEADER_TEXT_MARGIN = 16;
 
     private TableScrollUtil() {
     }
@@ -93,7 +98,7 @@ public final class TableScrollUtil {
             scrollPane.getViewport().removeComponentListener((ComponentListener) prev);
         }
 
-        Runnable relayout = () -> relayoutResponsiveColumns(table, scrollPane, specs);
+        Runnable relayout = () -> relayoutResponsiveColumns(table, scrollPane, specs, HEADER_TEXT_MARGIN);
 
         ComponentListener listener = new ComponentAdapter() {
             @Override
@@ -147,7 +152,49 @@ public final class TableScrollUtil {
         }
     }
 
-    private static void relayoutResponsiveColumns(JTable table, JScrollPane scrollPane, ColumnSpec[] specs) {
+    /**
+     * Minimum pixel width needed to show the column header text on one line (with padding).
+     */
+    public static int measureHeaderTextWidth(JTable table, int columnIndex, int horizontalMargin) {
+        String name = table.getColumnName(columnIndex);
+        if (name == null) {
+            name = "";
+        }
+        FontMetrics fm;
+        JTableHeader header = table.getTableHeader();
+        if (header != null) {
+            fm = header.getFontMetrics(header.getFont());
+        } else {
+            fm = table.getFontMetrics(table.getFont());
+        }
+        int w = fm.stringWidth(name) + 2 * horizontalMargin;
+        return Math.max(48, w);
+    }
+
+    /**
+     * Merge hand-written column specs with header-driven minimum widths so titles are not clipped.
+     */
+    private static ColumnSpec[] mergeSpecsWithHeaderWidths(JTable table, ColumnSpec[] specs, int headerMargin) {
+        int n = specs.length;
+        ColumnSpec[] out = new ColumnSpec[n];
+        for (int i = 0; i < n; i++) {
+            int hdr = measureHeaderTextWidth(table, i, headerMargin);
+            ColumnSpec s = specs[i];
+            if (s.isFixed()) {
+                int w = Math.max(s.preferredWidth, hdr);
+                out[i] = ColumnSpec.fixed(w);
+            } else {
+                int min = Math.max(s.minWidth, hdr);
+                int pref = Math.max(s.preferredWidth, min);
+                pref = Math.max(pref, hdr);
+                out[i] = ColumnSpec.flex(min, pref, s.flexGrow);
+            }
+        }
+        return out;
+    }
+
+    private static void relayoutResponsiveColumns(JTable table, JScrollPane scrollPane, ColumnSpec[] specs,
+                                                  int headerMargin) {
         int viewportW = scrollPane.getViewport().getWidth();
         if (viewportW <= 0) {
             return;
@@ -155,12 +202,14 @@ public final class TableScrollUtil {
 
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 
-        int n = specs.length;
+        ColumnSpec[] specsWithHeader = mergeSpecsWithHeaderWidths(table, specs, headerMargin);
+
+        int n = specsWithHeader.length;
         double sumFix = 0;
         double fMin = 0;
         double fPref = 0;
         double sumWeight = 0;
-        for (ColumnSpec s : specs) {
+        for (ColumnSpec s : specsWithHeader) {
             if (s.isFixed()) {
                 sumFix += s.preferredWidth;
             } else {
@@ -179,7 +228,7 @@ public final class TableScrollUtil {
         if (viewportW + 0.5 >= sumPrefTotal) {
             double extra = viewportW - sumPrefTotal;
             for (int i = 0; i < n; i++) {
-                ColumnSpec s = specs[i];
+                ColumnSpec s = specsWithHeader[i];
                 if (s.isFixed()) {
                     widths[i] = s.preferredWidth;
                 } else {
@@ -188,7 +237,7 @@ public final class TableScrollUtil {
                 }
             }
             if (hasFlex) {
-                fixWidthDriftPreferFlex(widths, specs, (int) Math.round(viewportW));
+                fixWidthDriftPreferFlex(widths, specsWithHeader, (int) Math.round(viewportW));
             }
         } else if (viewportW + 0.5 >= sumMinTotal) {
             double denom = fPref - fMin;
@@ -196,7 +245,7 @@ public final class TableScrollUtil {
             double ratio = denom > 1e-3 ? (spaceForFlex - fMin) / denom : 0;
             ratio = Math.max(0, Math.min(1, ratio));
             for (int i = 0; i < n; i++) {
-                ColumnSpec s = specs[i];
+                ColumnSpec s = specsWithHeader[i];
                 if (s.isFixed()) {
                     widths[i] = s.preferredWidth;
                 } else {
@@ -204,18 +253,18 @@ public final class TableScrollUtil {
                 }
             }
             if (hasFlex) {
-                fixWidthDriftPreferFlex(widths, specs, (int) Math.round(viewportW));
+                fixWidthDriftPreferFlex(widths, specsWithHeader, (int) Math.round(viewportW));
             }
         } else {
             for (int i = 0; i < n; i++) {
-                ColumnSpec s = specs[i];
+                ColumnSpec s = specsWithHeader[i];
                 widths[i] = s.isFixed() ? s.preferredWidth : s.minWidth;
             }
         }
 
         for (int i = 0; i < n; i++) {
             TableColumn col = table.getColumnModel().getColumn(i);
-            ColumnSpec s = specs[i];
+            ColumnSpec s = specsWithHeader[i];
             int w = Math.max(s.isFixed() ? s.preferredWidth : s.minWidth, widths[i]);
             col.setMinWidth(s.minWidth);
             col.setPreferredWidth(w);

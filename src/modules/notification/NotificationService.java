@@ -61,9 +61,19 @@ public class NotificationService {
     }
 
     public void markAllAsRead(Long userId) {
-        for (NotificationMessage notification : listUnreadByUser(userId)) {
-            notification.setRead(true);
-            dao.save(notification);
+        if (userId == null) {
+            return;
+        }
+        List<NotificationMessage> all = dao.findAll();
+        boolean changed = false;
+        for (NotificationMessage notification : all) {
+            if (userId.equals(notification.getRecipientUserId()) && !notification.isRead()) {
+                notification.setRead(true);
+                changed = true;
+            }
+        }
+        if (changed) {
+            dao.writeAll(all);
         }
     }
 

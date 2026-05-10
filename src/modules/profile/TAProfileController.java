@@ -1,6 +1,7 @@
 package modules.profile;
 
-import javax.swing.JFrame;
+import java.awt.Component;
+
 import javax.swing.JOptionPane;
 
 import modules.user.User;
@@ -34,16 +35,15 @@ public class TAProfileController {
     /**
      * 保存个人资料（带用户反馈）
      */
-    public boolean saveProfileWithFeedback(TAProfile profile, JFrame parent) {
+    public boolean saveProfileWithFeedback(TAProfile profile, Component dialogParent) {
         try {
             profileService.saveProfile(profile);
-            JOptionPane.showMessageDialog(parent, "Profile saved successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
             return true;
         } catch (IllegalArgumentException e) {
-            JOptionPane.showMessageDialog(parent, e.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(dialogParent, e.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(parent, "System error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(dialogParent, "System error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }

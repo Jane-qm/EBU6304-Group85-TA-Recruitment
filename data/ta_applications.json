@@ -5,7 +5,41 @@
     "jobId": 2001,
     "cvId": 1,
     "statement": "1",
-    "status": "SUBMITTED",
+    "status": "REJECTED",
     "appliedAt": "2026-05-10T19:11:37.9698854"
+  },
+  {
+    "applicationId": 3002,
+    "taUserId": 100003,
+    "jobId": 2002,
+    "cvId": 1,
+    "statement": "11",
+    "status": "OFFER_SENT",
+    "appliedAt": "2026-05-10T19:47:27.6950902",
+    "offeredHours": 10,
+    "offerSentAt": "2026-05-10T19:49:39.8466152",
+    "offerExpiryAt": "2026-05-17T23:59:59"
+  },
+  {
+    "applicationId": 3003,
+    "taUserId": 100003,
+    "jobId": 2005,
+    "cvId": 1,
+    "statement": "32",
+    "status": "HIRED",
+    "appliedAt": "2026-05-10T19:53:26.5708955",
+    "offeredHours": 10,
+    "offerSentAt": "2026-05-10T19:53:43.7144043",
+    "offerExpiryAt": "2026-05-23T23:59:59",
+    "respondedAt": "2026-05-10T19:54:08.9853524"
+  },
+  {
+    "applicationId": 3004,
+    "taUserId": 100009,
+    "jobId": 2005,
+    "cvId": 2,
+    "statement": "12",
+    "status": "SUBMITTED",
+    "appliedAt": "2026-05-10T19:55:30.5891301"
   }
 ]

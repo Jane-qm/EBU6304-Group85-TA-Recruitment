@@ -958,7 +958,7 @@ public class TAProfilePanel extends JPanel {
             profile.setAvailableWorkingHours((Integer) hoursSpinner.getValue());
             
             profile.saveProfile();
-            boolean success = profileController.saveProfileWithFeedback(profile, null);
+            boolean success = profileController.saveProfileWithFeedback(profile, this);
             
             if (success) {
                 showInfo("Profile saved successfully!");

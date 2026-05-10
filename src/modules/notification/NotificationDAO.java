@@ -48,4 +48,10 @@ public class NotificationDAO {
         persistenceManager.writeList(JsonPersistenceManager.NOTIFICATIONS_FILE, all);
         return notification;
     }
+
+    /** Replace entire notifications list (caller must preserve all rows). */
+    public void writeAll(List<NotificationMessage> all) {
+        persistenceManager.writeList(JsonPersistenceManager.NOTIFICATIONS_FILE,
+                all == null ? List.of() : all);
+    }
 }
