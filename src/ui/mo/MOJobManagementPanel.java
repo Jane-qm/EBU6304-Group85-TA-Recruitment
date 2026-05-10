@@ -1,4 +1,4 @@
-﻿package ui.mo;
+package ui.mo;
 
 import com.toedter.calendar.JDateChooser;
 import modules.application.ApplicationService;

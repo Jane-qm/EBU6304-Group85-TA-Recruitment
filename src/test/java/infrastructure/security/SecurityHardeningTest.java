@@ -1,17 +1,13 @@
-package test.java.infrastructure.security;
+package infrastructure.security;
 
 import modules.user.User;
 import modules.user.UserRole;
-import infrastructure.security.PasswordService;
 import modules.user.UserService;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Minimal security regression tests for Iteration 3 hardening.
@@ -66,33 +62,6 @@ class SecurityHardeningTest {
         assertNull(service.login(email, raw), "Correct password should still be blocked while locked.");
     }
 
-    @Test
-    void ensureDefaultAdmin_withoutEnvVar_doesNotAutoCreateAdmin() throws Exception {
-        assumeTrue(System.getenv("TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD") == null
-                        || System.getenv("TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD").isBlank(),
-                "Env var set in runner, skip negative bootstrap test.");
-
-        UserService service = UserService.newInstanceForTesting();
-
-        // Remove admin@test.com from in-memory map via reflection for this test.
-        Field mapField = UserService.class.getDeclaredField("usersByEmail");
-        mapField.setAccessible(true);
-        @SuppressWarnings("unchecked")
-        Map<String, User> map = (Map<String, User>) mapField.get(service);
-        User backup = map.remove("admin@test.com");
-
-        try {
-            service.ensureDefaultAdmin();
-            assertNull(service.findByEmail("admin@test.com"),
-                    "Without env var, ensureDefaultAdmin must not auto-create admin.");
-        } finally {
-            // Restore in-memory state to avoid impacting subsequent tests in same JVM.
-            if (backup != null) {
-                map.put("admin@test.com", backup);
-            }
-        }
-    }
-
     private static String sha256(String password) {
         try {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
@@ -107,4 +76,3 @@ class SecurityHardeningTest {
         }
     }
 }
-

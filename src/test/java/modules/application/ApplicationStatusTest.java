@@ -1,135 +1,160 @@
-package test.java.modules.application;
+package modules.application;
 
-import modules.application.ApplicationStatus;
 import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for ApplicationStatus pure utility methods.
- * No file I/O — tests cover all status-classification helpers and display text.
+ * Unit tests for {@link ApplicationStatus} string-based helpers and UI copy.
  */
 class ApplicationStatusTest {
 
-    // ── isAwaitingReview ──────────────────────────────────────────────────────
+    // ── isActive ──────────────────────────────────────────────────────────────
 
     @Test
-    void pendingReview_isAwaitingReview() {
-        assertTrue(ApplicationStatus.isAwaitingReview(ApplicationStatus.PENDING_REVIEW));
+    void submitted_waitlisted_offerSent_hired_areActive() {
+        assertTrue(ApplicationStatus.isActive(ApplicationStatus.SUBMITTED));
+        assertTrue(ApplicationStatus.isActive(ApplicationStatus.WAITLISTED));
+        assertTrue(ApplicationStatus.isActive(ApplicationStatus.OFFER_SENT));
+        assertTrue(ApplicationStatus.isActive(ApplicationStatus.HIRED));
     }
 
     @Test
-    void submitted_isAwaitingReview() {
-        assertTrue(ApplicationStatus.isAwaitingReview(ApplicationStatus.SUBMITTED));
-    }
-
-    @Test
-    void waitlisted_isNotAwaitingReview() {
-        assertFalse(ApplicationStatus.isAwaitingReview(ApplicationStatus.WAITLISTED));
-    }
-
-    @Test
-    void hired_isNotAwaitingReview() {
-        assertFalse(ApplicationStatus.isAwaitingReview(ApplicationStatus.HIRED));
-    }
-
-    @Test
-    void null_isNotAwaitingReview() {
-        assertFalse(ApplicationStatus.isAwaitingReview(null));
+    void rejected_cancelled_expired_areNotActive() {
+        assertFalse(ApplicationStatus.isActive(ApplicationStatus.REJECTED));
+        assertFalse(ApplicationStatus.isActive(ApplicationStatus.CANCELLED));
+        assertFalse(ApplicationStatus.isActive(ApplicationStatus.EXPIRED));
+        assertFalse(ApplicationStatus.isActive(null));
     }
 
     // ── isCancellable ─────────────────────────────────────────────────────────
 
     @Test
-    void pendingReview_isCancellable() {
-        assertTrue(ApplicationStatus.isCancellable(ApplicationStatus.PENDING_REVIEW));
-    }
-
-    @Test
-    void submitted_isCancellable() {
+    void submitted_and_waitlisted_areCancellable() {
         assertTrue(ApplicationStatus.isCancellable(ApplicationStatus.SUBMITTED));
-    }
-
-    @Test
-    void waitlisted_isCancellable() {
         assertTrue(ApplicationStatus.isCancellable(ApplicationStatus.WAITLISTED));
     }
 
     @Test
-    void hired_isNotCancellable() {
+    void offerSent_isNotCancellable() {
+        assertFalse(ApplicationStatus.isCancellable(ApplicationStatus.OFFER_SENT));
+    }
+
+    @Test
+    void terminalStates_areNotCancellable() {
         assertFalse(ApplicationStatus.isCancellable(ApplicationStatus.HIRED));
-    }
-
-    @Test
-    void rejected_isNotCancellable() {
         assertFalse(ApplicationStatus.isCancellable(ApplicationStatus.REJECTED));
-    }
-
-    @Test
-    void cancelled_isNotCancellable() {
         assertFalse(ApplicationStatus.isCancellable(ApplicationStatus.CANCELLED));
+        assertFalse(ApplicationStatus.isCancellable(null));
     }
 
-    // ── terminal states ───────────────────────────────────────────────────────
+    // ── isRespondable ───────────────────────────────────────────────────────────
 
     @Test
-    void isCancelled_matchesCancelledOnly() {
+    void offerSent_isRespondable() {
+        assertTrue(ApplicationStatus.isRespondable(ApplicationStatus.OFFER_SENT));
+    }
+
+    @Test
+    void otherStatuses_areNotRespondable() {
+        assertFalse(ApplicationStatus.isRespondable(ApplicationStatus.SUBMITTED));
+        assertFalse(ApplicationStatus.isRespondable(ApplicationStatus.WAITLISTED));
+        assertFalse(ApplicationStatus.isRespondable(null));
+    }
+
+    // ── isTerminal ────────────────────────────────────────────────────────────
+
+    @Test
+    void hired_rejected_cancelled_expired_areTerminal() {
+        assertTrue(ApplicationStatus.isTerminal(ApplicationStatus.HIRED));
+        assertTrue(ApplicationStatus.isTerminal(ApplicationStatus.REJECTED));
+        assertTrue(ApplicationStatus.isTerminal(ApplicationStatus.CANCELLED));
+        assertTrue(ApplicationStatus.isTerminal(ApplicationStatus.EXPIRED));
+    }
+
+    @Test
+    void inProgressStates_areNotTerminal() {
+        assertFalse(ApplicationStatus.isTerminal(ApplicationStatus.SUBMITTED));
+        assertFalse(ApplicationStatus.isTerminal(ApplicationStatus.WAITLISTED));
+        assertFalse(ApplicationStatus.isTerminal(ApplicationStatus.OFFER_SENT));
+        assertFalse(ApplicationStatus.isTerminal(null));
+    }
+
+    // ── individual predicates ─────────────────────────────────────────────────
+
+    @Test
+    void isHired_isRejected_isCancelled_matchConstants() {
+        assertTrue(ApplicationStatus.isHired(ApplicationStatus.HIRED));
+        assertFalse(ApplicationStatus.isHired(ApplicationStatus.SUBMITTED));
+
+        assertTrue(ApplicationStatus.isRejected(ApplicationStatus.REJECTED));
+        assertFalse(ApplicationStatus.isRejected(ApplicationStatus.HIRED));
+
         assertTrue(ApplicationStatus.isCancelled(ApplicationStatus.CANCELLED));
         assertFalse(ApplicationStatus.isCancelled(ApplicationStatus.SUBMITTED));
-        assertFalse(ApplicationStatus.isCancelled(null));
+
+        assertTrue(ApplicationStatus.isExpired(ApplicationStatus.EXPIRED));
+        assertFalse(ApplicationStatus.isExpired(ApplicationStatus.HIRED));
+
+        assertTrue(ApplicationStatus.isOfferSent(ApplicationStatus.OFFER_SENT));
+        assertTrue(ApplicationStatus.isWaitlisted(ApplicationStatus.WAITLISTED));
+        assertTrue(ApplicationStatus.isSubmitted(ApplicationStatus.SUBMITTED));
     }
 
-    @Test
-    void isRejected_matchesRejectedOnly() {
-        assertTrue(ApplicationStatus.isRejected(ApplicationStatus.REJECTED));
-        assertFalse(ApplicationStatus.isRejected(ApplicationStatus.ACCEPTED));
-    }
+    // ── getDisplayText ─────────────────────────────────────────────────────────
 
     @Test
-    void isHired_matchesHiredOnly() {
-        assertTrue(ApplicationStatus.isHired(ApplicationStatus.HIRED));
-        assertFalse(ApplicationStatus.isHired(ApplicationStatus.ACCEPTED));
-    }
-
-    @Test
-    void isAccepted_matchesAcceptedOnly() {
-        assertTrue(ApplicationStatus.isAccepted(ApplicationStatus.ACCEPTED));
-        assertFalse(ApplicationStatus.isAccepted(ApplicationStatus.HIRED));
-    }
-
-    // ── getDisplayText ────────────────────────────────────────────────────────
-
-    @Test
-    void displayText_hired_returnsAccepted() {
-        assertEquals("accepted", ApplicationStatus.getDisplayText(ApplicationStatus.HIRED));
-    }
-
-    @Test
-    void displayText_accepted_returnsAccepted() {
-        assertEquals("accepted", ApplicationStatus.getDisplayText(ApplicationStatus.ACCEPTED));
-    }
-
-    @Test
-    void displayText_submitted_returnsPending() {
-        assertEquals("pending", ApplicationStatus.getDisplayText(ApplicationStatus.SUBMITTED));
-    }
-
-    @Test
-    void displayText_waitlisted_returnsWaitlisted() {
-        assertEquals("waitlisted", ApplicationStatus.getDisplayText(ApplicationStatus.WAITLISTED));
-    }
-
-    @Test
-    void displayText_rejected_returnsRejected() {
-        assertEquals("rejected", ApplicationStatus.getDisplayText(ApplicationStatus.REJECTED));
-    }
-
-    @Test
-    void displayText_cancelled_returnsCancelled() {
-        assertEquals("cancelled", ApplicationStatus.getDisplayText(ApplicationStatus.CANCELLED));
+    void displayText_knownStatuses() {
+        assertEquals("Submitted", ApplicationStatus.getDisplayText(ApplicationStatus.SUBMITTED));
+        assertEquals("Waitlisted", ApplicationStatus.getDisplayText(ApplicationStatus.WAITLISTED));
+        assertEquals("Offer Sent - Awaiting Response",
+                ApplicationStatus.getDisplayText(ApplicationStatus.OFFER_SENT));
+        assertEquals("Hired", ApplicationStatus.getDisplayText(ApplicationStatus.HIRED));
+        assertEquals("Rejected", ApplicationStatus.getDisplayText(ApplicationStatus.REJECTED));
+        assertEquals("Cancelled", ApplicationStatus.getDisplayText(ApplicationStatus.CANCELLED));
+        assertEquals("Expired", ApplicationStatus.getDisplayText(ApplicationStatus.EXPIRED));
     }
 
     @Test
     void displayText_null_returnsUnknown() {
-        assertEquals("unknown", ApplicationStatus.getDisplayText(null));
+        assertEquals("Unknown", ApplicationStatus.getDisplayText(null));
+    }
+
+    @Test
+    void displayText_unknownRole_lowercased() {
+        assertEquals("custom", ApplicationStatus.getDisplayText("CUSTOM"));
+    }
+
+    // ── getShortDisplayText ────────────────────────────────────────────────────
+
+    @Test
+    void shortDisplayText_submitted_isPending() {
+        assertEquals("Pending", ApplicationStatus.getShortDisplayText(ApplicationStatus.SUBMITTED));
+        assertEquals("Offer Received",
+                ApplicationStatus.getShortDisplayText(ApplicationStatus.OFFER_SENT));
+    }
+
+    @Test
+    void shortDisplayText_null_returnsUnknown() {
+        assertEquals("Unknown", ApplicationStatus.getShortDisplayText(null));
+    }
+
+    // ── getFeedbackMessage ─────────────────────────────────────────────────────
+
+    @Test
+    void feedbackMessage_eachKnownStatus_nonEmpty() {
+        assertFalse(ApplicationStatus.getFeedbackMessage(ApplicationStatus.SUBMITTED).isBlank());
+        assertFalse(ApplicationStatus.getFeedbackMessage(ApplicationStatus.HIRED).isBlank());
+        assertFalse(ApplicationStatus.getFeedbackMessage(ApplicationStatus.OFFER_SENT).isBlank());
+    }
+
+    @Test
+    void feedbackMessage_null_isEmpty() {
+        assertEquals("", ApplicationStatus.getFeedbackMessage(null));
+    }
+
+    @Test
+    void feedbackMessage_unknown_isEmpty() {
+        assertEquals("", ApplicationStatus.getFeedbackMessage("UNKNOWN_STATUS"));
     }
 }

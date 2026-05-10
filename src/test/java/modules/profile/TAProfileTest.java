@@ -1,6 +1,5 @@
-package test.java.modules.profile;
+package modules.profile;
 
-import modules.profile.TAProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
