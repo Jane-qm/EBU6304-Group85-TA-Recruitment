@@ -25,6 +25,7 @@ import modules.job.Job;
 import modules.user.TA;
 import modules.application.ApplicationController;
 import modules.application.Application;
+import ui.common.TableScrollUtil;
 import ui.ta.components.StatusCellRenderer;
 
 /**
@@ -182,7 +183,15 @@ public class TADashboardPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
 
-        JScrollPane scrollPane = new JScrollPane(applicationsTable);
+        TableScrollUtil.ColumnSpec[] dashCols = {
+                TableScrollUtil.ColumnSpec.flex(150, 300),
+                TableScrollUtil.ColumnSpec.flex(72, 128),
+                TableScrollUtil.ColumnSpec.fixed(100),
+                TableScrollUtil.ColumnSpec.flex(96, 300),
+        };
+
+        JScrollPane scrollPane = TableScrollUtil.wrapTable(applicationsTable);
+        TableScrollUtil.installResponsiveColumns(applicationsTable, scrollPane, dashCols);
         scrollPane.setBorder(null);
         scrollPane.setPreferredSize(new Dimension(720, 220));
 

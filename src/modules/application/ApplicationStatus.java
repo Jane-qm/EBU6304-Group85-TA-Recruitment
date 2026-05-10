@@ -36,9 +36,9 @@ public final class ApplicationStatus {
 
     // ==================== 状态集合 ====================
     
-    /** 活跃申请状态（计入 3 个上限） */
+    /** 计入「同时最多 N 份申请」上限的状态（含已录用，仍占名额） */
     private static final Set<String> ACTIVE = Set.of(
-        SUBMITTED, WAITLISTED, OFFER_SENT
+        SUBMITTED, WAITLISTED, OFFER_SENT, HIRED
     );
     
     /** 可取消状态（截止日期前） */

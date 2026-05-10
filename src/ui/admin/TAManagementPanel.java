@@ -3,15 +3,12 @@ package ui.admin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
 import javax.swing.AbstractCellEditor;
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -32,10 +29,13 @@ import modules.user.User;
 import modules.user.UserRole;
 import modules.user.UserService;
 import modules.auth.AuthService;
+import ui.common.TableListActionStyle;
+import ui.common.TableScrollUtil;
+import ui.common.TaProfileViewer;
 
 /**
  * TA Management Panel for Admin
- * All buttons: white background, black text, black border
+ * Table actions: borderless bold text (blue / green / red by intent).
  * TA can only be registered via registration page, not added/imported here
  */
 public class TAManagementPanel extends JPanel {
@@ -80,17 +80,25 @@ public class TAManagementPanel extends JPanel {
             table.getColumnModel().getColumn(col).setCellEditor(new ButtonEditor());
         }
 
-        add(new JScrollPane(table), BorderLayout.CENTER);
+        TableScrollUtil.ColumnSpec[] taCols = {
+                TableScrollUtil.ColumnSpec.flex(88, 140),
+                TableScrollUtil.ColumnSpec.flex(120, 250),
+                TableScrollUtil.ColumnSpec.fixed(100),
+                TableScrollUtil.ColumnSpec.fixed(108),
+                TableScrollUtil.ColumnSpec.fixed(88),
+                TableScrollUtil.ColumnSpec.fixed(148),
+                TableScrollUtil.ColumnSpec.fixed(134),
+        };
+
+        JScrollPane taScroll = TableScrollUtil.wrapTable(table);
+        TableScrollUtil.installResponsiveColumns(table, taScroll, taCols);
+        add(taScroll, BorderLayout.CENTER);
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        button.setBackground(Color.WHITE);
-        button.setForeground(Color.BLACK);
-        button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        TableListActionStyle.applyToButton(button, text);
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
         return button;
     }
 
@@ -118,11 +126,6 @@ public class TAManagementPanel extends JPanel {
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
-            setFocusPainted(false);
-            setFont(new Font("SansSerif", Font.PLAIN, 11));
-            setBackground(Color.WHITE);
-            setForeground(Color.BLACK);
-            setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
         }
 
         @Override
@@ -132,23 +135,19 @@ public class TAManagementPanel extends JPanel {
 
             if (column == 3) { // View Profile
                 setText("View Profile");
-                setForeground(Color.BLACK);
             } else if (column == 4) { // View CV
                 setText("View CV");
-                setForeground(Color.BLACK);
             } else if (column == 5) { // Status Action
                 if (user.getStatus() == AccountStatus.ACTIVE) {
                     setText("Disable");
-                    setForeground(new Color(239, 68, 68));
                 } else {
                     setText("Activate");
-                    setForeground(new Color(59, 130, 246));
                 }
             } else if (column == 6) { // Reset Password
                 setText("Reset Pwd");
-                setForeground(Color.BLACK);
             }
 
+            TableListActionStyle.applyToButton(this, getText());
             return this;
         }
     }
@@ -161,10 +160,6 @@ public class TAManagementPanel extends JPanel {
 
         public ButtonEditor() {
             button = new JButton();
-            button.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            button.setBackground(Color.WHITE);
-            button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-            button.setFocusPainted(false);
             button.addActionListener(this);
         }
 
@@ -178,23 +173,19 @@ public class TAManagementPanel extends JPanel {
 
             if (column == 3) { // View Profile
                 button.setText("View Profile");
-                button.setForeground(Color.BLACK);
             } else if (column == 4) { // View CV
                 button.setText("View CV");
-                button.setForeground(Color.BLACK);
             } else if (column == 5) { // Status Action
                 if (user.getStatus() == AccountStatus.ACTIVE) {
                     button.setText("Disable");
-                    button.setForeground(new Color(239, 68, 68));
                 } else {
                     button.setText("Activate");
-                    button.setForeground(new Color(59, 130, 246));
                 }
             } else if (column == 6) { // Reset Password
                 button.setText("Reset Pwd");
-                button.setForeground(Color.BLACK);
             }
 
+            TableListActionStyle.applyToButton(button, button.getText());
             return button;
         }
 
@@ -233,28 +224,7 @@ public class TAManagementPanel extends JPanel {
                     "TA Profile", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== TA Profile ===\n\n");
-        sb.append("Name: ").append(profile.getFullName()).append("\n");
-        sb.append("Chinese Name: ").append(profile.getChineseName() != null ? profile.getChineseName() : "N/A").append("\n");
-        sb.append("Email: ").append(profile.getEmail()).append("\n");
-        sb.append("Student ID: ").append(profile.getStudentId() != null ? profile.getStudentId() : "N/A").append("\n");
-        sb.append("Phone: ").append(profile.getPhone() != null ? profile.getPhone() : "N/A").append("\n");
-        sb.append("Gender: ").append(profile.getGender() != null ? profile.getGender().getEnglishName() : "N/A").append("\n");
-        sb.append("School: ").append(profile.getSchool() != null ? profile.getSchool() : "N/A").append("\n");
-        sb.append("Supervisor: ").append(profile.getSupervisor() != null ? profile.getSupervisor() : "N/A").append("\n");
-        sb.append("Major: ").append(profile.getMajor() != null ? profile.getMajor() : "N/A").append("\n");
-        sb.append("Student Type: ").append(profile.getStudentType() != null ? profile.getStudentType().getEnglishName() : "N/A").append("\n");
-        sb.append("Current Year: ").append(profile.getCurrentYear() != null ? profile.getCurrentYear().getEnglishName() : "N/A").append("\n");
-        sb.append("Campus: ").append(profile.getCampus() != null ? profile.getCampus().getChineseName() : "N/A").append("\n");
-        sb.append("Available Hours: ").append(profile.getAvailableWorkingHours()).append(" hours/week\n");
-        sb.append("\nSkills: ").append(profile.getSkillTags() != null && !profile.getSkillTags().isEmpty()
-                ? String.join(", ", profile.getSkillTags()) : "None").append("\n");
-        sb.append("\nPrevious Experience:\n").append(profile.getPreviousExperience() != null ? profile.getPreviousExperience() : "None");
-
-        JOptionPane.showMessageDialog(this, sb.toString(),
-                "TA Profile - " + user.getEmail(), JOptionPane.INFORMATION_MESSAGE);
+        TaProfileViewer.show(this, user, profile, null);
     }
 
     private void viewCV(User user) {

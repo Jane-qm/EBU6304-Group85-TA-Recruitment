@@ -3,7 +3,6 @@ package ui.admin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
@@ -14,7 +13,6 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import javax.swing.JPasswordField;
 import javax.swing.AbstractCellEditor;
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -35,10 +33,12 @@ import modules.user.UserRole;
 import modules.user.UserService;
 import modules.user.MO;
 import modules.auth.AuthService;
+import ui.common.TableListActionStyle;
+import ui.common.TableScrollUtil;
 
 /**
  * MO Management Panel for Admin
- * All buttons: white background, black text, black border
+ * Table actions: borderless bold text (blue / green / red by intent).
  */
 public class MOManagementPanel extends JPanel {
     private final UserService userService = new UserService();
@@ -94,17 +94,23 @@ public class MOManagementPanel extends JPanel {
         table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
         table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor());
 
-        add(new JScrollPane(table), BorderLayout.CENTER);
+        TableScrollUtil.ColumnSpec[] moCols = {
+                TableScrollUtil.ColumnSpec.flex(96, 150),
+                TableScrollUtil.ColumnSpec.flex(130, 280),
+                TableScrollUtil.ColumnSpec.fixed(100),
+                TableScrollUtil.ColumnSpec.fixed(224),
+                TableScrollUtil.ColumnSpec.fixed(140),
+        };
+
+        JScrollPane moScroll = TableScrollUtil.wrapTable(table);
+        TableScrollUtil.installResponsiveColumns(table, moScroll, moCols);
+        add(moScroll, BorderLayout.CENTER);
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        button.setBackground(Color.WHITE);
-        button.setForeground(Color.BLACK);
-        button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        TableListActionStyle.applyToButton(button, text);
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
         return button;
     }
 
@@ -223,33 +229,24 @@ public class MOManagementPanel extends JPanel {
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
-            setFocusPainted(false);
-            setFont(new Font("SansSerif", Font.PLAIN, 11));
-            setBackground(Color.WHITE);
-            setForeground(Color.BLACK);
-            setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus, int row, int column) {
             User user = moUsers.get(row);
-            String buttonText = "";
 
             if (column == 3) {
                 if (user.getStatus() == AccountStatus.ACTIVE) {
-                    buttonText = "Disable";
-                    setForeground(new Color(239, 68, 68));
+                    setText("Disable");
                 } else {
-                    buttonText = "Activate";
-                    setForeground(new Color(59, 130, 246));
+                    setText("Activate");
                 }
-                setText(buttonText);
             } else if (column == 4) {
                 setText("Reset Pwd");
-                setForeground(Color.BLACK);
             }
 
+            TableListActionStyle.applyToButton(this, getText());
             return this;
         }
     }
@@ -262,10 +259,6 @@ public class MOManagementPanel extends JPanel {
 
         public ButtonEditor() {
             button = new JButton();
-            button.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            button.setBackground(Color.WHITE);
-            button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-            button.setFocusPainted(false);
             button.addActionListener(this);
         }
 
@@ -280,16 +273,14 @@ public class MOManagementPanel extends JPanel {
             if (column == 3) {
                 if (user.getStatus() == AccountStatus.ACTIVE) {
                     button.setText("Disable");
-                    button.setForeground(new Color(239, 68, 68));
                 } else {
                     button.setText("Activate");
-                    button.setForeground(new Color(59, 130, 246));
                 }
             } else if (column == 4) {
                 button.setText("Reset Pwd");
-                button.setForeground(Color.BLACK);
             }
 
+            TableListActionStyle.applyToButton(button, button.getText());
             return button;
         }
 

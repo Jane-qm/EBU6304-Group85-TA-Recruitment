@@ -30,20 +30,20 @@ import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
 import com.toedter.calendar.JDateChooser;
 
 import ui.auth.LoginFrame;
+import ui.common.TableScrollUtil;
 import modules.auth.AuthService;
 import modules.job.JobDAO;
 import modules.notification.NotificationDAO;
-import modules.user.AccountStatus;
 import modules.job.Job;
 import modules.notification.NotificationMessage;
 import modules.user.User;
-import modules.user.UserRole;
 import modules.config.SystemConfigService;
 import modules.user.UserService;
 import infrastructure.audit.AdminAuditLogger;
@@ -96,6 +96,7 @@ public class AdminHomeFrame extends JFrame {
     private final NotificationDAO notificationDAO = new NotificationDAO();
     private JTable dataTable;
     private DefaultTableModel dataTableModel;
+    private JScrollPane dataTableScrollPane;
     private JComboBox<String> datasetCombo;
 
     // Main content
@@ -133,6 +134,9 @@ public class AdminHomeFrame extends JFrame {
         initUI();
         loadCycleFields();
         refreshDataTable();
+
+        SwingUtilities.invokeLater(() ->
+                setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH));
     }
 
     private void initUI() {
@@ -405,10 +409,10 @@ public class AdminHomeFrame extends JFrame {
         dataTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
         dataTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        JScrollPane scrollPane = new JScrollPane(dataTable);
-        scrollPane.setPreferredSize(new Dimension(480, 220));
-        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
-        panel.add(scrollPane, BorderLayout.SOUTH);
+        dataTableScrollPane = TableScrollUtil.wrapTable(dataTable);
+        dataTableScrollPane.setPreferredSize(new Dimension(480, 220));
+        dataTableScrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+        panel.add(dataTableScrollPane, BorderLayout.SOUTH);
 
         return panel;
     }
@@ -452,11 +456,7 @@ public class AdminHomeFrame extends JFrame {
             newPasswordField.setText("");
             confirmPasswordField.setText("");
 
-            showMessage("Password changed successfully! Please login again.");
-
-            // Logout and return to login screen
-            new LoginFrame().setVisible(true);
-            dispose();
+            showMessage("Password changed successfully.");
 
         } catch (Exception e) {
             showMessage("Failed to change password: " + e.getMessage());
@@ -725,6 +725,11 @@ public class AdminHomeFrame extends JFrame {
     private void loadGenericTable(String[] columns, List<Object[]> rows) {
         dataTableModel.setDataVector(new Object[0][0], columns);
         for (Object[] row : rows) dataTableModel.addRow(row);
+        TableScrollUtil.autoSizeColumnsFromContent(dataTable, 12, 420);
+        if (dataTableScrollPane != null && dataTable.getColumnCount() > 0) {
+            TableScrollUtil.installResponsiveColumns(dataTable, dataTableScrollPane,
+                    TableScrollUtil.flexSpecsFromCurrentWidths(dataTable, 0.42));
+        }
     }
 
     private void exportCurrentDataset() {

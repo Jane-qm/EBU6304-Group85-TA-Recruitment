@@ -23,10 +23,15 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import ui.common.TableListActionStyle;
+import ui.common.TableScrollUtil;
+
 /**
  * MO job management: course dropdown, calendar deadline, draft/publish, row actions.
  */
 public class MOJobManagementPanel extends JPanel {
+
+    private static final String DISABLED_ACTION = "—";
 
     @FunctionalInterface
     private interface JobFormBinder {
@@ -89,10 +94,28 @@ public class MOJobManagementPanel extends JPanel {
                                                            boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 l.setHorizontalAlignment(SwingConstants.CENTER);
-                l.setForeground(Color.BLACK);
-                if (column >= 3) {
-                    l.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                boolean actionCol = column >= 3;
+                String s = value == null ? "" : value.toString();
+                if (!actionCol) {
+                    l.setBorder(null);
+                    l.setCursor(Cursor.getDefaultCursor());
+                    return l;
                 }
+                if (isSelected) {
+                    l.setForeground(table.getSelectionForeground());
+                    l.setBackground(table.getSelectionBackground());
+                    l.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
+                    if (TableListActionStyle.isDisabledActionText(s)) {
+                        l.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                        l.setCursor(Cursor.getDefaultCursor());
+                    } else {
+                        l.setFont(new Font("SansSerif", Font.BOLD, 12));
+                        l.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                    }
+                    return l;
+                }
+                l.setBackground(Color.WHITE);
+                TableListActionStyle.applyToLabel(l, s, true);
                 return l;
             }
         };
@@ -112,12 +135,24 @@ public class MOJobManagementPanel extends JPanel {
                 if (col == 3) {
                     showJobEditorDialog(job);
                 } else if (col == 4) {
+                    if (DISABLED_ACTION.equals(jobTable.getValueAt(row, 4))) {
+                        return;
+                    }
                     closeJobFromRow(job);
                 }
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(jobTable);
+        TableScrollUtil.ColumnSpec[] jobCols = {
+                TableScrollUtil.ColumnSpec.fixed(104),
+                TableScrollUtil.ColumnSpec.flex(160, 280),
+                TableScrollUtil.ColumnSpec.fixed(94),
+                TableScrollUtil.ColumnSpec.fixed(78),
+                TableScrollUtil.ColumnSpec.fixed(78),
+        };
+
+        JScrollPane scrollPane = TableScrollUtil.wrapTable(jobTable);
+        TableScrollUtil.installResponsiveColumns(jobTable, scrollPane, jobCols);
         scrollPane.getViewport().setBackground(Color.WHITE);
         add(scrollPane, BorderLayout.CENTER);
     }
@@ -147,14 +182,20 @@ public class MOJobManagementPanel extends JPanel {
                 .collect(Collectors.toList());
 
         for (Job job : currentJobs) {
+            String closeLabel = isJobClosed(job) ? DISABLED_ACTION : "Close";
             tableModel.addRow(new Object[]{
                     job.getModuleCode() != null ? job.getModuleCode() : "",
                     job.getTitle() != null ? job.getTitle() : "",
                     displayStatus(job),
                     "Edit",
-                    "Close"
+                    closeLabel
             });
         }
+    }
+
+    private boolean isJobClosed(Job job) {
+        String st = job.getStatus();
+        return st != null && ("CLOSED".equalsIgnoreCase(st) || "WITHDRAWN".equalsIgnoreCase(st));
     }
 
     private void closeJobFromRow(Job job) {

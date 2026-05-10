@@ -1,4 +1,4 @@
-package infrastructure.ui;
+package ui.common;
 
 import javax.swing.BorderFactory;
 import javax.swing.Icon;

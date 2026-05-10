@@ -1,4 +1,4 @@
-package infrastructure.ui;
+package ui.common;
 
 import java.awt.*;
 import java.awt.event.ComponentAdapter;

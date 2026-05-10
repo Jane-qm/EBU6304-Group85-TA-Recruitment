@@ -34,7 +34,10 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
 import modules.job.Job;
+import modules.user.MO;
 import modules.user.TA;
+import modules.user.User;
+import modules.user.UserService;
 import modules.application.ApplicationController;
 import modules.auth.TAAuthController;
 import modules.profile.TAProfileController;
@@ -42,6 +45,8 @@ import modules.cv.CVInfo;
 import modules.profile.TAProfile;
 import modules.cv.CVService;
 import modules.profile.TAProfileService;
+import ui.common.ScrollPaneTopHelper;
+import ui.common.TableScrollUtil;
 import ui.ta.components.ActionButtonRenderer;
 
 public class TACourseCatalogPanel extends JPanel {
@@ -51,6 +56,7 @@ public class TACourseCatalogPanel extends JPanel {
     private final TAAuthController authController;
     private final TAProfileController profileController;
     private final CVService cvService;
+    private final UserService userService = new UserService();
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
@@ -104,6 +110,8 @@ public class TACourseCatalogPanel extends JPanel {
         
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setBorder(null);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         
         return scrollPane;
@@ -132,7 +140,7 @@ public class TACourseCatalogPanel extends JPanel {
     }
     
     private JScrollPane createCoursesTable() {
-        String[] columns = {"Course Name", "Module Code", "Hours/Week", "Deadline", "Detail", "Apply"};
+        String[] columns = {"Course Name", "Module Code", "MO", "Hours/Week", "Deadline", "Detail", "Apply"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -148,8 +156,8 @@ public class TACourseCatalogPanel extends JPanel {
         coursesTable.setShowGrid(false);
         coursesTable.setIntercellSpacing(new Dimension(0, 0));
         
-        coursesTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
         coursesTable.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());
+        coursesTable.getColumnModel().getColumn(6).setCellRenderer(new ActionButtonRenderer());
         
         coursesTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -160,9 +168,9 @@ public class TACourseCatalogPanel extends JPanel {
                 if (row < availableJobs.size()) {
                     Job job = availableJobs.get(row);
                     
-                    if (col == 4) {
+                    if (col == 5) {
                         showCourseDetailDialog(job);
-                    } else if (col == 5) {
+                    } else if (col == 6) {
                         // 检查职位是否可申请
                         if (!job.isApplicable()) {
                             if (job.isExpired()) {
@@ -191,14 +199,18 @@ public class TACourseCatalogPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
-        coursesTable.getColumnModel().getColumn(0).setPreferredWidth(280);
-        coursesTable.getColumnModel().getColumn(1).setPreferredWidth(100);
-        coursesTable.getColumnModel().getColumn(2).setPreferredWidth(80);
-        coursesTable.getColumnModel().getColumn(3).setPreferredWidth(100);
-        coursesTable.getColumnModel().getColumn(4).setPreferredWidth(60);
-        coursesTable.getColumnModel().getColumn(5).setPreferredWidth(60);
+        TableScrollUtil.ColumnSpec[] courseCols = {
+                TableScrollUtil.ColumnSpec.flex(140, 260),
+                TableScrollUtil.ColumnSpec.fixed(88),
+                TableScrollUtil.ColumnSpec.flex(88, 130),
+                TableScrollUtil.ColumnSpec.fixed(78),
+                TableScrollUtil.ColumnSpec.flex(88, 115),
+                TableScrollUtil.ColumnSpec.fixed(68),
+                TableScrollUtil.ColumnSpec.fixed(68),
+        };
 
-        JScrollPane scrollPane = new JScrollPane(coursesTable);
+        JScrollPane scrollPane = TableScrollUtil.wrapTable(coursesTable);
+        TableScrollUtil.installResponsiveColumns(coursesTable, scrollPane, courseCols);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         scrollPane.setPreferredSize(new Dimension(900, 400));
 
@@ -212,10 +224,12 @@ public class TACourseCatalogPanel extends JPanel {
 
         for (Job job : availableJobs) {
             String deadlineText = parseDeadlineFromDescription(job);
-            
+            User mo = job.getMoUserId() != null ? userService.findById(job.getMoUserId()) : null;
+
             tableModel.addRow(new Object[]{
                     job.getTitle(),
                     job.getModuleCode(),
+                    moDisplayName(mo),
                     job.getWeeklyHours(),
                     deadlineText,
                     "Detail",
@@ -224,7 +238,7 @@ public class TACourseCatalogPanel extends JPanel {
         }
 
         if (availableJobs.isEmpty()) {
-            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—", "—"});
+            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—", "—", "—"});
         }
     }
     
@@ -242,7 +256,34 @@ public class TACourseCatalogPanel extends JPanel {
         return label;
     }
     
+    private static String moDisplayName(User mo) {
+        if (mo == null) {
+            return "—";
+        }
+        if (mo instanceof MO) {
+            String n = ((MO) mo).getName();
+            if (n != null && !n.isBlank()) {
+                return n.trim();
+            }
+        }
+        String email = mo.getEmail();
+        if (email == null) {
+            return "—";
+        }
+        int at = email.indexOf('@');
+        return at > 0 ? email.substring(0, at) : email;
+    }
+
+    private static String moEmail(User mo) {
+        if (mo == null || mo.getEmail() == null) {
+            return "—";
+        }
+        return mo.getEmail();
+    }
+
     private void showCourseDetailDialog(Job job) {
+        User mo = job.getMoUserId() != null ? userService.findById(job.getMoUserId()) : null;
+
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(new EmptyBorder(15, 15, 15, 15));
@@ -264,7 +305,13 @@ public class TACourseCatalogPanel extends JPanel {
         
         infoPanel.add(createInfoLabel("Module Code:"));
         infoPanel.add(createValueLabel(job.getModuleCode()));
-        
+
+        infoPanel.add(createInfoLabel("Module Organiser (MO):"));
+        infoPanel.add(createValueLabel(moDisplayName(mo)));
+
+        infoPanel.add(createInfoLabel("MO Email:"));
+        infoPanel.add(createValueLabel(moEmail(mo)));
+
         infoPanel.add(createInfoLabel("Weekly Hours:"));
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
         
@@ -344,7 +391,9 @@ public class TACourseCatalogPanel extends JPanel {
         descScroll.setMaximumSize(new Dimension(500, 150));
         panel.add(descScroll);
         
-        JOptionPane.showConfirmDialog(null, new JScrollPane(panel), 
+        JScrollPane outer = new JScrollPane(panel);
+        ScrollPaneTopHelper.installScrollStartsAtTop(outer);
+        JOptionPane.showConfirmDialog(null, outer, 
             "Course Details", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
     }
     

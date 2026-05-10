@@ -27,9 +27,14 @@ import javax.swing.table.JTableHeader;
 
 import modules.application.ApplicationStatus;
 import modules.job.Job;
+import modules.user.MO;
 import modules.user.TA;
+import modules.user.User;
+import modules.user.UserService;
 import modules.application.ApplicationController;
 import modules.application.Application;
+import ui.common.ScrollPaneTopHelper;
+import ui.common.TableScrollUtil;
 import ui.ta.components.ActionButtonRenderer;
 import ui.ta.components.StatusCellRenderer;
 
@@ -43,6 +48,7 @@ public class TAApplicationsPanel extends JPanel {
     
     private final TA ta;
     private final ApplicationController applicationController;
+    private final UserService userService = new UserService();
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
@@ -102,14 +108,15 @@ public class TAApplicationsPanel extends JPanel {
         
         JScrollPane scrollPane = new JScrollPane(panel);
         scrollPane.setBorder(null);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.getHorizontalScrollBar().setEnabled(false);
         
         return scrollPane;
     }
     
     private JScrollPane createApplicationsTable() {
-        String[] columns = {"Course", "Status", "Applied Date", "Detail", "", ""};
+        String[] columns = {"Course", "MO", "Status", "Applied Date", "Detail", "", ""};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -124,12 +131,11 @@ public class TAApplicationsPanel extends JPanel {
         applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
         applicationsTable.setShowGrid(false);
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
-        applicationsTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         
-        applicationsTable.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
-        applicationsTable.getColumnModel().getColumn(3).setCellRenderer(new ActionButtonRenderer());
+        applicationsTable.getColumnModel().getColumn(2).setCellRenderer(new StatusCellRenderer());
         applicationsTable.getColumnModel().getColumn(4).setCellRenderer(new ActionButtonRenderer());
         applicationsTable.getColumnModel().getColumn(5).setCellRenderer(new ActionButtonRenderer());
+        applicationsTable.getColumnModel().getColumn(6).setCellRenderer(new ActionButtonRenderer());
         
         applicationsTable.addMouseListener(new MouseAdapter() {
             @Override
@@ -140,17 +146,17 @@ public class TAApplicationsPanel extends JPanel {
                 if (row < applications.size()) {
                     Application app = applications.get(row);
                     
-                    if (col == 3) {
+                    if (col == 4) {
                         showApplicationDetailDialog(app);
-                    } else if (col == 4) {
-                        String action = (String) applicationsTable.getValueAt(row, 4);
+                    } else if (col == 5) {
+                        String action = (String) applicationsTable.getValueAt(row, 5);
                         if ("Cancel".equals(action)) {
                             handleCancelApplication(app);
                         } else if ("Accept".equals(action)) {
                             handleAcceptOffer(app);
                         }
-                    } else if (col == 5) {
-                        String action = (String) applicationsTable.getValueAt(row, 5);
+                    } else if (col == 6) {
+                        String action = (String) applicationsTable.getValueAt(row, 6);
                         if ("Reject".equals(action)) {
                             handleRejectOffer(app);
                         }
@@ -165,17 +171,20 @@ public class TAApplicationsPanel extends JPanel {
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         
-        applicationsTable.getColumnModel().getColumn(0).setPreferredWidth(350);
-        applicationsTable.getColumnModel().getColumn(1).setPreferredWidth(120);
-        applicationsTable.getColumnModel().getColumn(2).setPreferredWidth(100);
-        applicationsTable.getColumnModel().getColumn(3).setPreferredWidth(60);
-        applicationsTable.getColumnModel().getColumn(4).setPreferredWidth(70);
-        applicationsTable.getColumnModel().getColumn(5).setPreferredWidth(70);
+        TableScrollUtil.ColumnSpec[] appCols = {
+                TableScrollUtil.ColumnSpec.flex(170, 300),
+                TableScrollUtil.ColumnSpec.flex(78, 125),
+                TableScrollUtil.ColumnSpec.flex(72, 118),
+                TableScrollUtil.ColumnSpec.fixed(104),
+                TableScrollUtil.ColumnSpec.fixed(70),
+                TableScrollUtil.ColumnSpec.fixed(78),
+                TableScrollUtil.ColumnSpec.fixed(78),
+        };
 
-        JScrollPane scrollPane = new JScrollPane(applicationsTable);
+        JScrollPane scrollPane = TableScrollUtil.wrapTable(applicationsTable);
+        TableScrollUtil.installResponsiveColumns(applicationsTable, scrollPane, appCols);
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         scrollPane.setPreferredSize(new Dimension(800, 400));
-        scrollPane.getHorizontalScrollBar().setEnabled(false);
 
         return scrollPane;
     }
@@ -263,6 +272,31 @@ public class TAApplicationsPanel extends JPanel {
         }
     }
     
+    private static String moDisplayName(User mo) {
+        if (mo == null) {
+            return "—";
+        }
+        if (mo instanceof MO) {
+            String n = ((MO) mo).getName();
+            if (n != null && !n.isBlank()) {
+                return n.trim();
+            }
+        }
+        String email = mo.getEmail();
+        if (email == null) {
+            return "—";
+        }
+        int at = email.indexOf('@');
+        return at > 0 ? email.substring(0, at) : email;
+    }
+
+    private static String moEmail(User mo) {
+        if (mo == null || mo.getEmail() == null) {
+            return "—";
+        }
+        return mo.getEmail();
+    }
+
     private void showApplicationDetailDialog(Application app) {
         Job job = applicationController.getJobById(app.getJobId());
         if (job == null) {
@@ -270,6 +304,8 @@ public class TAApplicationsPanel extends JPanel {
                 "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
+        User mo = job.getMoUserId() != null ? userService.findById(job.getMoUserId()) : null;
         
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -337,6 +373,12 @@ public class TAApplicationsPanel extends JPanel {
         
         infoPanel.add(createInfoLabel("Module Code:"));
         infoPanel.add(createValueLabel(job.getModuleCode()));
+
+        infoPanel.add(createInfoLabel("Module Organiser (MO):"));
+        infoPanel.add(createValueLabel(moDisplayName(mo)));
+
+        infoPanel.add(createInfoLabel("MO Email:"));
+        infoPanel.add(createValueLabel(moEmail(mo)));
         
         infoPanel.add(createInfoLabel("Weekly Hours:"));
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
@@ -376,7 +418,9 @@ public class TAApplicationsPanel extends JPanel {
         statementScroll.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(statementScroll);
         
-        JOptionPane.showConfirmDialog(null, new JScrollPane(panel), 
+        JScrollPane outer = new JScrollPane(panel);
+        ScrollPaneTopHelper.installScrollStartsAtTop(outer);
+        JOptionPane.showConfirmDialog(null, outer, 
             "Application Details", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
     }
     
@@ -404,9 +448,17 @@ public class TAApplicationsPanel extends JPanel {
             String status = applicationController.getShortDisplayStatus(app);
             String appliedAt = app.getAppliedAt() != null ? app.getAppliedAt().format(formatter) : "";
             String courseName = applicationController.getCourseName(app.getJobId());
+
+            Job job = applicationController.getJobById(app.getJobId());
+            User mo = job != null && job.getMoUserId() != null
+                    ? userService.findById(job.getMoUserId()) : null;
+            String moName = moDisplayName(mo);
             
             if (courseName.length() > 45) {
                 courseName = courseName.substring(0, 42) + "...";
+            }
+            if (moName.length() > 28) {
+                moName = moName.substring(0, 25) + "...";
             }
             
             String action1 = "—";
@@ -425,11 +477,11 @@ public class TAApplicationsPanel extends JPanel {
                 }
             }
             
-            tableModel.addRow(new Object[]{courseName, status, appliedAt, "Detail", action1, action2});
+            tableModel.addRow(new Object[]{courseName, moName, status, appliedAt, "Detail", action1, action2});
         }
 
         if (applications.isEmpty()) {
-            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—", "—"});
+            tableModel.addRow(new Object[]{"—", "—", "—", "—", "—", "—", "—"});
         }
     }
     

@@ -83,7 +83,7 @@ public class ApplicationService {
     }
 
     /**
-     * 获取活跃申请数量（计入 3 个上限）
+     * 获取活跃申请数量（计入 3 个上限：含 SUBMITTED / WAITLISTED / OFFER_SENT / HIRED）
      */
     public int getActiveApplicationCount(Long taUserId) {
         return (int) listByTaUserId(taUserId).stream()

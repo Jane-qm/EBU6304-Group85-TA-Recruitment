@@ -3,7 +3,6 @@ package ui.admin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.swing.AbstractCellEditor;
-import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -41,10 +39,12 @@ import modules.job.JobService;
 import modules.user.MO;
 import modules.user.User;
 import modules.user.UserService;
+import ui.common.TableListActionStyle;
+import ui.common.TableScrollUtil;
 
 /**
  * Course Management Panel for Admin
- * All buttons: white background, black text, black border
+ * Table actions: borderless bold text (blue / green / red by intent).
  */
 public class CourseManagementPanel extends JPanel {
     private final CourseService courseService = new CourseService();
@@ -101,17 +101,23 @@ public class CourseManagementPanel extends JPanel {
         table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
         table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor());
 
-        add(new JScrollPane(table), BorderLayout.CENTER);
+        TableScrollUtil.ColumnSpec[] courseCols = {
+                TableScrollUtil.ColumnSpec.fixed(112),
+                TableScrollUtil.ColumnSpec.flex(140, 300),
+                TableScrollUtil.ColumnSpec.flex(120, 210),
+                TableScrollUtil.ColumnSpec.fixed(144),
+                TableScrollUtil.ColumnSpec.fixed(130),
+        };
+
+        JScrollPane courseScroll = TableScrollUtil.wrapTable(table);
+        TableScrollUtil.installResponsiveColumns(table, courseScroll, courseCols);
+        add(courseScroll, BorderLayout.CENTER);
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        button.setBackground(Color.WHITE);
-        button.setForeground(Color.BLACK);
-        button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        TableListActionStyle.applyToButton(button, text);
+        button.setFont(new Font("SansSerif", Font.BOLD, 12));
         return button;
     }
 
@@ -136,11 +142,6 @@ public class CourseManagementPanel extends JPanel {
     private class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
-            setFocusPainted(false);
-            setFont(new Font("SansSerif", Font.PLAIN, 11));
-            setBackground(Color.WHITE);
-            setForeground(Color.BLACK);
-            setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
         }
 
         @Override
@@ -151,6 +152,7 @@ public class CourseManagementPanel extends JPanel {
             } else if (column == 4) {
                 setText("View Hired");
             }
+            TableListActionStyle.applyToButton(this, getText());
             return this;
         }
     }
@@ -163,10 +165,6 @@ public class CourseManagementPanel extends JPanel {
 
         public ButtonEditor() {
             button = new JButton();
-            button.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            button.setBackground(Color.WHITE);
-            button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-            button.setFocusPainted(false);
             button.addActionListener(this);
         }
 
@@ -182,6 +180,7 @@ public class CourseManagementPanel extends JPanel {
                 button.setText("View Hired");
             }
 
+            TableListActionStyle.applyToButton(button, button.getText());
             return button;
         }
 

@@ -129,7 +129,7 @@ public class TAProfilePanel extends JPanel {
         if (cvList == null) {
             cvList = new ArrayList<>();
         }
-        System.out.println("刷新 CV 列表，共 " + cvList.size() + " 个 CV");
+        System.out.println("Refreshed CV list, count=" + cvList.size());
     }
     
     private void initUI() {
@@ -145,7 +145,8 @@ public class TAProfilePanel extends JPanel {
 
         JScrollPane scrollPane = new JScrollPane(scrollRoot);
         scrollPane.setBorder(null);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getVerticalScrollBar().setUnitIncrement(24);
         scrollPane.getVerticalScrollBar().setBlockIncrement(120);
         scrollPane.getViewport().setBackground(new Color(248, 250, 252));

@@ -105,7 +105,7 @@ public class TAProfile {
     
     // 校区枚举
     public enum Campus {
-        XITUCHENG("XituCheng", "西土城校区"),
+        XITUCHENG("Xitu Cheng", "西土城校区"),
         SHAHE("ShaHe", "沙河校区");
         
         private final String englishName;
@@ -302,7 +302,7 @@ public class TAProfile {
     }
     
     public String getCampusDisplay() {
-        return campus != null ? campus.getChineseName() : "";
+        return campus != null ? campus.getEnglishName() : "";
     }
     
     public String getGradeDisplayName() {

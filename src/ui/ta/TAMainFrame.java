@@ -22,8 +22,8 @@ import modules.user.User;
 import modules.user.UserRole;
 import modules.notification.NotificationService;
 import infrastructure.security.PermissionService;
-import infrastructure.ui.BaseFrame;
-import infrastructure.ui.NotificationPopup;
+import ui.common.BaseFrame;
+import ui.common.NotificationPopup;
 import modules.application.ApplicationController;
 import modules.auth.TAAuthController;
 
@@ -87,6 +87,9 @@ public class TAMainFrame extends BaseFrame {
         this.notificationService = new NotificationService();
 
         initUI();
+        
+        // 登录后主工作台占满屏幕，避免固定像素在高分屏上过小
+        javax.swing.SwingUtilities.invokeLater(this::maximizeWindow);
         
         // 登录后检查是否有待处理的 Offer
     //    checkPendingOffers();

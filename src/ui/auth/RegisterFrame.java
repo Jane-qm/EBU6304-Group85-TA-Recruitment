@@ -20,7 +20,7 @@ import javax.swing.border.EmptyBorder;
 
 import modules.auth.AuthService;
 import modules.user.UserRole;
-import infrastructure.ui.BaseFrame;
+import ui.common.BaseFrame;
 
 /**
  * 注册窗口

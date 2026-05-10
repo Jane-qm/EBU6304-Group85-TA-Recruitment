@@ -1,4 +1,4 @@
-package infrastructure.ui;
+package ui.common;
 
 import modules.notification.NotificationMessage;
 import modules.user.User;

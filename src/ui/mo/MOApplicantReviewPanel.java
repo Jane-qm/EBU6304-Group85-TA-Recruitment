@@ -3,7 +3,6 @@ package ui.mo;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.io.File;
@@ -11,13 +10,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.swing.AbstractCellEditor;
-import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -45,6 +45,9 @@ import modules.profile.TAProfile;
 import modules.profile.TAProfileService;
 import modules.user.User;
 import modules.user.UserService;
+import ui.common.TableListActionStyle;
+import ui.common.TableScrollUtil;
+import ui.common.TaProfileViewer;
 
 /**
  * MO applicant review: filter by course and status; per-row profile, CV, accept, reject, shortlist.
@@ -57,6 +60,9 @@ public class MOApplicantReviewPanel extends JPanel {
     private static final String ST_REJECTED = "Rejected";
     private static final String ST_OFFER_SENT = "Offer sent";
     private static final String ST_HIRED = "Hired";
+
+    /** Inactive action cells (same as TA tables): not editable, rendered as plain em dash. */
+    private static final String DISABLED_ACTION = "—";
 
     private final User currentUser;
     private final UserService userService = new UserService();
@@ -77,6 +83,9 @@ public class MOApplicantReviewPanel extends JPanel {
     private JComboBox<String> statusCombo;
     private JLabel statusLabel;
     private Timer refreshTimer;
+
+    /** Parallel to {@link #courseCombo} items: module code for the selected row. */
+    private final List<String> courseComboModuleCodes = new ArrayList<>();
 
     public MOApplicantReviewPanel(User currentUser) {
         this.currentUser = currentUser;
@@ -138,7 +147,15 @@ public class MOApplicantReviewPanel extends JPanel {
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column >= 4;
+                if (column < 4) {
+                    return false;
+                }
+                Object v = getValueAt(row, column);
+                if (v == null) {
+                    return false;
+                }
+                String s = String.valueOf(v).trim();
+                return !s.isEmpty() && !DISABLED_ACTION.equals(s);
             }
         };
         appTable = new JTable(tableModel);
@@ -154,7 +171,21 @@ public class MOApplicantReviewPanel extends JPanel {
             appTable.getColumnModel().getColumn(c).setCellEditor(editor);
         }
 
-        add(new JScrollPane(appTable), BorderLayout.CENTER);
+        TableScrollUtil.ColumnSpec[] appCols = {
+                TableScrollUtil.ColumnSpec.flex(88, 120),
+                TableScrollUtil.ColumnSpec.flex(120, 220),
+                TableScrollUtil.ColumnSpec.flex(140, 320),
+                TableScrollUtil.ColumnSpec.flex(88, 140),
+                TableScrollUtil.ColumnSpec.fixed(76),
+                TableScrollUtil.ColumnSpec.fixed(58),
+                TableScrollUtil.ColumnSpec.fixed(118),
+                TableScrollUtil.ColumnSpec.fixed(78),
+                TableScrollUtil.ColumnSpec.fixed(88),
+        };
+
+        JScrollPane appScroll = TableScrollUtil.wrapTable(appTable);
+        TableScrollUtil.installResponsiveColumns(appTable, appScroll, appCols);
+        add(appScroll, BorderLayout.CENTER);
     }
 
     private void initSouth() {
@@ -182,29 +213,44 @@ public class MOApplicantReviewPanel extends JPanel {
     }
 
     private void rebuildCourseCombo() {
-        String previous = (String) courseCombo.getSelectedItem();
+        String previousCode = getSelectedModuleCodeFromCombo();
         courseCombo.removeAllItems();
-        List<String> modules = myJobs.stream()
-                .map(Job::getModuleCode)
-                .filter(Objects::nonNull)
-                .distinct()
-                .sorted(String.CASE_INSENSITIVE_ORDER)
-                .collect(Collectors.toList());
-        for (String m : modules) {
-            courseCombo.addItem(m);
+        courseComboModuleCodes.clear();
+
+        Map<String, String> codeToTitle = new LinkedHashMap<>();
+        myJobs.stream()
+                .filter(j -> j.getModuleCode() != null && !j.getModuleCode().isBlank())
+                .sorted(Comparator.comparing(j -> j.getModuleCode().trim(), String.CASE_INSENSITIVE_ORDER))
+                .forEach(j -> {
+                    String code = j.getModuleCode().trim();
+                    codeToTitle.putIfAbsent(code,
+                            j.getTitle() != null && !j.getTitle().isBlank() ? j.getTitle().trim() : "—");
+                });
+
+        for (Map.Entry<String, String> e : codeToTitle.entrySet()) {
+            courseComboModuleCodes.add(e.getKey());
+            courseCombo.addItem(e.getKey() + " — " + e.getValue());
         }
-        if (courseCombo.getItemCount() == 0) {
+
+        if (courseComboModuleCodes.isEmpty()) {
             return;
         }
-        if (previous != null) {
-            for (int i = 0; i < courseCombo.getItemCount(); i++) {
-                if (previous.equals(courseCombo.getItemAt(i))) {
-                    courseCombo.setSelectedIndex(i);
-                    return;
-                }
+        if (previousCode != null) {
+            int idx = courseComboModuleCodes.indexOf(previousCode);
+            if (idx >= 0) {
+                courseCombo.setSelectedIndex(idx);
+                return;
             }
         }
         courseCombo.setSelectedIndex(0);
+    }
+
+    private String getSelectedModuleCodeFromCombo() {
+        int i = courseCombo.getSelectedIndex();
+        if (i < 0 || i >= courseComboModuleCodes.size()) {
+            return null;
+        }
+        return courseComboModuleCodes.get(i);
     }
 
     private void applyFiltersAndRefreshTable() {
@@ -214,10 +260,16 @@ public class MOApplicantReviewPanel extends JPanel {
             statusLabel.setText("No courses (jobs) for your account. Post a job first.");
             return;
         }
-        String c = (String) courseCombo.getSelectedItem();
-        if (c == null) {
+        String c = getSelectedModuleCodeFromCombo();
+        if (c == null && !courseComboModuleCodes.isEmpty()) {
             courseCombo.setSelectedIndex(0);
-            c = (String) courseCombo.getSelectedItem();
+            c = getSelectedModuleCodeFromCombo();
+        }
+        if (c == null) {
+            filteredApplications = new ArrayList<>();
+            tableModel.setRowCount(0);
+            statusLabel.setText("Select a course.");
+            return;
         }
         final String courseSel = c;
         String statusRaw = (String) statusCombo.getSelectedItem();
@@ -241,9 +293,15 @@ public class MOApplicantReviewPanel extends JPanel {
             User taUser = userService.getUserById(app.getTaUserId());
             String email = taUser != null ? taUser.getEmail() : ("TA #" + app.getTaUserId());
             String name = displayTaName(taUser);
-            String module = moduleCodeForApplication(app);
+            String courseDisplay = courseDisplayForApplication(app);
             String statusText = ApplicationStatus.getDisplayText(app.getStatus());
-            tableModel.addRow(new Object[]{name, email, module, statusText, "", "", "", "", ""});
+            String acceptLabel = canSendOffer(app) ? "Accept" : DISABLED_ACTION;
+            String rejectLabel = canReject(app) ? "Reject" : DISABLED_ACTION;
+            String shortlistLabel = canShortlist(app) ? "Shortlist" : DISABLED_ACTION;
+            tableModel.addRow(new Object[]{
+                    name, email, courseDisplay, statusText,
+                    "View profile", "View CV", acceptLabel, rejectLabel, shortlistLabel
+            });
         }
 
         statusLabel.setText(String.format(
@@ -265,7 +323,7 @@ public class MOApplicantReviewPanel extends JPanel {
                     "Export", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
-        String courseCode = (String) courseCombo.getSelectedItem();
+        String courseCode = getSelectedModuleCodeFromCombo();
         JFileChooser fc = new JFileChooser();
         fc.setSelectedFile(new File("applicants_"
                 + (courseCode != null ? courseCode.replaceAll("[^a-zA-Z0-9_-]", "_") : "export")
@@ -291,12 +349,12 @@ public class MOApplicantReviewPanel extends JPanel {
                 User taUser = userService.getUserById(app.getTaUserId());
                 String email = taUser != null ? taUser.getEmail() : ("TA #" + app.getTaUserId());
                 String name = displayTaName(taUser);
-                String module = moduleCodeForApplication(app);
+                String courseDisplay = courseDisplayForApplication(app);
                 String statusText = ApplicationStatus.getDisplayText(app.getStatus());
                 String applied = app.getAppliedAt() != null ? app.getAppliedAt().toString() : "";
                 sb.append(csvEscape(name)).append(',')
                         .append(csvEscape(email)).append(',')
-                        .append(csvEscape(module)).append(',')
+                        .append(csvEscape(courseDisplay)).append(',')
                         .append(csvEscape(statusText)).append(',')
                         .append(app.getApplicationId() != null ? app.getApplicationId() : "").append(',')
                         .append(app.getJobId() != null ? app.getJobId() : "").append(',')
@@ -345,12 +403,16 @@ public class MOApplicantReviewPanel extends JPanel {
         return true;
     }
 
-    private String moduleCodeForApplication(Application app) {
+    private String courseDisplayForApplication(Application app) {
         Job j = findJob(app.getJobId());
-        if (j != null && j.getModuleCode() != null) {
-            return j.getModuleCode();
+        if (j == null) {
+            return "—";
         }
-        return "—";
+        String code = j.getModuleCode() != null && !j.getModuleCode().isBlank()
+                ? j.getModuleCode().trim() : "—";
+        String title = j.getTitle() != null && !j.getTitle().isBlank()
+                ? j.getTitle().trim() : "—";
+        return code + " — " + title;
     }
 
     private String displayTaName(User taUser) {
@@ -386,28 +448,7 @@ public class MOApplicantReviewPanel extends JPanel {
             return;
         }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== TA Profile ===\n\n");
-        sb.append("Name: ").append(profile.getFullName() != null ? profile.getFullName() : "N/A").append("\n");
-        sb.append("Chinese Name: ").append(profile.getChineseName() != null ? profile.getChineseName() : "N/A").append("\n");
-        sb.append("Email: ").append(profile.getEmail()).append("\n");
-        sb.append("Student ID: ").append(profile.getStudentId() != null ? profile.getStudentId() : "N/A").append("\n");
-        sb.append("Phone: ").append(profile.getPhone() != null ? profile.getPhone() : "N/A").append("\n");
-        sb.append("Gender: ").append(profile.getGender() != null ? profile.getGender().getEnglishName() : "N/A").append("\n");
-        sb.append("School: ").append(profile.getSchool() != null ? profile.getSchool() : "N/A").append("\n");
-        sb.append("Supervisor: ").append(profile.getSupervisor() != null ? profile.getSupervisor() : "N/A").append("\n");
-        sb.append("Major: ").append(profile.getMajor() != null ? profile.getMajor() : "N/A").append("\n");
-        sb.append("Student Type: ").append(profile.getStudentType() != null ? profile.getStudentType().getEnglishName() : "N/A").append("\n");
-        sb.append("Current Year: ").append(profile.getCurrentYear() != null ? profile.getCurrentYear().getEnglishName() : "N/A").append("\n");
-        sb.append("Campus: ").append(profile.getCampus() != null ? profile.getCampus().getChineseName() : "N/A").append("\n");
-        sb.append("Available Hours: ").append(profile.getAvailableWorkingHours()).append(" hours/week\n");
-        sb.append("\nSkills: ").append(profile.getSkillTags() != null && !profile.getSkillTags().isEmpty()
-                ? String.join(", ", profile.getSkillTags()) : "None").append("\n");
-        sb.append("\nApplication statement:\n").append(app.getStatement() != null ? app.getStatement() : "None");
-        sb.append("\n\nPrevious Experience:\n").append(profile.getPreviousExperience() != null ? profile.getPreviousExperience() : "None");
-
-        JOptionPane.showMessageDialog(this, sb.toString(),
-                "TA Profile - " + user.getEmail(), JOptionPane.INFORMATION_MESSAGE);
+        TaProfileViewer.show(this, user, profile, app.getStatement());
     }
 
     private void viewTaCv(Application app) {
@@ -455,6 +496,23 @@ public class MOApplicantReviewPanel extends JPanel {
             return null;
         }
         return myJobs.stream().filter(j -> jobId.equals(j.getJobId())).findFirst().orElse(null);
+    }
+
+    private static boolean canSendOffer(Application app) {
+        String st = app.getStatus();
+        return ApplicationStatus.SUBMITTED.equals(st) || ApplicationStatus.WAITLISTED.equals(st);
+    }
+
+    private static boolean canReject(Application app) {
+        if (ApplicationStatus.isTerminal(app.getStatus())) {
+            return false;
+        }
+        String st = app.getStatus();
+        return ApplicationStatus.SUBMITTED.equals(st) || ApplicationStatus.WAITLISTED.equals(st);
+    }
+
+    private static boolean canShortlist(Application app) {
+        return ApplicationStatus.SUBMITTED.equals(app.getStatus());
     }
 
     private void acceptApplication(Application app) {
@@ -516,31 +574,18 @@ public class MOApplicantReviewPanel extends JPanel {
     private class ActionButtonRenderer extends JButton implements TableCellRenderer {
         ActionButtonRenderer() {
             setOpaque(true);
-            setFocusPainted(false);
-            setFont(new Font("SansSerif", Font.PLAIN, 11));
-            setBackground(Color.WHITE);
-            setForeground(Color.BLACK);
-            setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            setHorizontalAlignment(CENTER);
         }
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(buttonLabelForColumn(column));
+            String text = value == null ? "" : String.valueOf(value).trim();
+            boolean disabled = text.isEmpty() || DISABLED_ACTION.equals(text);
+            setText(disabled ? DISABLED_ACTION : text);
+            TableListActionStyle.applyToButton(this, getText());
             return this;
         }
-    }
-
-    private String buttonLabelForColumn(int column) {
-        return switch (column) {
-            case 4 -> "View profile";
-            case 5 -> "View CV";
-            case 6 -> "Accept";
-            case 7 -> "Reject";
-            case 8 -> "Shortlist";
-            default -> "";
-        };
     }
 
     private class ActionButtonEditor extends AbstractCellEditor implements TableCellEditor {
@@ -549,17 +594,16 @@ public class MOApplicantReviewPanel extends JPanel {
         private int col;
 
         ActionButtonEditor() {
-            button.setFont(new Font("SansSerif", Font.PLAIN, 11));
-            button.setBackground(Color.WHITE);
-            button.setForeground(Color.BLACK);
-            button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-            button.setFocusPainted(false);
-            button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             button.addActionListener(evt -> handleButtonClick());
         }
 
         private void handleButtonClick() {
             if (row < 0 || row >= filteredApplications.size()) {
+                fireEditingStopped();
+                return;
+            }
+            Object cell = tableModel.getValueAt(row, col);
+            if (cell == null || DISABLED_ACTION.equals(String.valueOf(cell).trim())) {
                 fireEditingStopped();
                 return;
             }
@@ -580,7 +624,9 @@ public class MOApplicantReviewPanel extends JPanel {
                                                    boolean isSelected, int row, int column) {
             this.row = row;
             this.col = column;
-            button.setText(buttonLabelForColumn(column));
+            String text = value == null ? "" : String.valueOf(value).trim();
+            button.setText(text.isEmpty() ? DISABLED_ACTION : text);
+            TableListActionStyle.applyToButton(button, button.getText());
             return button;
         }
 

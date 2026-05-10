@@ -35,7 +35,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
-import infrastructure.ui.BaseFrame;
+import ui.common.BaseFrame;
 import ui.admin.AdminHomeFrame;
 import ui.ta.TAMainFrame;
 
