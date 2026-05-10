@@ -10,12 +10,14 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.swing.AbstractCellEditor;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -24,10 +26,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
-import javax.swing.table.TableCellRenderer;
 
 import modules.application.Application;
 import modules.application.ApplicationService;
@@ -39,21 +43,31 @@ import modules.job.JobService;
 import modules.user.MO;
 import modules.user.User;
 import modules.user.UserService;
+import ui.common.JobDetailDialog;
 import ui.common.TableListActionStyle;
 import ui.common.TableScrollUtil;
 
 /**
- * Course Management Panel for Admin
- * Table actions: borderless bold text (blue / green / red by intent).
+ * Course Management Panel for Admin — one row per job posting (same module code, different MOs → multiple rows).
  */
 public class CourseManagementPanel extends JPanel {
+    private static final int COL_DETAIL = 5;
+    private static final int COL_APPLICANTS = 6;
+    private static final int COL_HIRED = 7;
+
     private final CourseService courseService = new CourseService();
     private final JobService jobService = new JobService();
     private final ApplicationService appService = new ApplicationService();
     private final UserService userService = UserService.getInstance();
+
     private JTable table;
     private DefaultTableModel tableModel;
-    private List<Course> courses;
+    /** Full list before search filter */
+    private List<CourseJobRow> allRows = new ArrayList<>();
+    private List<CourseJobRow> displayRows = new ArrayList<>();
+
+    private JTextField searchField;
+    private JComboBox<String> searchAttrCombo;
 
     public CourseManagementPanel() {
         setLayout(new BorderLayout());
@@ -63,14 +77,43 @@ public class CourseManagementPanel extends JPanel {
         loadData();
     }
 
-    private void initUI() {
-        JLabel titleLabel = new JLabel("Course Management");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
-        add(titleLabel, BorderLayout.NORTH);
+    private static final class CourseJobRow {
+        final Course course;
+        final Job job;
 
-        // Top button panel
+        CourseJobRow(Course course, Job job) {
+            this.course = course;
+            this.job = job;
+        }
+    }
+
+    private void initUI() {
+        JPanel north = new JPanel();
+        north.setLayout(new javax.swing.BoxLayout(north, javax.swing.BoxLayout.Y_AXIS));
+        north.setOpaque(false);
+
+        JLabel titleLabel = new JLabel("Course Management");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        north.add(titleLabel);
+
+        JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        searchRow.setOpaque(false);
+        searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        searchRow.add(new JLabel("Search:"));
+        searchField = new JTextField(22);
+        searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchAttrCombo = new JComboBox<>(new String[]{
+                "All fields", "Course code", "Course title", "MO name", "Job status", "Job ID"
+        });
+        searchAttrCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchRow.add(searchField);
+        searchRow.add(searchAttrCombo);
+        north.add(searchRow);
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        topPanel.setBackground(new Color(248, 250, 252));
+        topPanel.setOpaque(false);
+        topPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton importBtn = createButton("📥 Import Courses from CSV");
         importBtn.addActionListener(e -> importCoursesFromCSV());
@@ -80,107 +123,237 @@ public class CourseManagementPanel extends JPanel {
 
         topPanel.add(importBtn);
         topPanel.add(addBtn);
-        add(topPanel, BorderLayout.NORTH);
+        north.add(topPanel);
 
-        // Table - define columns
-        String[] columns = {"Course Code", "Course Title", "Published by MO", "View Applicants", "View Hired"};
+        add(north, BorderLayout.NORTH);
+
+        String[] columns = {
+                "Course Code", "Course Title", "Job ID", "Job status", "Published by MO",
+                "View Detail", "View Applicants", "View Hired"
+        };
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 3 || column == 4;
+                if (row < 0 || row >= displayRows.size()) {
+                    return false;
+                }
+                if (displayRows.get(row).job == null) {
+                    return false;
+                }
+                return column == COL_DETAIL || column == COL_APPLICANTS || column == COL_HIRED;
             }
         };
 
         table = new JTable(tableModel);
         table.setRowHeight(45);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
 
-        // Set custom renderer and editor for button columns
-        table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
-        table.getColumnModel().getColumn(3).setCellEditor(new ButtonEditor());
-        table.getColumnModel().getColumn(4).setCellRenderer(new ButtonRenderer());
-        table.getColumnModel().getColumn(4).setCellEditor(new ButtonEditor());
+        TextButtonOrDashRenderer dashRenderer = new TextButtonOrDashRenderer();
+        table.getColumnModel().getColumn(COL_DETAIL).setCellRenderer(dashRenderer);
+        table.getColumnModel().getColumn(COL_APPLICANTS).setCellRenderer(dashRenderer);
+        table.getColumnModel().getColumn(COL_HIRED).setCellRenderer(dashRenderer);
+        table.getColumnModel().getColumn(COL_DETAIL).setCellEditor(new JobActionEditor());
+        table.getColumnModel().getColumn(COL_APPLICANTS).setCellEditor(new JobActionEditor());
+        table.getColumnModel().getColumn(COL_HIRED).setCellEditor(new JobActionEditor());
 
         TableScrollUtil.ColumnSpec[] courseCols = {
-                TableScrollUtil.ColumnSpec.fixed(112),
-                TableScrollUtil.ColumnSpec.flex(140, 300),
-                TableScrollUtil.ColumnSpec.flex(120, 210),
-                TableScrollUtil.ColumnSpec.fixed(144),
-                TableScrollUtil.ColumnSpec.fixed(130),
+                TableScrollUtil.ColumnSpec.fixed(100),
+                TableScrollUtil.ColumnSpec.flex(120, 260),
+                TableScrollUtil.ColumnSpec.fixed(72),
+                TableScrollUtil.ColumnSpec.fixed(88),
+                TableScrollUtil.ColumnSpec.flex(100, 200),
+                TableScrollUtil.ColumnSpec.fixed(96),
+                TableScrollUtil.ColumnSpec.fixed(128),
+                TableScrollUtil.ColumnSpec.fixed(108),
         };
 
         JScrollPane courseScroll = TableScrollUtil.wrapTable(table);
         TableScrollUtil.installResponsiveColumns(table, courseScroll, courseCols);
         add(courseScroll, BorderLayout.CENTER);
+
+        DocumentListener dl = new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+        };
+        searchField.getDocument().addDocumentListener(dl);
+        searchAttrCombo.addActionListener(e -> applySearchFilter());
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
         TableListActionStyle.applyToButton(button, text);
-        button.setFont(new Font("SansSerif", Font.BOLD, 12));
+        button.setFont(new Font("SansSerif", Font.BOLD, 14));
         return button;
     }
 
     private void loadData() {
-        tableModel.setRowCount(0);
-        courses = courseService.getAllCourses();
+        allRows.clear();
+        List<Course> courses = courseService.getAllCourses();
+        List<Job> allJobs = jobService.listAll();
 
         for (Course course : courses) {
-            String moName = getMONameForCourse(course.getModuleCode());
+            List<Job> forModule = allJobs.stream()
+                    .filter(j -> course.getModuleCode() != null
+                            && course.getModuleCode().equals(j.getModuleCode()))
+                    .sorted(Comparator.comparing(Job::getJobId, Comparator.nullsLast(Long::compareTo)))
+                    .collect(Collectors.toList());
+            if (forModule.isEmpty()) {
+                allRows.add(new CourseJobRow(course, null));
+            } else {
+                for (Job j : forModule) {
+                    allRows.add(new CourseJobRow(course, j));
+                }
+            }
+        }
+        applySearchFilter();
+    }
 
+    private void applySearchFilter() {
+        String q = searchField.getText().trim().toLowerCase();
+        String attrRaw = (String) searchAttrCombo.getSelectedItem();
+        final String attr = attrRaw == null ? "All fields" : attrRaw;
+
+        displayRows = allRows.stream()
+                .filter(row -> rowMatchesSearch(row, q, attr))
+                .collect(Collectors.toList());
+
+        tableModel.setRowCount(0);
+        for (CourseJobRow row : displayRows) {
+            Course c = row.course;
+            Job j = row.job;
+            String jobIdStr = j != null && j.getJobId() != null ? String.valueOf(j.getJobId()) : "—";
+            String statusStr = j != null ? jobStatusLabel(j) : "—";
+            String moName = j != null ? moDisplayNameForJob(j) : "—";
+            String detailLbl = j != null ? "View Detail" : "—";
+            String appLbl = j != null ? "View Applicants" : "—";
+            String hiredLbl = j != null ? "View Hired" : "—";
             tableModel.addRow(new Object[]{
-                    course.getModuleCode(),
-                    course.getTitle(),
+                    c.getModuleCode(),
+                    c.getTitle(),
+                    jobIdStr,
+                    statusStr,
                     moName,
-                    "View Applicants",
-                    "View Hired"
+                    detailLbl,
+                    appLbl,
+                    hiredLbl
             });
         }
     }
 
-    // Button Renderer
-    private class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
-            setOpaque(true);
+    private boolean rowMatchesSearch(CourseJobRow row, String q, String attr) {
+        if (q.isEmpty()) {
+            return true;
+        }
+        Course c = row.course;
+        Job j = row.job;
+        String code = safeLower(c.getModuleCode());
+        String title = safeLower(c.getTitle());
+        String mo = j != null ? safeLower(moDisplayNameForJob(j)) : "";
+        String st = j != null ? safeLower(jobStatusLabel(j)) : "";
+        String jid = j != null && j.getJobId() != null ? String.valueOf(j.getJobId()) : "";
+
+        return switch (attr) {
+            case "Course code" -> code.contains(q);
+            case "Course title" -> title.contains(q);
+            case "MO name" -> mo.contains(q);
+            case "Job status" -> st.contains(q);
+            case "Job ID" -> jid.contains(q);
+            default -> code.contains(q) || title.contains(q) || mo.contains(q) || st.contains(q) || jid.contains(q);
+        };
+    }
+
+    private static String safeLower(String s) {
+        return s == null ? "" : s.toLowerCase();
+    }
+
+    private String jobStatusLabel(Job job) {
+        if (job == null) {
+            return "—";
+        }
+        String s = job.getStatus();
+        if (s == null) {
+            return "—";
+        }
+        if ("DRAFT".equalsIgnoreCase(s)) {
+            return "Draft";
+        }
+        if ("OPEN".equalsIgnoreCase(s) || "PUBLISHED".equalsIgnoreCase(s)) {
+            return "Open";
+        }
+        if ("CLOSED".equalsIgnoreCase(s) || "WITHDRAWN".equalsIgnoreCase(s)) {
+            return "Closed";
+        }
+        return s;
+    }
+
+    private String moDisplayNameForJob(Job job) {
+        if (job == null || job.getMoUserId() == null) {
+            return "—";
+        }
+        User mo = userService.findById(job.getMoUserId());
+        if (mo == null) {
+            return "MO #" + job.getMoUserId();
+        }
+        if (mo instanceof MO) {
+            String n = ((MO) mo).getName();
+            if (n != null && !n.isBlank()) {
+                return n.trim();
+            }
+        }
+        return extractNameFromEmail(mo.getEmail());
+    }
+
+    private class TextButtonOrDashRenderer extends DefaultTableCellRenderer {
+        TextButtonOrDashRenderer() {
+            setHorizontalAlignment(CENTER);
         }
 
         @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus, int row, int column) {
-            if (column == 3) {
-                setText("View Applicants");
-            } else if (column == 4) {
-                setText("View Hired");
+        public Component getTableCellRendererComponent(JTable tbl, Object value, boolean isSelected,
+                                                       boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(tbl, value, isSelected, hasFocus, row, column);
+            String s = value == null ? "" : value.toString();
+            if ("—".equals(s)) {
+                setForeground(new Color(107, 114, 128));
+                setFont(new Font("SansSerif", Font.PLAIN, 14));
+            } else {
+                setFont(new Font("SansSerif", Font.BOLD, 13));
+                TableListActionStyle.applyToLabel(this, s, true);
             }
-            TableListActionStyle.applyToButton(this, getText());
             return this;
         }
     }
 
-    // Button Editor
-    private class ButtonEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
-        private JButton button;
-        private int currentRow;
-        private int currentColumn;
+    private class JobActionEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
+        private final JButton button = new JButton();
+        private int row;
+        private int actionColumn;
 
-        public ButtonEditor() {
-            button = new JButton();
+        JobActionEditor() {
             button.addActionListener(this);
         }
 
         @Override
-        public Component getTableCellEditorComponent(JTable table, Object value,
-                                                     boolean isSelected, int row, int column) {
-            currentRow = row;
-            currentColumn = column;
-
-            if (column == 3) {
-                button.setText("View Applicants");
-            } else if (column == 4) {
-                button.setText("View Hired");
+        public Component getTableCellEditorComponent(JTable tbl, Object value, boolean isSelected, int row, int col) {
+            this.row = row;
+            this.actionColumn = col;
+            String s = value == null ? "" : value.toString();
+            button.setText(s);
+            if (!"—".equals(s)) {
+                TableListActionStyle.applyToButton(button, s);
             }
-
-            TableListActionStyle.applyToButton(button, button.getText());
             return button;
         }
 
@@ -191,14 +364,22 @@ public class CourseManagementPanel extends JPanel {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Course course = courses.get(currentRow);
-
-            if (currentColumn == 3) {
-                viewApplicants(course);
-            } else if (currentColumn == 4) {
-                viewHiredTAs(course);
+            if (row < 0 || row >= displayRows.size()) {
+                fireEditingStopped();
+                return;
             }
-
+            CourseJobRow r = displayRows.get(row);
+            if (r.job == null) {
+                fireEditingStopped();
+                return;
+            }
+            if (actionColumn == COL_DETAIL) {
+                JobDetailDialog.show(CourseManagementPanel.this, r.job);
+            } else if (actionColumn == COL_APPLICANTS) {
+                viewApplicants(r.job, r.course);
+            } else if (actionColumn == COL_HIRED) {
+                viewHiredTAs(r.job, r.course);
+            }
             fireEditingStopped();
         }
     }
@@ -268,65 +449,25 @@ public class CourseManagementPanel extends JPanel {
         }
     }
 
-    private String getMONameForCourse(String moduleCode) {
-        if (moduleCode == null) {
-            return "—";
-        }
-        List<Job> jobs = jobService.listAll();
-        Optional<Job> published = jobs.stream()
-                .filter(j -> moduleCode.equals(j.getModuleCode()))
-                .filter(j -> {
-                    String s = j.getStatus();
-                    return s != null && ("OPEN".equalsIgnoreCase(s) || "PUBLISHED".equalsIgnoreCase(s));
-                })
-                .min(Comparator.comparing(Job::getJobId));
-        Optional<Job> any = jobs.stream()
-                .filter(j -> moduleCode.equals(j.getModuleCode()))
-                .min(Comparator.comparing(Job::getJobId));
-        Job job = published.or(() -> any).orElse(null);
-        if (job == null) {
-            return "—";
-        }
-        User mo = userService.findById(job.getMoUserId());
-        if (mo == null) {
-            return "MO #" + job.getMoUserId();
-        }
-        if (mo instanceof MO) {
-            String n = ((MO) mo).getName();
-            if (n != null && !n.isBlank()) {
-                return n.trim();
-            }
-        }
-        return extractNameFromEmail(mo.getEmail());
-    }
-
-    private void viewApplicants(Course course) {
-        List<Job> jobs = jobService.listAll().stream()
-                .filter(j -> course.getModuleCode().equals(j.getModuleCode()))
-                .toList();
-
-        if (jobs.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No jobs found for course: " + course.getModuleCode(),
-                    "No Applicants", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
+    private void viewApplicants(Job job, Course course) {
         List<Application> allApps = appService.listAll();
-        List<Application> courseApps = allApps.stream()
-                .filter(app -> jobs.stream().anyMatch(j -> j.getJobId().equals(app.getJobId())))
+        List<Application> jobApps = allApps.stream()
+                .filter(app -> job.getJobId().equals(app.getJobId()))
                 .filter(app -> !ApplicationStatus.isHired(app.getStatus()))
                 .toList();
 
-        if (courseApps.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No applicants found for course: " + course.getModuleCode(),
+        if (jobApps.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No applicants for this job (ID " + job.getJobId() + ").",
                     "No Applicants", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Applicants for ").append(course.getModuleCode()).append(" - ").append(course.getTitle()).append(" ===\n\n");
+        sb.append("=== Applicants: ").append(course.getModuleCode()).append(" — ").append(course.getTitle())
+                .append(" (Job ID ").append(job.getJobId()).append(", MO: ")
+                .append(moDisplayNameForJob(job)).append(") ===\n\n");
 
-        for (Application app : courseApps) {
+        for (Application app : jobApps) {
             User ta = userService.findById(app.getTaUserId());
             String taName = getTAName(ta);
             sb.append("TA: ").append(taName).append("\n");
@@ -338,35 +479,26 @@ public class CourseManagementPanel extends JPanel {
             sb.append("---\n");
         }
 
-        JOptionPane.showMessageDialog(this, sb.toString(), "Applicants - " + course.getModuleCode(),
+        JOptionPane.showMessageDialog(this, sb.toString(), "Applicants — " + course.getModuleCode(),
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private void viewHiredTAs(Course course) {
-        List<Job> jobs = jobService.listAll().stream()
-                .filter(j -> course.getModuleCode().equals(j.getModuleCode()))
-                .toList();
-
-        if (jobs.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No jobs found for course: " + course.getModuleCode(),
-                    "No Hired TAs", JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
+    private void viewHiredTAs(Job job, Course course) {
         List<Application> allApps = appService.listAll();
         List<Application> hiredApps = allApps.stream()
-                .filter(app -> jobs.stream().anyMatch(j -> j.getJobId().equals(app.getJobId())))
+                .filter(app -> job.getJobId().equals(app.getJobId()))
                 .filter(app -> ApplicationStatus.isHired(app.getStatus()))
                 .toList();
 
         if (hiredApps.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No hired TAs found for course: " + course.getModuleCode(),
+            JOptionPane.showMessageDialog(this, "No hired TAs for this job (ID " + job.getJobId() + ").",
                     "No Hired TAs", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Hired TAs for ").append(course.getModuleCode()).append(" - ").append(course.getTitle()).append(" ===\n\n");
+        sb.append("=== Hired TAs: ").append(course.getModuleCode()).append(" — ").append(course.getTitle())
+                .append(" (Job ID ").append(job.getJobId()).append(") ===\n\n");
 
         for (Application app : hiredApps) {
             User ta = userService.findById(app.getTaUserId());
@@ -378,17 +510,21 @@ public class CourseManagementPanel extends JPanel {
             sb.append("---\n");
         }
 
-        JOptionPane.showMessageDialog(this, sb.toString(), "Hired TAs - " + course.getModuleCode(),
+        JOptionPane.showMessageDialog(this, sb.toString(), "Hired TAs — " + course.getModuleCode(),
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
     private String getTAName(User ta) {
-        if (ta == null) return "Unknown";
+        if (ta == null) {
+            return "Unknown";
+        }
         return extractNameFromEmail(ta.getEmail());
     }
 
     private String extractNameFromEmail(String email) {
-        if (email == null) return "Unknown";
+        if (email == null) {
+            return "Unknown";
+        }
         int atIndex = email.indexOf('@');
         return atIndex > 0 ? email.substring(0, atIndex) : email;
     }

@@ -3,19 +3,25 @@ package ui.admin;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.List;
 
 import javax.swing.AbstractCellEditor;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
@@ -45,7 +51,11 @@ public class TAManagementPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
     private Runnable refreshCallback;
+    private List<User> allTaUsers;
     private List<User> taUsers;
+
+    private JTextField searchField;
+    private JComboBox<String> searchAttrCombo;
 
     public TAManagementPanel(Runnable refreshCallback) {
         this.refreshCallback = refreshCallback;
@@ -57,9 +67,28 @@ public class TAManagementPanel extends JPanel {
     }
 
     private void initUI() {
+        JPanel north = new JPanel();
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        north.setOpaque(false);
+
         JLabel titleLabel = new JLabel("TA Management");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
-        add(titleLabel, BorderLayout.NORTH);
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        north.add(titleLabel);
+
+        JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        searchRow.setOpaque(false);
+        searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        searchRow.add(new JLabel("Search:"));
+        searchField = new JTextField(20);
+        searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchAttrCombo = new JComboBox<>(new String[]{"All fields", "Name", "Email", "Status"});
+        searchAttrCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchRow.add(searchField);
+        searchRow.add(searchAttrCombo);
+        north.add(searchRow);
+
+        add(north, BorderLayout.NORTH);
 
         // Table
         String[] columns = {"Name", "Email", "Status", "View Profile", "View CV", "Status Action", "Reset Password"};
@@ -72,7 +101,7 @@ public class TAManagementPanel extends JPanel {
 
         table = new JTable(tableModel);
         table.setRowHeight(45);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
 
         // Set custom renderer and editor for button columns
         for (int col = 3; col <= 6; col++) {
@@ -93,21 +122,43 @@ public class TAManagementPanel extends JPanel {
         JScrollPane taScroll = TableScrollUtil.wrapTable(table);
         TableScrollUtil.installResponsiveColumns(table, taScroll, taCols);
         add(taScroll, BorderLayout.CENTER);
+
+        DocumentListener dl = new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+        };
+        searchField.getDocument().addDocumentListener(dl);
+        searchAttrCombo.addActionListener(e -> applySearchFilter());
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
         TableListActionStyle.applyToButton(button, text);
-        button.setFont(new Font("SansSerif", Font.BOLD, 12));
+        button.setFont(new Font("SansSerif", Font.BOLD, 14));
         return button;
     }
 
-    private void loadData() {
-        tableModel.setRowCount(0);
-        taUsers = userService.listAllUsers().stream()
-                .filter(u -> u.getRole() == UserRole.TA)
+    private void applySearchFilter() {
+        String q = searchField.getText().trim().toLowerCase();
+        String attrRaw = (String) searchAttrCombo.getSelectedItem();
+        final String attr = attrRaw == null ? "All fields" : attrRaw;
+        taUsers = allTaUsers.stream()
+                .filter(u -> taMatchesSearch(u, q, attr))
                 .toList();
 
+        tableModel.setRowCount(0);
         for (User user : taUsers) {
             TAProfile profile = profileService.getProfileByTaId(user.getUserId());
             String name = (profile != null && profile.getFullName() != null && !profile.getFullName().isEmpty())
@@ -120,6 +171,32 @@ public class TAManagementPanel extends JPanel {
                     "View Profile", "View CV", "Status", "Reset Pwd"
             });
         }
+    }
+
+    private boolean taMatchesSearch(User user, String q, String attr) {
+        if (q.isEmpty()) {
+            return true;
+        }
+        TAProfile profile = profileService.getProfileByTaId(user.getUserId());
+        String name = (profile != null && profile.getFullName() != null && !profile.getFullName().isEmpty())
+                ? profile.getFullName() : "Not updated";
+        String email = user.getEmail() != null ? user.getEmail() : "";
+        String status = getStatusText(user.getStatus());
+        return switch (attr) {
+            case "Name" -> name.toLowerCase().contains(q);
+            case "Email" -> email.toLowerCase().contains(q);
+            case "Status" -> status.toLowerCase().contains(q);
+            default -> name.toLowerCase().contains(q)
+                    || email.toLowerCase().contains(q)
+                    || status.toLowerCase().contains(q);
+        };
+    }
+
+    private void loadData() {
+        allTaUsers = userService.listAllUsers().stream()
+                .filter(u -> u.getRole() == UserRole.TA)
+                .toList();
+        applySearchFilter();
     }
 
     // Button Renderer

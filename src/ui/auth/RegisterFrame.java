@@ -69,14 +69,14 @@ public class RegisterFrame extends BaseFrame {
 
         // 3. 标题：直接显示 TA
         JLabel taLabel = new JLabel("TA");
-        taLabel.setFont(new Font("SansSerif", Font.BOLD, 42));
+        taLabel.setFont(new Font("SansSerif", Font.BOLD, 44));
         taLabel.setForeground(new Color(37, 99, 235));
         taLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         cardPanel.add(taLabel);
         cardPanel.add(Box.createVerticalStrut(8));
 
         JLabel titleLabel = new JLabel("Create an Account");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         titleLabel.setForeground(new Color(17, 24, 39));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         cardPanel.add(titleLabel);
@@ -85,7 +85,7 @@ public class RegisterFrame extends BaseFrame {
         // 表单输入区域（邮箱改为前缀+后缀）
         prefixField = new JTextField();
         domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
-        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 16));
         domainCombo.setPreferredSize(new Dimension(120, 32));
         domainCombo.setMaximumSize(new Dimension(120, 32));
         
@@ -109,7 +109,7 @@ public class RegisterFrame extends BaseFrame {
 
         // 6. 注册按钮
         JButton registerBtn = new JButton("Register");
-        registerBtn.setFont(new Font("SansSerif", Font.BOLD, 22));
+        registerBtn.setFont(new Font("SansSerif", Font.BOLD, 24));
         registerBtn.setForeground(Color.WHITE);
         registerBtn.setBackground(new Color(37, 99, 235));
         registerBtn.setFocusPainted(false);
@@ -129,7 +129,7 @@ public class RegisterFrame extends BaseFrame {
         JPanel backPanel = new JPanel();
         backPanel.setOpaque(false);
         JButton backBtn = new JButton("Back to Login");
-        backBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        backBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
         backBtn.setForeground(new Color(107, 114, 128));
         backBtn.setContentAreaFilled(false);
         backBtn.setBorderPainted(false);
@@ -154,7 +154,7 @@ public class RegisterFrame extends BaseFrame {
      */
     private JLabel createLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 14));
+        label.setFont(new Font("SansSerif", Font.BOLD, 16));
         label.setForeground(new Color(17, 24, 39));
         label.setAlignmentX(Component.CENTER_ALIGNMENT);
         return label;
@@ -164,7 +164,7 @@ public class RegisterFrame extends BaseFrame {
      * 辅助方法：给普通输入框套上圆角边框
      */
     private JPanel wrapField(JTextField field) {
-        field.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        field.setFont(new Font("SansSerif", Font.PLAIN, 18));
         field.setBorder(new EmptyBorder(0, 0, 0, 0)); // 移除原生边框
 
         JPanel wrapper = new JPanel(new BorderLayout());
@@ -183,7 +183,7 @@ public class RegisterFrame extends BaseFrame {
      * 专门用于邮箱输入框的包装方法：前缀文本框 + 后缀下拉，共用圆角边框
      */
     private JPanel wrapEmailField(JTextField prefixField, JComboBox<String> domainCombo) {
-        prefixField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        prefixField.setFont(new Font("SansSerif", Font.PLAIN, 18));
         prefixField.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         JPanel emailPanel = new JPanel(new BorderLayout(8, 0));

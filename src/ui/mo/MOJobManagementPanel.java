@@ -1,6 +1,7 @@
-package ui.mo;
+﻿package ui.mo;
 
 import com.toedter.calendar.JDateChooser;
+import modules.application.ApplicationService;
 import modules.course.Course;
 import modules.course.CourseService;
 import modules.job.Job;
@@ -35,13 +36,18 @@ public class MOJobManagementPanel extends JPanel {
 
     @FunctionalInterface
     private interface JobFormBinder {
-        void bind(Job target, String status, LocalDate deadline);
+        void bind(Job target, String status, LocalDate deadline, LocalDate offerResponseDate);
     }
 
     private final User currentUser;
     private final JobService jobService = new JobService();
     private final CourseService courseService = new CourseService();
+    private final ApplicationService applicationService = new ApplicationService();
 
+    private static final String[] TABLE_COLUMNS = {
+            "Module code", "Course name", "Deadline", "Headcount", "Applicants", "Status", "Edit", "Close"
+    };
+    private static final int COL_FIRST_ACTION = 6;
     private JTable jobTable;
     private DefaultTableModel tableModel;
     private List<Job> currentJobs;
@@ -62,7 +68,7 @@ public class MOJobManagementPanel extends JPanel {
         headerPanel.setOpaque(false);
 
         JButton postBtn = new JButton("+ Post New Job");
-        postBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        postBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         MoUiStyles.applyTextButton(postBtn);
         postBtn.addActionListener(e -> showJobEditorDialog(null));
 
@@ -75,7 +81,7 @@ public class MOJobManagementPanel extends JPanel {
     }
 
     private void initTable() {
-        String[] columns = {"Module code", "Course name", "Status", "Edit", "Close"};
+        String[] columns = TABLE_COLUMNS;
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -84,8 +90,8 @@ public class MOJobManagementPanel extends JPanel {
         };
         jobTable = new JTable(tableModel);
         jobTable.setRowHeight(40);
-        jobTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 14));
-        jobTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        jobTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+        jobTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
         jobTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer() {
@@ -94,7 +100,7 @@ public class MOJobManagementPanel extends JPanel {
                                                            boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel l = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 l.setHorizontalAlignment(SwingConstants.CENTER);
-                boolean actionCol = column >= 3;
+                boolean actionCol = column >= COL_FIRST_ACTION;
                 String s = value == null ? "" : value.toString();
                 if (!actionCol) {
                     l.setBorder(null);
@@ -106,10 +112,10 @@ public class MOJobManagementPanel extends JPanel {
                     l.setBackground(table.getSelectionBackground());
                     l.setBorder(BorderFactory.createEmptyBorder(5, 8, 5, 8));
                     if (TableListActionStyle.isDisabledActionText(s)) {
-                        l.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                        l.setFont(new Font("SansSerif", Font.PLAIN, 14));
                         l.setCursor(Cursor.getDefaultCursor());
                     } else {
-                        l.setFont(new Font("SansSerif", Font.BOLD, 12));
+                        l.setFont(new Font("SansSerif", Font.BOLD, 14));
                         l.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                     }
                     return l;
@@ -128,14 +134,14 @@ public class MOJobManagementPanel extends JPanel {
             public void mouseClicked(MouseEvent e) {
                 int row = jobTable.rowAtPoint(e.getPoint());
                 int col = jobTable.columnAtPoint(e.getPoint());
-                if (row < 0 || col < 3) {
+                if (row < 0 || col < COL_FIRST_ACTION) {
                     return;
                 }
                 Job job = currentJobs.get(row);
-                if (col == 3) {
+                if (col == COL_FIRST_ACTION) {
                     showJobEditorDialog(job);
-                } else if (col == 4) {
-                    if (DISABLED_ACTION.equals(jobTable.getValueAt(row, 4))) {
+                } else if (col == COL_FIRST_ACTION + 1) {
+                    if (DISABLED_ACTION.equals(jobTable.getValueAt(row, COL_FIRST_ACTION + 1))) {
                         return;
                     }
                     closeJobFromRow(job);
@@ -144,9 +150,12 @@ public class MOJobManagementPanel extends JPanel {
         });
 
         TableScrollUtil.ColumnSpec[] jobCols = {
-                TableScrollUtil.ColumnSpec.fixed(104),
-                TableScrollUtil.ColumnSpec.flex(160, 280),
-                TableScrollUtil.ColumnSpec.fixed(94),
+                TableScrollUtil.ColumnSpec.fixed(96),
+                TableScrollUtil.ColumnSpec.flex(140, 240),
+                TableScrollUtil.ColumnSpec.fixed(100),
+                TableScrollUtil.ColumnSpec.fixed(84),
+                TableScrollUtil.ColumnSpec.fixed(88),
+                TableScrollUtil.ColumnSpec.fixed(72),
                 TableScrollUtil.ColumnSpec.fixed(78),
                 TableScrollUtil.ColumnSpec.fixed(78),
         };
@@ -183,9 +192,16 @@ public class MOJobManagementPanel extends JPanel {
 
         for (Job job : currentJobs) {
             String closeLabel = isJobClosed(job) ? DISABLED_ACTION : "Close";
+            LocalDate dl = effectiveDeadlineDate(job);
+            String deadlineStr = dl != null ? dl.toString() : "—";
+            int hc = effectiveHeadcount(job);
+            int applicants = applicationService.listByJobId(job.getJobId()).size();
             tableModel.addRow(new Object[]{
                     job.getModuleCode() != null ? job.getModuleCode() : "",
                     job.getTitle() != null ? job.getTitle() : "",
+                    deadlineStr,
+                    hc > 0 ? String.valueOf(hc) : "—",
+                    String.valueOf(applicants),
                     displayStatus(job),
                     "Edit",
                     closeLabel
@@ -223,20 +239,47 @@ public class MOJobManagementPanel extends JPanel {
         }
     }
 
+    /**
+     * Returns [skills, headcount, deadline, offerResponse, details].
+     */
     private String[] parseDescription(String desc) {
-        String[] parsed = new String[]{"", "", "", desc != null ? desc : ""};
-        if (desc != null && desc.startsWith("Skills:")) {
-            try {
-                String[] lines = desc.split("\n", 4);
-                parsed[0] = lines[0].replace("Skills: ", "").trim();
-                parsed[1] = lines[1].replace("Headcount: ", "").trim();
-                parsed[2] = lines[2].replace("Deadline: ", "").trim();
-                parsed[3] = lines.length > 3 ? lines[3].replace("Details: ", "").trim() : "";
-            } catch (Exception ignored) {
-                // keep defaults
+        String skills = "";
+        String headcount = "";
+        String deadline = "";
+        String offerDue = "";
+        String details = "";
+        if (desc == null) {
+            return new String[]{skills, headcount, deadline, offerDue, details};
+        }
+        String[] lines = desc.split("\\R", -1);
+        boolean inDetails = false;
+        StringBuilder detailsBuf = new StringBuilder();
+        for (String ln : lines) {
+            if (inDetails) {
+                if (detailsBuf.length() > 0) {
+                    detailsBuf.append('\n');
+                }
+                detailsBuf.append(ln);
+                continue;
+            }
+            if (ln.startsWith("Skills:")) {
+                skills = ln.substring("Skills:".length()).trim();
+            } else if (ln.startsWith("Headcount:")) {
+                headcount = ln.substring("Headcount:".length()).trim();
+            } else if (ln.startsWith("Deadline:")) {
+                deadline = ln.substring("Deadline:".length()).trim();
+            } else if (ln.startsWith("Offer response due:")) {
+                offerDue = ln.substring("Offer response due:".length()).trim();
+            } else if (ln.startsWith("Details:")) {
+                inDetails = true;
+                detailsBuf.append(ln.substring("Details:".length()).trim());
             }
         }
-        return parsed;
+        details = detailsBuf.toString();
+        if (details.isEmpty() && !desc.isBlank()) {
+            details = desc;
+        }
+        return new String[]{skills, headcount, deadline, offerDue, details};
     }
 
     private int effectiveHeadcount(Job job) {
@@ -274,21 +317,30 @@ public class MOJobManagementPanel extends JPanel {
     }
 
     private String effectiveDetails(Job job) {
-        return parseDescription(job.getDescription())[3];
+        String desc = job.getDescription();
+        if (desc == null) {
+            return "";
+        }
+        String t = desc.trim();
+        if (t.startsWith("Skills:")) {
+            return parseDescription(desc)[4].trim();
+        }
+        return t;
     }
 
-    private void assembleDescription(Job job, String detailsPlain, LocalDate deadline) {
-        String skillsLine = job.getRequiredSkills() == null || job.getRequiredSkills().isEmpty()
-                ? ""
-                : String.join(", ", job.getRequiredSkills());
-        String dl = deadline != null ? deadline.toString() : "";
-        String hc = String.valueOf(Math.max(0, job.getHeadcount()));
-        job.setDescription(String.format(
-                "Skills: %s\nHeadcount: %s\nDeadline: %s\nDetails: %s",
-                skillsLine,
-                hc,
-                dl,
-                detailsPlain == null ? "" : detailsPlain.trim()));
+    private LocalDate effectiveOfferResponseDate(Job job) {
+        if (job.getOfferResponseDeadline() != null) {
+            return job.getOfferResponseDeadline().toLocalDate();
+        }
+        String o = parseDescription(job.getDescription())[3];
+        if (o == null || o.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(o.trim());
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private List<String> splitSkills(String text) {
@@ -330,10 +382,10 @@ public class MOJobManagementPanel extends JPanel {
             courseModel.addElement(c);
         }
         JComboBox<Course> courseCombo = new JComboBox<>(courseModel);
-        courseCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        courseCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
 
         JTextField courseFilterField = new JTextField(18);
-        courseFilterField.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        courseFilterField.setFont(new Font("SansSerif", Font.PLAIN, 15));
         courseFilterField.setToolTipText("Filter by module code or course title, then click Search");
         JButton courseSearchBtn = new JButton("Search");
         MoUiStyles.applyTextButton(courseSearchBtn);
@@ -379,6 +431,11 @@ public class MOJobManagementPanel extends JPanel {
         deadlineChooser.setDateFormatString("yyyy-MM-dd");
         deadlineChooser.setPreferredSize(new Dimension(160, 32));
 
+        JDateChooser offerResponseChooser = new JDateChooser();
+        offerResponseChooser.setDateFormatString("yyyy-MM-dd");
+        offerResponseChooser.setPreferredSize(new Dimension(160, 32));
+        offerResponseChooser.setToolTipText("Last calendar day (23:59) for a TA to accept or reject an offer");
+
         JSpinner headcountSpinner = new JSpinner(new SpinnerNumberModel(1, 1, 999, 1));
         JTextField skillsField = new JTextField(24);
         JTextField hoursField = new JTextField("10", 8);
@@ -398,6 +455,10 @@ public class MOJobManagementPanel extends JPanel {
             LocalDate dl = effectiveDeadlineDate(existing);
             if (dl != null) {
                 deadlineChooser.setDate(Date.from(dl.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+            }
+            LocalDate offerDl = effectiveOfferResponseDate(existing);
+            if (offerDl != null) {
+                offerResponseChooser.setDate(Date.from(offerDl.atStartOfDay(ZoneId.systemDefault()).toInstant()));
             }
             String code = existing.getModuleCode();
             for (int j = 0; j < courseCombo.getItemCount(); j++) {
@@ -441,6 +502,17 @@ public class MOJobManagementPanel extends JPanel {
 
         gbc.gridx = 0;
         gbc.gridy = ++y;
+        form.add(new JLabel("Offer response deadline:"), gbc);
+        gbc.gridx = 1;
+        JLabel offerHint = new JLabel("<html><span style='color:gray;font-size:13px'>Last day for TAs to accept or reject an offer (end of day)</span></html>");
+        JPanel offerRow = new JPanel(new BorderLayout(8, 0));
+        offerRow.setOpaque(false);
+        offerRow.add(offerResponseChooser, BorderLayout.WEST);
+        offerRow.add(offerHint, BorderLayout.CENTER);
+        form.add(offerRow, gbc);
+
+        gbc.gridx = 0;
+        gbc.gridy = ++y;
         form.add(new JLabel("Number of TAs to hire:"), gbc);
         gbc.gridx = 1;
         form.add(headcountSpinner, gbc);
@@ -460,13 +532,14 @@ public class MOJobManagementPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = ++y;
         gbc.gridwidth = 2;
-        form.add(new JLabel("Job description:"), gbc);
+        form.add(new JLabel("Additional details (free text):"), gbc);
         gbc.gridy = ++y;
         form.add(new JScrollPane(detailsArea), gbc);
 
         boolean readOnly = isClosed;
         courseCombo.setEnabled(!readOnly);
         deadlineChooser.setEnabled(!readOnly);
+        offerResponseChooser.setEnabled(!readOnly);
         headcountSpinner.setEnabled(!readOnly);
         skillsField.setEnabled(!readOnly);
         hoursField.setEnabled(!readOnly);
@@ -478,7 +551,7 @@ public class MOJobManagementPanel extends JPanel {
         MoUiStyles.applyTextButton(cancelBtn);
         cancelBtn.addActionListener(e -> dlg.dispose());
 
-        JobFormBinder applyForm = (target, status, deadline) -> {
+        JobFormBinder applyForm = (target, status, deadline, offerResponseDate) -> {
             Course sel = (Course) courseCombo.getSelectedItem();
             if (sel == null) {
                 throw new IllegalArgumentException("Please select a course.");
@@ -498,7 +571,11 @@ public class MOJobManagementPanel extends JPanel {
             target.setHeadcount((Integer) headcountSpinner.getValue());
             target.setRequiredSkills(splitSkills(skillsField.getText()));
             target.setStatus(status);
-            assembleDescription(target, detailsArea.getText(), deadline);
+            String detailsText = detailsArea.getText();
+            target.setDescription(detailsText == null ? "" : detailsText.trim());
+            target.setApplicationDeadline(deadline == null ? null : deadline.atTime(23, 59, 59));
+            target.setOfferResponseDeadline(offerResponseDate == null ? null
+                    : offerResponseDate.atTime(23, 59, 59));
         };
 
         if (!readOnly && (isNew || "DRAFT".equalsIgnoreCase(originalStatus))) {
@@ -513,7 +590,10 @@ public class MOJobManagementPanel extends JPanel {
                     Date d = deadlineChooser.getDate();
                     LocalDate deadline = d == null ? null
                             : d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-                    applyForm.bind(job, "DRAFT", deadline);
+                    Date od = offerResponseChooser.getDate();
+                    LocalDate offerDate = od == null ? null
+                            : od.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    applyForm.bind(job, "DRAFT", deadline, offerDate);
                     jobService.createOrUpdate(job);
                     loadJobData();
                     dlg.dispose();
@@ -533,11 +613,17 @@ public class MOJobManagementPanel extends JPanel {
                         throw new IllegalArgumentException("Choose an application deadline before publishing.");
                     }
                     LocalDate deadline = d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    Date od = offerResponseChooser.getDate();
+                    if (od == null) {
+                        throw new IllegalArgumentException(
+                                "Choose the offer response deadline (last day for TAs to accept or reject an offer).");
+                    }
+                    LocalDate offerDate = od.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     Job job = existing != null ? existing : new Job();
                     if (isNew) {
                         job.setMoUserId(currentUser.getUserId());
                     }
-                    applyForm.bind(job, "OPEN", deadline);
+                    applyForm.bind(job, "OPEN", deadline, offerDate);
                     jobService.createOrUpdate(job);
                     loadJobData();
                     dlg.dispose();
@@ -558,12 +644,17 @@ public class MOJobManagementPanel extends JPanel {
                         throw new IllegalArgumentException("Choose an application deadline.");
                     }
                     LocalDate deadline = d.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+                    Date od = offerResponseChooser.getDate();
+                    if (od == null) {
+                        throw new IllegalArgumentException("Choose the offer response deadline.");
+                    }
+                    LocalDate offerDate = od.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
                     Job job = existing;
                     String st = "OPEN";
                     if ("PUBLISHED".equalsIgnoreCase(originalStatus)) {
                         st = "PUBLISHED";
                     }
-                    applyForm.bind(job, st, deadline);
+                    applyForm.bind(job, st, deadline, offerDate);
                     jobService.createOrUpdate(job);
                     loadJobData();
                     dlg.dispose();
@@ -602,9 +693,10 @@ public class MOJobManagementPanel extends JPanel {
         String lower = msg.toLowerCase();
         if (lower.contains("recruitment")
                 || lower.contains("deadline")
-                || lower.contains("application cycle")) {
-            return msg + "\n\nOpen jobs need a deadline in the recruitment period set by an administrator, "
-                    + "and first-time publishing is only allowed while that period is active.";
+                || lower.contains("application cycle")
+                || lower.contains("offer response")) {
+            return msg + "\n\nPublishing requires an administrator recruitment period, an application deadline inside it, "
+                    + "and an offer response deadline after that deadline. You can always save as draft.";
         }
         return msg;
     }

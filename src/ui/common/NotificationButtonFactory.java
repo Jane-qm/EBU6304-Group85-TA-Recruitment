@@ -19,7 +19,7 @@ public final class NotificationButtonFactory {
     public static JButton createButton(int unreadCount) {
         JButton button = new JButton(unreadCount > 0 ? String.valueOf(unreadCount) : "");
         button.setIcon(new BellIcon(16, new Color(55, 65, 81)));
-        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        button.setFont(new Font("SansSerif", Font.PLAIN, 16));
         button.setForeground(Color.BLACK);
         button.setBackground(Color.WHITE);
         button.setOpaque(true);

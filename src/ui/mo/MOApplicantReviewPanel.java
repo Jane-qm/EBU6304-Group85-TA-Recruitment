@@ -109,7 +109,7 @@ public class MOApplicantReviewPanel extends JPanel {
 
         north.add(new JLabel("Course:"));
         courseCombo = new JComboBox<>();
-        courseCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        courseCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         courseCombo.addActionListener(e -> applyFiltersAndRefreshTable());
         north.add(courseCombo);
 
@@ -118,20 +118,20 @@ public class MOApplicantReviewPanel extends JPanel {
         statusCombo = new JComboBox<>(new String[]{
                 ALL_STATUSES, ST_PENDING, ST_SHORTLIST, ST_REJECTED, ST_OFFER_SENT, ST_HIRED
         });
-        statusCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        statusCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         statusCombo.addActionListener(e -> applyFiltersAndRefreshTable());
         north.add(statusCombo);
 
         north.add(Box.createHorizontalStrut(24));
         JButton exportCsvBtn = new JButton("Export CSV");
-        exportCsvBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        exportCsvBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         MoUiStyles.applyTextButton(exportCsvBtn);
         exportCsvBtn.addActionListener(e -> exportFilteredApplicationsToCsv());
         north.add(exportCsvBtn);
 
         north.add(Box.createHorizontalStrut(12));
         JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         MoUiStyles.applyTextButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadApplications());
         north.add(refreshBtn);
@@ -160,9 +160,9 @@ public class MOApplicantReviewPanel extends JPanel {
         };
         appTable = new JTable(tableModel);
         appTable.setRowHeight(40);
-        appTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        appTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
         appTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        appTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        appTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
 
         ActionButtonRenderer renderer = new ActionButtonRenderer();
         ActionButtonEditor editor = new ActionButtonEditor();
@@ -190,7 +190,7 @@ public class MOApplicantReviewPanel extends JPanel {
 
     private void initSouth() {
         statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         statusLabel.setForeground(new Color(100, 116, 139));
         statusLabel.setBorder(new EmptyBorder(8, 4, 0, 4));
         add(statusLabel, BorderLayout.SOUTH);
@@ -529,7 +529,7 @@ public class MOApplicantReviewPanel extends JPanel {
             return;
         }
         try {
-            appService.sendOffer(app.getApplicationId(), job.getWeeklyHours(), 7);
+            appService.sendOffer(app.getApplicationId(), job.getWeeklyHours());
             loadApplications();
             JOptionPane.showMessageDialog(this,
                     "Offer sent. Waiting for the TA to respond.",

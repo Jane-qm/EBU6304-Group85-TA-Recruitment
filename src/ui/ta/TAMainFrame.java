@@ -154,12 +154,12 @@ public class TAMainFrame extends BaseFrame {
         logoPanel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel logoLabel = new JLabel("TA Recruit");
-        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         logoLabel.setForeground(Color.WHITE);
         logoLabel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel logoSubLabel = new JLabel("Teaching Assistant System");
-        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         logoSubLabel.setForeground(new Color(107, 114, 128));
         logoSubLabel.setAlignmentX(LEFT_ALIGNMENT);
         
@@ -205,12 +205,12 @@ public class TAMainFrame extends BaseFrame {
         
         String displayName = authController.getDisplayName(ta);
         JLabel userLabel = new JLabel(displayName);
-        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         userLabel.setForeground(Color.WHITE);
         userLabel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel roleLabel = new JLabel(authController.getRoleDisplayText());
-        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        roleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         roleLabel.setForeground(new Color(107, 114, 128));
         roleLabel.setAlignmentX(LEFT_ALIGNMENT);
         
@@ -236,7 +236,7 @@ public class TAMainFrame extends BaseFrame {
      */
     private JButton createNavButton(String text, String icon) {
         JButton button = new JButton(icon + "  " + text);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        button.setFont(new Font("SansSerif", Font.PLAIN, 17));
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
@@ -275,7 +275,7 @@ public class TAMainFrame extends BaseFrame {
      */
     private JButton createLogoutButton() {
         JButton button = new JButton("🚪  Sign Out");
-        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        button.setFont(new Font("SansSerif", Font.PLAIN, 16));
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
@@ -465,13 +465,13 @@ public class TAMainFrame extends BaseFrame {
         // 欢迎语
         String displayName = authController.getDisplayName(ta);
         JLabel welcomeLabel = new JLabel("Welcome, " + displayName);
-        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         welcomeLabel.setForeground(new Color(30, 35, 45));
         
         // 通知按钮
         int unreadCount = applicationController.getUnreadNotificationCount(ta.getUserId());
         JButton notifyBtn = new JButton("🔔" + (unreadCount > 0 ? " " + unreadCount : ""));
-        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        notifyBtn.setFont(new Font("SansSerif", Font.PLAIN, 16));
         notifyBtn.setBackground(Color.WHITE);
         notifyBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         notifyBtn.setFocusPainted(false);

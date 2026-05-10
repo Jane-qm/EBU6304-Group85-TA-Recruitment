@@ -13,7 +13,9 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import javax.swing.JPasswordField;
 import javax.swing.AbstractCellEditor;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -22,6 +24,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
@@ -45,7 +49,11 @@ public class MOManagementPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
     private Runnable refreshCallback;
+    private List<User> allMoUsers;
     private List<User> moUsers;
+
+    private JTextField searchField;
+    private JComboBox<String> searchAttrCombo;
 
     public MOManagementPanel(Runnable refreshCallback) {
         this.refreshCallback = refreshCallback;
@@ -57,13 +65,30 @@ public class MOManagementPanel extends JPanel {
     }
 
     private void initUI() {
-        JLabel titleLabel = new JLabel("MO Management");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
-        add(titleLabel, BorderLayout.NORTH);
+        JPanel north = new JPanel();
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        north.setOpaque(false);
 
-        // Top button panel
+        JLabel titleLabel = new JLabel("MO Management");
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        north.add(titleLabel);
+
+        JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        searchRow.setOpaque(false);
+        searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        searchRow.add(new JLabel("Search:"));
+        searchField = new JTextField(20);
+        searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchAttrCombo = new JComboBox<>(new String[]{"All fields", "Name", "Email", "Status"});
+        searchAttrCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchRow.add(searchField);
+        searchRow.add(searchAttrCombo);
+        north.add(searchRow);
+
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        topPanel.setBackground(new Color(248, 250, 252));
+        topPanel.setOpaque(false);
+        topPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton importBtn = createButton("📥 Import MO from CSV");
         importBtn.addActionListener(e -> importMOFromCSV());
@@ -73,7 +98,9 @@ public class MOManagementPanel extends JPanel {
 
         topPanel.add(importBtn);
         topPanel.add(addBtn);
-        add(topPanel, BorderLayout.NORTH);
+        north.add(topPanel);
+
+        add(north, BorderLayout.NORTH);
 
         // Table
         String[] columns = {"Name", "Email", "Status", "Actions", "Reset Password"};
@@ -86,7 +113,7 @@ public class MOManagementPanel extends JPanel {
 
         table = new JTable(tableModel);
         table.setRowHeight(45);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
 
         // Set custom renderer and editor for button columns
         table.getColumnModel().getColumn(3).setCellRenderer(new ButtonRenderer());
@@ -105,25 +132,44 @@ public class MOManagementPanel extends JPanel {
         JScrollPane moScroll = TableScrollUtil.wrapTable(table);
         TableScrollUtil.installResponsiveColumns(table, moScroll, moCols);
         add(moScroll, BorderLayout.CENTER);
+
+        DocumentListener dl = new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                applySearchFilter();
+            }
+        };
+        searchField.getDocument().addDocumentListener(dl);
+        searchAttrCombo.addActionListener(e -> applySearchFilter());
     }
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
         TableListActionStyle.applyToButton(button, text);
-        button.setFont(new Font("SansSerif", Font.BOLD, 12));
+        button.setFont(new Font("SansSerif", Font.BOLD, 14));
         return button;
     }
 
-    // ui/admin/MOManagementPanel.java
-
-    private void loadData() {
-        tableModel.setRowCount(0);
-        moUsers = userService.listAllUsers().stream()
-                .filter(u -> u.getRole() == UserRole.MO)
+    private void applySearchFilter() {
+        String q = searchField.getText().trim().toLowerCase();
+        String attrRaw = (String) searchAttrCombo.getSelectedItem();
+        final String attr = attrRaw == null ? "All fields" : attrRaw;
+        moUsers = allMoUsers.stream()
+                .filter(u -> moMatchesSearch(u, q, attr))
                 .toList();
 
+        tableModel.setRowCount(0);
         for (User user : moUsers) {
-            // 优先使用存储的姓名，如果没有则从邮箱提取前缀
             String name;
             if (user instanceof MO && ((MO) user).getName() != null && !((MO) user).getName().isEmpty()) {
                 name = ((MO) user).getName();
@@ -138,6 +184,35 @@ public class MOManagementPanel extends JPanel {
                     "Status", "Reset Pwd"
             });
         }
+    }
+
+    private boolean moMatchesSearch(User user, String q, String attr) {
+        if (q.isEmpty()) {
+            return true;
+        }
+        String name;
+        if (user instanceof MO && ((MO) user).getName() != null && !((MO) user).getName().isEmpty()) {
+            name = ((MO) user).getName();
+        } else {
+            name = extractNameFromEmail(user.getEmail());
+        }
+        String email = user.getEmail() != null ? user.getEmail() : "";
+        String status = getStatusText(user.getStatus());
+        return switch (attr) {
+            case "Name" -> name.toLowerCase().contains(q);
+            case "Email" -> email.toLowerCase().contains(q);
+            case "Status" -> status.toLowerCase().contains(q);
+            default -> name.toLowerCase().contains(q)
+                    || email.toLowerCase().contains(q)
+                    || status.toLowerCase().contains(q);
+        };
+    }
+
+    private void loadData() {
+        allMoUsers = userService.listAllUsers().stream()
+                .filter(u -> u.getRole() == UserRole.MO)
+                .toList();
+        applySearchFilter();
     }
 
     private void importMOFromCSV() {

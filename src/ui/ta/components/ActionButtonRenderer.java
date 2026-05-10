@@ -30,9 +30,9 @@ public class ActionButtonRenderer extends DefaultTableCellRenderer {
             setForeground(TableListActionStyle.colorForActionLabel(action));
         }
         if (TableListActionStyle.isDisabledActionText(action)) {
-            setFont(new Font("SansSerif", Font.PLAIN, 12));
+            setFont(new Font("SansSerif", Font.PLAIN, 14));
         } else {
-            setFont(new Font("SansSerif", Font.BOLD, 12));
+            setFont(new Font("SansSerif", Font.BOLD, 14));
         }
         return this;
     }

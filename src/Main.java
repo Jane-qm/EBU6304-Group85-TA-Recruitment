@@ -2,6 +2,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import infrastructure.persistence.JsonPersistenceManager;
+import ui.common.AppUiFonts;
 import modules.job.JobService;
 import modules.user.User;
 import modules.user.UserRole;
@@ -53,8 +54,10 @@ public class Main {
             System.setProperty("awt.useSystemAAFontSettings", "on");
             System.setProperty("swing.aatext", "true");
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            AppUiFonts.applyGlobalFontBoost();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 }
+

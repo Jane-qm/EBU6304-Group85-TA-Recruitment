@@ -56,7 +56,7 @@ public class TAWorkloadPanel extends JPanel {
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
         
         JLabel titleLabel = new JLabel("Workload Tracking");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
         titleLabel.setForeground(new Color(30, 35, 45));
         
         panel.add(titleLabel, BorderLayout.WEST);
@@ -119,17 +119,17 @@ public class TAWorkloadPanel extends JPanel {
         ));
         
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
         titleLabel.setForeground(new Color(107, 114, 128));
         titleLabel.setAlignmentX(CENTER_ALIGNMENT);
         
         JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 38));
         valueLabel.setForeground(color);
         valueLabel.setAlignmentX(CENTER_ALIGNMENT);
         
         JLabel unitLabel = new JLabel(unit);
-        unitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        unitLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         unitLabel.setForeground(new Color(156, 163, 175));
         unitLabel.setAlignmentX(CENTER_ALIGNMENT);
         
@@ -151,7 +151,7 @@ public class TAWorkloadPanel extends JPanel {
         ));
         
         JLabel titleLabel = new JLabel("My Active Positions");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setForeground(new Color(30, 35, 45));
         panel.add(titleLabel, BorderLayout.NORTH);
         
@@ -182,7 +182,7 @@ public class TAWorkloadPanel extends JPanel {
         
         if (hiredApplications.isEmpty()) {
             JLabel emptyLabel = new JLabel("No active positions yet. Apply for courses to get started!");
-            emptyLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            emptyLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
             emptyLabel.setForeground(new Color(107, 114, 128));
             emptyLabel.setAlignmentX(CENTER_ALIGNMENT);
             contentPanel.add(emptyLabel);
@@ -208,11 +208,11 @@ public class TAWorkloadPanel extends JPanel {
         String courseName = getCourseName(app.getJobId());
         
         JLabel courseLabel = new JLabel(courseName);
-        courseLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        courseLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         
         int hours = app.getOfferedHours() != null ? app.getOfferedHours() : 0;
         JLabel hoursLabel = new JLabel(hours + " hours/week");
-        hoursLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        hoursLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
         hoursLabel.setForeground(PRIMARY_BLUE);
         
         JPanel rightPanel = new JPanel(new BorderLayout());

@@ -1,3 +1,24 @@
 [
-
+  {
+    "taId": 100003,
+    "email": "1@qmul.ac.uk",
+    "studentId": "c",
+    "surname": "c",
+    "forename": "c",
+    "chineseName": "c",
+    "phone": "11111111111",
+    "gender": "MALE",
+    "school": "1",
+    "supervisor": "1",
+    "studentType": "MASTER",
+    "currentYear": "YEAR_1",
+    "campus": "XITUCHENG",
+    "previousExperience": "",
+    "skillTags": [],
+    "major": "1",
+    "availableWorkingHours": 0,
+    "profileCompleted": true,
+    "profileLastUpdated": "2026-05-10T19:11:37.9698854",
+    "createdAt": "2026-05-10T19:10:59.1835883"
+  }
 ]

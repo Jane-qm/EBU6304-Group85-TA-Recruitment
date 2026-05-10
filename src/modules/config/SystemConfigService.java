@@ -36,7 +36,7 @@ public class SystemConfigService {
 
     /**
      * Updates the global recruitment window (stored as applicationStart / applicationEnd for compatibility).
-     * Both dates must be strictly after today's local date; the window spans whole days (start 00:00, end 23:59:59).
+     * Start and end dates must be today or later (inclusive); the window spans whole days (start 00:00, end 23:59:59).
      */
     public SystemConfig updateApplicationCycle(LocalDateTime start, LocalDateTime end, String adminEmail) {
         if (start == null || end == null) {
@@ -47,13 +47,13 @@ public class SystemConfigService {
         LocalDate startDay = start.toLocalDate();
         LocalDate endDay = end.toLocalDate();
 
-        if (!startDay.isAfter(today)) {
+        if (startDay.isBefore(today)) {
             throw new IllegalArgumentException(
-                    "Recruitment start date must be after today's date (system local date).");
+                    "Recruitment start date must be today or a future date (system local date).");
         }
-        if (!endDay.isAfter(today)) {
+        if (endDay.isBefore(today)) {
             throw new IllegalArgumentException(
-                    "Recruitment end date must be after today's date (system local date).");
+                    "Recruitment end date must be today or a future date (system local date).");
         }
         if (endDay.isBefore(startDay)) {
             throw new IllegalArgumentException("Recruitment end date must be on or after the start date.");
@@ -74,7 +74,7 @@ public class SystemConfigService {
 
     /**
      * True if {@code now} is inside the configured recruitment window (inclusive).
-     * If not configured, returns true so demos still work.
+     * If not configured, returns false (no active recruitment window).
      */
     public boolean isNowWithinRecruitmentWindow(LocalDateTime now) {
         if (now == null) {
@@ -82,14 +82,14 @@ public class SystemConfigService {
         }
         SystemConfig config = getConfig();
         if (!config.isConfigured()) {
-            return true;
+            return false;
         }
         return !now.isBefore(config.getApplicationStart()) && !now.isAfter(config.getApplicationEnd());
     }
 
     /**
      * Checks whether a given datetime is within the configured application cycle.
-     * If the cycle is not configured yet, the method returns true to avoid blocking demo flow.
+     * If the cycle is not configured, returns false.
      */
     public boolean isWithinApplicationCycle(LocalDateTime dateTime) {
         if (dateTime == null) {
@@ -98,7 +98,7 @@ public class SystemConfigService {
 
         SystemConfig config = getConfig();
         if (!config.isConfigured()) {
-            return true;
+            return false;
         }
 
         return !dateTime.isBefore(config.getApplicationStart())
@@ -129,33 +129,42 @@ public class SystemConfigService {
     }
 
     /**
-     * Job deadline (end of that local day) must be strictly after the current time.
+     * Job deadline must be a calendar day of today or later; if it is today, the day must not already have ended.
      */
     public void validateDeadlineAfterNow(LocalDate deadlineDate) {
         if (deadlineDate == null) {
             throw new IllegalArgumentException("Deadline date is required.");
         }
-        LocalDateTime endOfDeadlineDay = LocalDateTime.of(deadlineDate, LocalTime.MAX);
-        if (!endOfDeadlineDay.isAfter(LocalDateTime.now())) {
+        LocalDate today = LocalDate.now();
+        if (deadlineDate.isBefore(today)) {
             throw new IllegalArgumentException(
-                    "Job deadline must be after the current date and time.");
+                    "Job deadline must be today or a future date.");
+        }
+        LocalDateTime endOfDeadlineDay = LocalDateTime.of(deadlineDate, LocalTime.MAX);
+        if (LocalDateTime.now().isAfter(endOfDeadlineDay)) {
+            throw new IllegalArgumentException(
+                    "That deadline date has already ended (end of that calendar day).");
         }
     }
 
     /**
-     * MO may publish only while the current time lies in the recruitment window.
+     * MO may publish only after an administrator has configured a recruitment window
+     * and while the current time lies inside that window. Drafts are not restricted here.
      */
     public void requireOpenRecruitmentWindowForPublish() {
         SystemConfig config = getConfig();
         if (!config.isConfigured()) {
-            return;
+            throw new IllegalStateException(
+                    "Recruitment period is not configured yet. Ask an administrator to set it in Admin → "
+                            + "Recruitment Period. You can still save the job as a draft.");
         }
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(config.getApplicationStart()) || now.isAfter(config.getApplicationEnd())) {
             throw new IllegalStateException(
                     "Jobs can only be published during the recruitment period set by an administrator "
                             + "(from " + config.getApplicationStart().toLocalDate()
-                            + " to " + config.getApplicationEnd().toLocalDate() + ").");
+                            + " to " + config.getApplicationEnd().toLocalDate() + "). "
+                            + "You can still save changes as a draft.");
         }
     }
 }

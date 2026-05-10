@@ -93,11 +93,11 @@ public final class NotificationPopup {
         textPanel.setOpaque(false);
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
         titleLabel.setForeground(new Color(15, 23, 42));
 
         JLabel subtitleLabel = new JLabel(subtitle);
-        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
         subtitleLabel.setForeground(MUTED_TEXT);
 
         textPanel.add(titleLabel);
@@ -108,7 +108,7 @@ public final class NotificationPopup {
         countLabel.setOpaque(true);
         countLabel.setBackground(PRIMARY);
         countLabel.setForeground(Color.WHITE);
-        countLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        countLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         countLabel.setBorder(new EmptyBorder(8, 16, 8, 16));
 
         panel.add(textPanel, BorderLayout.WEST);
@@ -127,7 +127,7 @@ public final class NotificationPopup {
             ));
 
             JLabel emptyLabel = new JLabel("No notifications yet.", SwingConstants.CENTER);
-            emptyLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
+            emptyLabel.setFont(new Font("SansSerif", Font.PLAIN, 17));
             emptyLabel.setForeground(MUTED_TEXT);
             emptyPanel.add(emptyLabel, BorderLayout.CENTER);
             return emptyPanel;
@@ -163,12 +163,12 @@ public final class NotificationPopup {
         topRow.setOpaque(false);
 
         JLabel titleLabel = new JLabel(safeText(notification.getTitle(), "System Notification"));
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setForeground(new Color(15, 23, 42));
 
         JLabel badge = new JLabel(notification.isRead() ? "Read" : "New", SwingConstants.CENTER);
         badge.setOpaque(true);
-        badge.setFont(new Font("SansSerif", Font.BOLD, 12));
+        badge.setFont(new Font("SansSerif", Font.BOLD, 14));
         badge.setForeground(notification.isRead() ? MUTED_TEXT : PRIMARY);
         badge.setBackground(notification.isRead() ? new Color(241, 245, 249) : new Color(219, 234, 254));
         badge.setBorder(new EmptyBorder(4, 10, 4, 10));
@@ -177,11 +177,11 @@ public final class NotificationPopup {
         topRow.add(badge, BorderLayout.EAST);
 
         JLabel contentLabel = new JLabel(toHtml(safeText(notification.getContent(), "")));
-        contentLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        contentLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
         contentLabel.setForeground(new Color(51, 65, 85));
 
         JLabel timeLabel = new JLabel(notificationService.formatTimestamp(notification.getCreatedAt()));
-        timeLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        timeLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         timeLabel.setForeground(MUTED_TEXT);
 
         card.add(topRow, BorderLayout.NORTH);
@@ -195,7 +195,7 @@ public final class NotificationPopup {
         panel.setOpaque(false);
 
         JButton closeButton = new JButton("Close");
-        closeButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        closeButton.setFont(new Font("SansSerif", Font.BOLD, 15));
         closeButton.setBackground(PRIMARY);
         closeButton.setForeground(Color.WHITE);
         closeButton.setFocusPainted(false);

@@ -125,7 +125,7 @@ public class LoginFrame extends BaseFrame {
 
         // 标题
         JLabel titleLabel = new JLabel("Welcome Back");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
         titleLabel.setForeground(new Color(17, 24, 39));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -134,18 +134,18 @@ public class LoginFrame extends BaseFrame {
 
         // 邮箱区域（前缀 + 后缀下拉）
         JLabel emailLabel = new JLabel("University Email");
-        emailLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        emailLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         emailLabel.setForeground(new Color(17, 24, 39));
         emailLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         // 创建前缀输入框
         emailPrefixField = new JTextField();
-        emailPrefixField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        emailPrefixField.setFont(new Font("SansSerif", Font.PLAIN, 18));
         emailPrefixField.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         // 创建后缀下拉框
         domainCombo = new JComboBox<>(new String[]{"@qmul.ac.uk", "@bupt.edu.cn"});
-        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        domainCombo.setFont(new Font("SansSerif", Font.PLAIN, 16));
         domainCombo.setPreferredSize(new Dimension(120, FIELD_HEIGHT - 10));
         domainCombo.setMaximumSize(new Dimension(120, FIELD_HEIGHT - 10));
 
@@ -170,12 +170,12 @@ public class LoginFrame extends BaseFrame {
 
         // 密码
         JLabel passwordLabel = new JLabel("Password");
-        passwordLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        passwordLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         passwordLabel.setForeground(new Color(17, 24, 39));
         passwordLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         passwordField = new JPasswordField();
-        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        passwordField.setFont(new Font("SansSerif", Font.PLAIN, 18));
         passwordField.setBorder(new EmptyBorder(0, 0, 0, 0));
 
         cardPanel.add(passwordLabel);
@@ -192,14 +192,14 @@ public class LoginFrame extends BaseFrame {
         optionsPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         rememberMeBox = new JCheckBox("Remember Me");
-        rememberMeBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        rememberMeBox.setFont(new Font("SansSerif", Font.PLAIN, 16));
         rememberMeBox.setForeground(new Color(55, 65, 81));
         rememberMeBox.setOpaque(false);
         rememberMeBox.setFocusPainted(false);
         rememberMeBox.setMargin(new Insets(0, 0, 0, 0));
 
         JButton forgotPwdButton = new JButton("Forgot Password?");
-        forgotPwdButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        forgotPwdButton.setFont(new Font("SansSerif", Font.BOLD, 16));
         forgotPwdButton.setForeground(new Color(37, 99, 235));
         forgotPwdButton.setContentAreaFilled(false);
         forgotPwdButton.setBorderPainted(false);
@@ -215,7 +215,7 @@ public class LoginFrame extends BaseFrame {
 
         // 登录按钮
         JButton loginButton = new JButton("Sign In");
-        loginButton.setFont(new Font("SansSerif", Font.BOLD, 22));
+        loginButton.setFont(new Font("SansSerif", Font.BOLD, 24));
         loginButton.setForeground(Color.WHITE);
         loginButton.setBackground(new Color(37, 99, 235));
         loginButton.setFocusPainted(false);
@@ -240,11 +240,11 @@ public class LoginFrame extends BaseFrame {
         registerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel noAccountLabel = new JLabel("Don't have an account? ");
-        noAccountLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        noAccountLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
         noAccountLabel.setForeground(new Color(107, 114, 128));
 
         JButton registerButton = new JButton("Register here");
-        registerButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        registerButton.setFont(new Font("SansSerif", Font.BOLD, 16));
         registerButton.setForeground(new Color(37, 99, 235));
         registerButton.setContentAreaFilled(false);
         registerButton.setBorderPainted(false);

@@ -158,7 +158,7 @@ public class TAProfilePanel extends JPanel {
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
         
         JLabel titleLabel = new JLabel("My Profile");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
         titleLabel.setForeground(new Color(30, 35, 45));
         
         panel.add(titleLabel, BorderLayout.WEST);
@@ -207,7 +207,7 @@ public class TAProfilePanel extends JPanel {
         ));
 
         JLabel cardTitle = new JLabel("Change Password");
-        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 20));
         cardTitle.setForeground(new Color(30, 35, 45));
 
         pwdCurrentField = new JPasswordField(22);
@@ -265,7 +265,7 @@ public class TAProfilePanel extends JPanel {
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.CENTER;
         JButton updatePwdBtn = new JButton("Update Password");
-        updatePwdBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        updatePwdBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         updatePwdBtn.setBackground(Color.WHITE);
         updatePwdBtn.setForeground(Color.BLACK);
         updatePwdBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
@@ -279,13 +279,13 @@ public class TAProfilePanel extends JPanel {
 
     private JLabel labelFor(String text) {
         JLabel l = new JLabel(text);
-        l.setFont(new Font("SansSerif", Font.BOLD, 12));
+        l.setFont(new Font("SansSerif", Font.BOLD, 14));
         l.setForeground(LABEL_FOREGROUND);
         return l;
     }
 
     private void stylePasswordField(JPasswordField f) {
-        f.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        f.setFont(new Font("SansSerif", Font.PLAIN, 15));
         f.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(220, 224, 230)),
                 new EmptyBorder(8, 10, 8, 10)
@@ -330,7 +330,7 @@ public class TAProfilePanel extends JPanel {
         panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JButton saveBtn = new JButton("Save Profile");
-        saveBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        saveBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
         saveBtn.setBackground(Color.WHITE);
         saveBtn.setForeground(Color.BLACK);
         saveBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_BLUE, 2));
@@ -341,7 +341,7 @@ public class TAProfilePanel extends JPanel {
         panel.add(saveBtn);
 
         JLabel hint = new JLabel("  Save profile details before switching pages if you edited them.");
-        hint.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        hint.setFont(new Font("SansSerif", Font.PLAIN, 14));
         hint.setForeground(new Color(107, 114, 128));
         panel.add(hint);
 
@@ -357,7 +357,7 @@ public class TAProfilePanel extends JPanel {
         ));
 
         JLabel cardTitle = new JLabel("Personal Information");
-        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 20));
         cardTitle.setForeground(new Color(30, 35, 45));
         card.add(cardTitle, BorderLayout.NORTH);
 
@@ -381,31 +381,31 @@ public class TAProfilePanel extends JPanel {
         majorField = createTextField(profile.getMajor());
 
         genderCombo = new JComboBox<>(new String[]{"Male", "Female"});
-        genderCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        genderCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         if (profile.getGender() != null) {
             genderCombo.setSelectedItem(profile.getGender().getEnglishName());
         }
 
         studentTypeCombo = new JComboBox<>(new String[]{"Masters/MSc", "PhD"});
-        studentTypeCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        studentTypeCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         if (profile.getStudentType() != null) {
             studentTypeCombo.setSelectedItem(profile.getStudentType().getEnglishName());
         }
 
         yearCombo = new JComboBox<>(new String[]{"Year 1", "Year 2", "Year 3", "Year 4", "Year 5"});
-        yearCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        yearCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         if (profile.getCurrentYear() != null) {
             yearCombo.setSelectedItem(profile.getCurrentYear().getEnglishName());
         }
 
         campusCombo = new JComboBox<>(new String[]{"XituCheng", "ShaHe"});
-        campusCombo.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        campusCombo.setFont(new Font("SansSerif", Font.PLAIN, 15));
         if (profile.getCampus() != null) {
             campusCombo.setSelectedItem(profile.getCampus().getEnglishName());
         }
 
         hoursSpinner = new JSpinner(new SpinnerNumberModel(profile.getAvailableWorkingHours(), 0, 40, 1));
-        hoursSpinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        hoursSpinner.setFont(new Font("SansSerif", Font.PLAIN, 15));
 
         int row = 0;
         gbc.gridy = row++;
@@ -457,12 +457,12 @@ public class TAProfilePanel extends JPanel {
         experiencePanel.setBorder(new EmptyBorder(15, 0, 0, 0));
 
         JLabel expLabel = new JLabel("Previous Experience");
-        expLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        expLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
         expLabel.setForeground(LABEL_FOREGROUND);
 
         experienceArea = new JTextArea(4, 0);
         experienceArea.setText(profile.getPreviousExperience());
-        experienceArea.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        experienceArea.setFont(new Font("SansSerif", Font.PLAIN, 15));
         experienceArea.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
         experienceArea.setLineWrap(true);
         experienceArea.setWrapStyleWord(true);
@@ -485,7 +485,7 @@ public class TAProfilePanel extends JPanel {
         
         // 卡片标题
         JLabel cardTitle = new JLabel("Skills");
-        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 20));
         cardTitle.setForeground(new Color(30, 35, 45));
         card.add(cardTitle, BorderLayout.NORTH);
         
@@ -503,10 +503,10 @@ public class TAProfilePanel extends JPanel {
         addSkillPanel.setBackground(Color.WHITE);
         
         JTextField newSkillField = new JTextField(15);
-        newSkillField.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        newSkillField.setFont(new Font("SansSerif", Font.PLAIN, 15));
         
         JButton addSkillBtn = new JButton("+ Add Skill");
-        addSkillBtn.setFont(new Font("SansSerif", Font.BOLD, 12));
+        addSkillBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         addSkillBtn.setBackground(new Color(243, 246, 251));
         addSkillBtn.setForeground(Color.BLACK);
         addSkillBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
@@ -543,7 +543,7 @@ public class TAProfilePanel extends JPanel {
         
         // 卡片标题
         JLabel cardTitle = new JLabel("CV / Resume");
-        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 18));
+        cardTitle.setFont(new Font("SansSerif", Font.BOLD, 20));
         cardTitle.setForeground(new Color(30, 35, 45));
         card.add(cardTitle, BorderLayout.NORTH);
         
@@ -557,16 +557,16 @@ public class TAProfilePanel extends JPanel {
         ));
         
         JLabel iconLabel = new JLabel("📄");
-        iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 48));
+        iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 50));
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JLabel dragLabel = new JLabel("Upload your CV here");
-        dragLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        dragLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         dragLabel.setForeground(new Color(55, 65, 81));
         dragLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         JButton browseBtn = new JButton("Click to upload");
-        browseBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        browseBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
         browseBtn.setForeground(Color.WHITE);
         browseBtn.setBackground(PRIMARY_BLUE);
         browseBtn.setBorderPainted(false);
@@ -577,7 +577,7 @@ public class TAProfilePanel extends JPanel {
         browseBtn.addActionListener(e -> uploadCV());
         
         JLabel formatLabel = new JLabel("PDF / Word - File Size Limit: 5MB");
-        formatLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        formatLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         formatLabel.setForeground(new Color(107, 114, 128));
         formatLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         formatLabel.setBorder(new EmptyBorder(15, 0, 0, 0));
@@ -607,7 +607,7 @@ public class TAProfilePanel extends JPanel {
         
         if (cvList == null || cvList.isEmpty()) {
             JLabel noCVLabel = new JLabel("No CV uploaded yet. Click the button above to upload.");
-            noCVLabel.setFont(new Font("SansSerif", Font.ITALIC, 13));
+            noCVLabel.setFont(new Font("SansSerif", Font.ITALIC, 15));
             noCVLabel.setForeground(new Color(107, 114, 128));
             cvInfoPanel.add(noCVLabel, BorderLayout.WEST);
         } else {
@@ -617,7 +617,7 @@ public class TAProfilePanel extends JPanel {
             cvListPanel.setBackground(Color.WHITE);
             
             JLabel listTitle = new JLabel("My CVs (" + cvList.size() + ")");
-            listTitle.setFont(new Font("SansSerif", Font.BOLD, 13));
+            listTitle.setFont(new Font("SansSerif", Font.BOLD, 15));
             listTitle.setForeground(LABEL_FOREGROUND);
             listTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
             cvListPanel.add(listTitle);
@@ -656,12 +656,12 @@ public class TAProfilePanel extends JPanel {
         namePanel.setOpaque(false);
         
         JLabel nameLabel = new JLabel(cv.getCvName());
-        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
         namePanel.add(nameLabel);
         
         if (cv.isDefault()) {
             JLabel defaultLabel = new JLabel("  [Default]");
-            defaultLabel.setFont(new Font("SansSerif", Font.BOLD, 11));
+            defaultLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
             defaultLabel.setForeground(PRIMARY_BLUE);
             namePanel.add(defaultLabel);
         }
@@ -670,7 +670,7 @@ public class TAProfilePanel extends JPanel {
         infoPanel.add(Box.createVerticalStrut(4));
         
         JLabel detailLabel = new JLabel(cv.getFileSizeDisplay() + " · Uploaded: " + cv.getUploadedAtDisplay());
-        detailLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        detailLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         detailLabel.setForeground(new Color(107, 114, 128));
         infoPanel.add(detailLabel);
         
@@ -679,7 +679,7 @@ public class TAProfilePanel extends JPanel {
         buttonPanel.setOpaque(false);
         
         JButton viewBtn = new JButton("View");
-        viewBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        viewBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
         viewBtn.setBackground(PRIMARY_BLUE);
         viewBtn.setForeground(Color.WHITE);
         viewBtn.setBorderPainted(false);
@@ -688,7 +688,7 @@ public class TAProfilePanel extends JPanel {
         viewBtn.addActionListener(e -> viewCV(cv));
         
         JButton setDefaultBtn = new JButton("Set Default");
-        setDefaultBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        setDefaultBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
         setDefaultBtn.setBackground(Color.WHITE);
         setDefaultBtn.setForeground(PRIMARY_BLUE);
         setDefaultBtn.setBorder(BorderFactory.createLineBorder(PRIMARY_BLUE));
@@ -697,7 +697,7 @@ public class TAProfilePanel extends JPanel {
         setDefaultBtn.addActionListener(e -> setDefaultCV(cv));
         
         JButton deleteBtn = new JButton("Delete");
-        deleteBtn.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        deleteBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
         deleteBtn.setForeground(new Color(220, 38, 38));
         deleteBtn.setBackground(Color.WHITE);
         deleteBtn.setBorder(BorderFactory.createLineBorder(new Color(220, 38, 38)));
@@ -736,10 +736,10 @@ public class TAProfilePanel extends JPanel {
         ));
         
         JLabel label = new JLabel(tag);
-        label.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        label.setFont(new Font("SansSerif", Font.PLAIN, 14));
         
         JButton removeBtn = new JButton("✖");
-        removeBtn.setFont(new Font("SansSerif", Font.PLAIN, 10));
+        removeBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
         removeBtn.setForeground(new Color(107, 114, 128));
         removeBtn.setBorderPainted(false);
         removeBtn.setContentAreaFilled(false);
@@ -760,7 +760,7 @@ public class TAProfilePanel extends JPanel {
         panel.setOpaque(false);
         
         JLabel lbl = new JLabel(label);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 12));
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 14));
         lbl.setForeground(LABEL_FOREGROUND);
         
         panel.add(lbl, BorderLayout.NORTH);
@@ -771,7 +771,7 @@ public class TAProfilePanel extends JPanel {
     
     private JTextField createTextField(String value) {
         JTextField field = new JTextField(value != null ? value : "");
-        field.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        field.setFont(new Font("SansSerif", Font.PLAIN, 15));
         field.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(220, 224, 230)),
                 new EmptyBorder(8, 10, 8, 10)

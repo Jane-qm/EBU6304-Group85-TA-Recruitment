@@ -81,12 +81,12 @@ public class TAApplicationsPanel extends JPanel {
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
         
         JLabel titleLabel = new JLabel("My Applications");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
         titleLabel.setForeground(new Color(30, 35, 45));
         
         // 添加刷新按钮
         JButton refreshBtn = new JButton("⟳ Refresh");
-        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 13));
+        refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
         refreshBtn.setBackground(PRIMARY_BLUE);
         refreshBtn.setForeground(Color.WHITE);
         refreshBtn.setFocusPainted(false);
@@ -128,7 +128,7 @@ public class TAApplicationsPanel extends JPanel {
         
         applicationsTable = new JTable(tableModel);
         applicationsTable.setRowHeight(50);
-        applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
         applicationsTable.setShowGrid(false);
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
         
@@ -166,7 +166,7 @@ public class TAApplicationsPanel extends JPanel {
         });
         
         JTableHeader header = applicationsTable.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 13));
+        header.setFont(new Font("SansSerif", Font.BOLD, 15));
         header.setForeground(new Color(107, 114, 128));
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
@@ -313,7 +313,7 @@ public class TAApplicationsPanel extends JPanel {
         panel.setBackground(Color.WHITE);
         
         JLabel titleLabel = new JLabel(job.getModuleCode() + " - " + job.getTitle());
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY_BLUE);
         titleLabel.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(titleLabel);
@@ -331,11 +331,11 @@ public class TAApplicationsPanel extends JPanel {
         statusPanel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel statusTitleLabel = new JLabel("Application Status: ");
-        statusTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        statusTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         
         String statusText = applicationController.getDisplayStatus(app);
         JLabel statusValueLabel = new JLabel(statusText);
-        statusValueLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        statusValueLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         
         if (ApplicationStatus.isHired(app.getStatus())) {
             statusValueLabel.setForeground(new Color(34, 197, 94));
@@ -359,8 +359,14 @@ public class TAApplicationsPanel extends JPanel {
             JPanel offerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             offerPanel.setBackground(new Color(248, 250, 252));
             JLabel offerLabel = new JLabel("Offered Hours: " + app.getOfferedHours() + " hours/week");
-            offerLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            offerLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
             offerPanel.add(offerLabel);
+            if (job.getOfferResponseDeadline() != null) {
+                JLabel dl = new JLabel("   · Respond by: "
+                        + job.getOfferResponseDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                dl.setFont(new Font("SansSerif", Font.PLAIN, 15));
+                offerPanel.add(dl);
+            }
             statusPanel.add(offerPanel, BorderLayout.SOUTH);
         }
         
@@ -382,6 +388,12 @@ public class TAApplicationsPanel extends JPanel {
         
         infoPanel.add(createInfoLabel("Weekly Hours:"));
         infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
+
+        if (job.getOfferResponseDeadline() != null) {
+            infoPanel.add(createInfoLabel("Respond to offer by (MO deadline):"));
+            infoPanel.add(createValueLabel(
+                    job.getOfferResponseDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))));
+        }
         
         infoPanel.add(createInfoLabel("Applied Date:"));
         String appliedDate = app.getAppliedAt() != null ? 
@@ -400,14 +412,14 @@ public class TAApplicationsPanel extends JPanel {
         panel.add(Box.createVerticalStrut(15));
         
         JLabel statementTitle = new JLabel("Application Statement");
-        statementTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
+        statementTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
         statementTitle.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(statementTitle);
         panel.add(Box.createVerticalStrut(8));
         
         JTextArea statementArea = new JTextArea(5, 50);
         statementArea.setText(app.getStatement() != null ? app.getStatement() : "No statement provided.");
-        statementArea.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        statementArea.setFont(new Font("SansSerif", Font.PLAIN, 15));
         statementArea.setLineWrap(true);
         statementArea.setWrapStyleWord(true);
         statementArea.setEditable(false);
@@ -426,14 +438,14 @@ public class TAApplicationsPanel extends JPanel {
     
     private JLabel createInfoLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 13));
+        label.setFont(new Font("SansSerif", Font.BOLD, 15));
         label.setForeground(new Color(55, 65, 81));
         return label;
     }
     
     private JLabel createValueLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        label.setFont(new Font("SansSerif", Font.PLAIN, 15));
         label.setForeground(new Color(30, 35, 45));
         return label;
     }

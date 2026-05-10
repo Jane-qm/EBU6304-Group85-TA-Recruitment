@@ -36,24 +36,24 @@ import javax.swing.table.DefaultTableModel;
 
 import com.toedter.calendar.JDateChooser;
 
-import ui.auth.LoginFrame;
-import ui.common.TableScrollUtil;
-import modules.auth.AuthService;
-import modules.job.JobDAO;
-import modules.notification.NotificationDAO;
-import modules.job.Job;
-import modules.notification.NotificationMessage;
-import modules.user.User;
-import modules.config.SystemConfigService;
-import modules.user.UserService;
 import infrastructure.audit.AdminAuditLogger;
 import infrastructure.util.CsvExportUtil;
-import modules.cv.CVDao;
-import modules.application.ApplicationDAO;
-import modules.profile.TAProfileDAO;
-import modules.cv.CVInfo;
 import modules.application.Application;
+import modules.application.ApplicationDAO;
+import modules.auth.AuthService;
+import modules.config.SystemConfigService;
+import modules.cv.CVDao;
+import modules.cv.CVInfo;
+import modules.job.Job;
+import modules.job.JobDAO;
+import modules.notification.NotificationDAO;
+import modules.notification.NotificationMessage;
 import modules.profile.TAProfile;
+import modules.profile.TAProfileDAO;
+import modules.user.User;
+import modules.user.UserService;
+import ui.auth.LoginFrame;
+import ui.common.TableScrollUtil;
 
 /**
  * Admin Portal
@@ -220,7 +220,7 @@ public class AdminHomeFrame extends JFrame {
         gbc.gridy = 0;
         gbc.gridwidth = 4;
         JLabel titleLabel = new JLabel("Change Password");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setForeground(new Color(30, 35, 45));
         panel.add(titleLabel, gbc);
 
@@ -228,7 +228,7 @@ public class AdminHomeFrame extends JFrame {
         gbc.gridy = 1;
         gbc.gridwidth = 4;
         JLabel adminLabel = new JLabel("Admin: " + currentUser.getEmail());
-        adminLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        adminLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         adminLabel.setForeground(new Color(107, 114, 128));
         panel.add(adminLabel, gbc);
 
@@ -297,20 +297,12 @@ public class AdminHomeFrame extends JFrame {
         titlePanel.setBackground(Color.WHITE);
 
         JLabel titleLabel = new JLabel("Recruitment Period");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         titlePanel.add(titleLabel);
 
         titlePanel.add(Box.createVerticalStrut(6));
 
-        String hintHtml = "<html><body style='width:380px;color:rgb(107,114,128);font-size:12px'>"
-                + "Set the window when Module Organisers may <b>first publish</b> jobs. "
-                + "Both dates must be <b>after today</b> (system local date). "
-                + "Each job's application deadline must fall inside this period and after the current time."
-                + "</body></html>";
-        JLabel hintLabel = new JLabel(hintHtml);
-        hintLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        titlePanel.add(hintLabel);
 
         panel.add(titlePanel, BorderLayout.NORTH);
 
@@ -383,7 +375,7 @@ public class AdminHomeFrame extends JFrame {
                 new EmptyBorder(20, 30, 20, 30)));
 
         JLabel titleLabel = new JLabel("System Data Export");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         panel.add(titleLabel, BorderLayout.NORTH);
 
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
@@ -406,8 +398,8 @@ public class AdminHomeFrame extends JFrame {
 
         dataTableModel = new DefaultTableModel();
         dataTable = new JTable(dataTableModel);
-        dataTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        dataTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        dataTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        dataTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
 
         dataTableScrollPane = TableScrollUtil.wrapTable(dataTable);
         dataTableScrollPane.setPreferredSize(new Dimension(480, 220));
@@ -479,12 +471,12 @@ public class AdminHomeFrame extends JFrame {
         logoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel logoLabel = new JLabel("TA Recruit");
-        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         logoLabel.setForeground(Color.WHITE);
         logoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel logoSubLabel = new JLabel("Admin Portal");
-        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         logoSubLabel.setForeground(new Color(107, 114, 128));
         logoSubLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -524,7 +516,7 @@ public class AdminHomeFrame extends JFrame {
 
     private JButton createNavButton(String text, String cardName) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btn.setFont(new Font("SansSerif", Font.BOLD, 16));
         btn.setForeground(NAV_INACTIVE_FG);
         btn.setBackground(SIDEBAR_BG);
         btn.setOpaque(true);
@@ -586,7 +578,7 @@ public class AdminHomeFrame extends JFrame {
         topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
 
         topBarTitleLabel = new JLabel("Admin Portal");
-        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
+        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
         topBarTitleLabel.setForeground(new Color(30, 35, 45));
 
         topBar.add(topBarTitleLabel, BorderLayout.WEST);
@@ -617,7 +609,7 @@ public class AdminHomeFrame extends JFrame {
 
     private JButton createButton(String text) {
         JButton button = new JButton(text);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        button.setFont(new Font("SansSerif", Font.PLAIN, 15));
         button.setBackground(Color.WHITE);
         button.setForeground(Color.BLACK);
         button.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));

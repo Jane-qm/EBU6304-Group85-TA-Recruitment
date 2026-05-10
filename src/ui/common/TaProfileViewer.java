@@ -54,7 +54,7 @@ public final class TaProfileViewer {
         panel.setBackground(Color.WHITE);
 
         JLabel titleLabel = new JLabel(nameTitle);
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         titleLabel.setForeground(PRIMARY_BLUE);
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(titleLabel);
@@ -62,7 +62,7 @@ public final class TaProfileViewer {
         if (email != null && !email.isBlank()) {
             panel.add(Box.createVerticalStrut(4));
             JLabel emailLine = new JLabel(email);
-            emailLine.setFont(new Font("SansSerif", Font.PLAIN, 13));
+            emailLine.setFont(new Font("SansSerif", Font.PLAIN, 15));
             emailLine.setForeground(MUTED_FG);
             emailLine.setAlignmentX(Component.LEFT_ALIGNMENT);
             panel.add(emailLine);
@@ -98,7 +98,7 @@ public final class TaProfileViewer {
         panel.add(Box.createVerticalStrut(14));
 
         JLabel skillsTitle = new JLabel("Skills");
-        skillsTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
+        skillsTitle.setFont(new Font("SansSerif", Font.BOLD, 16));
         skillsTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
         panel.add(skillsTitle);
         panel.add(Box.createVerticalStrut(8));
@@ -113,7 +113,7 @@ public final class TaProfileViewer {
                     continue;
                 }
                 JLabel tag = new JLabel("  " + skill.trim() + "  ");
-                tag.setFont(new Font("SansSerif", Font.PLAIN, 12));
+                tag.setFont(new Font("SansSerif", Font.PLAIN, 14));
                 tag.setBackground(new Color(243, 246, 251));
                 tag.setForeground(PRIMARY_BLUE);
                 tag.setOpaque(true);
@@ -163,14 +163,14 @@ public final class TaProfileViewer {
 
     private static JLabel infoLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setFont(new Font("SansSerif", Font.BOLD, 13));
+        l.setFont(new Font("SansSerif", Font.BOLD, 15));
         l.setForeground(LABEL_FG);
         return l;
     }
 
     private static JLabel valueLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        l.setFont(new Font("SansSerif", Font.PLAIN, 15));
         l.setForeground(VALUE_FG);
         return l;
     }
@@ -181,14 +181,14 @@ public final class TaProfileViewer {
 
     private static void addTextSection(JPanel column, String heading, String body) {
         JLabel h = new JLabel(heading);
-        h.setFont(new Font("SansSerif", Font.BOLD, 14));
+        h.setFont(new Font("SansSerif", Font.BOLD, 16));
         h.setAlignmentX(Component.LEFT_ALIGNMENT);
         column.add(h);
         column.add(Box.createVerticalStrut(8));
 
         JTextArea area = new JTextArea(6, 48);
         area.setText(body);
-        area.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        area.setFont(new Font("SansSerif", Font.PLAIN, 15));
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
         area.setEditable(false);

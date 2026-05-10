@@ -136,7 +136,7 @@ public class ApplicationService {
             SystemConfig cfg = systemConfigService.getConfig();
             String window = cfg.isConfigured()
                     ? cfg.getApplicationStart().toLocalDate() + " to " + cfg.getApplicationEnd().toLocalDate()
-                    : "not yet configured";
+                    : "not configured yet — an administrator must set the recruitment period first";
             throw new IllegalStateException(
                     "Applications are currently closed. Recruitment window: " + window + ".");
         }
@@ -248,14 +248,10 @@ public class ApplicationService {
     // ==================== Offer 相关方法 ====================
 
     /**
-     * MO 发送 Offer（接受申请并发 Offer）
-     * 
-     * @param applicationId 申请 ID
-     * @param offeredHours 提供的工时
-     * @param expiryDays 有效期天数（从发送时间开始计算）
-     * @return 更新后的申请
+     * MO 发送 Offer（接受申请并发 Offer）。Offer 过期时间取自职位上配置的 {@link Job#getOfferResponseDeadline()}；
+     * 旧数据若无该字段则回退为自发送时起 7 天。
      */
-    public Application sendOffer(Long applicationId, int offeredHours, int expiryDays) {
+    public Application sendOffer(Long applicationId, int offeredHours) {
         Application application = findById(applicationId);
         if (application == null) {
             throw new IllegalArgumentException("Application not found.");
@@ -264,35 +260,45 @@ public class ApplicationService {
         if (!ApplicationStatus.SUBMITTED.equals(application.getStatus()) && 
             !ApplicationStatus.WAITLISTED.equals(application.getStatus())) {
             throw new IllegalStateException(
-                "Cannot send offer. Application must be in SUBMITTED or WAITLISTED status. Current: " + 
-                application.getStatus()
+                    "Cannot send offer. Application must be in SUBMITTED or WAITLISTED status. Current: " + 
+                    application.getStatus()
             );
         }
 
         if (offeredHours <= 0) {
             throw new IllegalArgumentException("Offered hours must be positive.");
         }
-        if (expiryDays <= 0) {
-            throw new IllegalArgumentException("Expiry days must be positive.");
+
+        Job job = jobService.getJobById(application.getJobId());
+        if (job == null) {
+            throw new IllegalArgumentException("Job not found.");
         }
 
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiry = job.getOfferResponseDeadline();
+        if (expiry == null) {
+            expiry = now.plusDays(7);
+        }
+        if (!expiry.isAfter(now)) {
+            throw new IllegalStateException(
+                    "The offer response deadline for this job has passed. Update the job or close the posting.");
+        }
+
         application.setStatus(ApplicationStatus.OFFER_SENT);
         application.setOfferedHours(offeredHours);
         application.setOfferSentAt(now);
-        application.setOfferExpiryAt(now.plusDays(expiryDays));
+        application.setOfferExpiryAt(expiry);
         application.setRespondedAt(null);
 
         Application saved = dao.save(application);
 
-        // 发送通知给 TA
         notificationService.notifyUser(
             saved.getTaUserId(),
             UserRole.TA,
             "New Offer Received",
             "You have received an offer for " + getJobModuleCode(saved.getJobId()) + 
-            " with " + offeredHours + " hours/week. Please respond before " + 
-            saved.getOfferExpiryAt().toLocalDate() + ".",
+            " with " + offeredHours + " hours/week. Please accept or reject before " + 
+            saved.getOfferExpiryAt().toString().replace('T', ' ') + ".",
             NotificationKind.OFFER_RESPONSE
         );
 

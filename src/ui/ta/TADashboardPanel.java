@@ -103,16 +103,16 @@ public class TADashboardPanel extends JPanel {
         ));
 
         JLabel emojiLabel = new JLabel(emoji);
-        emojiLabel.setFont(new Font("SansSerif", Font.PLAIN, 24));
+        emojiLabel.setFont(new Font("SansSerif", Font.PLAIN, 26));
         emojiLabel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 32));
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
         valueLabel.setForeground(color);
         valueLabel.setAlignmentX(LEFT_ALIGNMENT);
         
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
         titleLabel.setForeground(new Color(107, 114, 128));
         titleLabel.setAlignmentX(LEFT_ALIGNMENT);
 
@@ -137,7 +137,7 @@ public class TADashboardPanel extends JPanel {
         headerPanel.setOpaque(false);
         
         JLabel titleLabel = new JLabel("Recent Applications");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         titleLabel.setForeground(new Color(30, 35, 45));
         
         headerPanel.add(titleLabel, BorderLayout.WEST);
@@ -148,7 +148,7 @@ public class TADashboardPanel extends JPanel {
         int maxApps = applicationController.getMaxActiveApplications();
         JLabel limitLabel = new JLabel("You can only have " + maxApps + " active applications at once. " +
                 (remainingSlots > 0 ? remainingSlots + " slots remaining." : "No slots remaining."));
-        limitLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        limitLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         limitLabel.setForeground(remainingSlots > 0 ? new Color(107, 114, 128) : new Color(239, 68, 68));
         limitLabel.setBorder(new EmptyBorder(8, 0, 16, 0));
         panel.add(limitLabel, BorderLayout.CENTER);
@@ -171,14 +171,14 @@ public class TADashboardPanel extends JPanel {
         
         applicationsTable = new JTable(tableModel);
         applicationsTable.setRowHeight(45);
-        applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        applicationsTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
         applicationsTable.setShowGrid(false);
         applicationsTable.setIntercellSpacing(new Dimension(0, 0));
         
         applicationsTable.getColumnModel().getColumn(1).setCellRenderer(new StatusCellRenderer());
         
         JTableHeader header = applicationsTable.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 13));
+        header.setFont(new Font("SansSerif", Font.BOLD, 15));
         header.setForeground(new Color(107, 114, 128));
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));

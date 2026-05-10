@@ -9,7 +9,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Files;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +23,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
@@ -45,7 +43,7 @@ import modules.cv.CVInfo;
 import modules.profile.TAProfile;
 import modules.cv.CVService;
 import modules.profile.TAProfileService;
-import ui.common.ScrollPaneTopHelper;
+import ui.common.JobDetailDialog;
 import ui.common.TableScrollUtil;
 import ui.ta.components.ActionButtonRenderer;
 
@@ -59,7 +57,6 @@ public class TACourseCatalogPanel extends JPanel {
     private final UserService userService = UserService.getInstance();
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
-    private static final Color PRIMARY_BLUE = new Color(59, 130, 246);
     
     private JTable coursesTable;
     private DefaultTableModel tableModel;
@@ -92,7 +89,7 @@ public class TACourseCatalogPanel extends JPanel {
         panel.setBorder(new EmptyBorder(20, 30, 20, 30));
         
         JLabel titleLabel = new JLabel("Course Catalog");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 26));
         titleLabel.setForeground(new Color(30, 35, 45));
         
         panel.add(titleLabel, BorderLayout.WEST);
@@ -117,26 +114,8 @@ public class TACourseCatalogPanel extends JPanel {
         return scrollPane;
     }
     
-    /**
-     * 从 job 的 description 中解析 deadline 字符串
-     * description 格式示例: "Skills: ...\nHeadcount: ...\nDeadline: 2026-05-01\nDetails: ..."
-     */
     private String parseDeadlineFromDescription(Job job) {
-        String desc = job.getDescription();
-        if (desc == null) return "Not set";
-        // 查找 "Deadline: " 行
-        String[] lines = desc.split("\n");
-        for (String line : lines) {
-            if (line.trim().startsWith("Deadline:")) {
-                String deadlinePart = line.substring(line.indexOf("Deadline:") + 9).trim();
-                return deadlinePart.isEmpty() ? "Not set" : deadlinePart;
-            }
-        }
-        // 如果 description 中没有，则使用 applicationDeadline 字段（如果有）
-        if (job.getApplicationDeadline() != null) {
-            return job.getApplicationDeadline().toLocalDate().toString();
-        }
-        return "Not set";
+        return JobDetailDialog.formatApplicationDeadline(job);
     }
     
     private JScrollPane createCoursesTable() {
@@ -152,7 +131,7 @@ public class TACourseCatalogPanel extends JPanel {
         
         coursesTable = new JTable(tableModel);
         coursesTable.setRowHeight(50);
-        coursesTable.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        coursesTable.setFont(new Font("SansSerif", Font.PLAIN, 15));
         coursesTable.setShowGrid(false);
         coursesTable.setIntercellSpacing(new Dimension(0, 0));
         
@@ -169,7 +148,7 @@ public class TACourseCatalogPanel extends JPanel {
                     Job job = availableJobs.get(row);
                     
                     if (col == 5) {
-                        showCourseDetailDialog(job);
+                        JobDetailDialog.show(TACourseCatalogPanel.this, job);
                     } else if (col == 6) {
                         // 检查职位是否可申请
                         if (!job.isApplicable()) {
@@ -194,7 +173,7 @@ public class TACourseCatalogPanel extends JPanel {
         });
         
         JTableHeader header = coursesTable.getTableHeader();
-        header.setFont(new Font("SansSerif", Font.BOLD, 13));
+        header.setFont(new Font("SansSerif", Font.BOLD, 15));
         header.setForeground(new Color(107, 114, 128));
         header.setBackground(TABLE_HEADER_BG);
         header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
@@ -242,20 +221,6 @@ public class TACourseCatalogPanel extends JPanel {
         }
     }
     
-    private JLabel createInfoLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.BOLD, 13));
-        label.setForeground(new Color(55, 65, 81));
-        return label;
-    }
-    
-    private JLabel createValueLabel(String text) {
-        JLabel label = new JLabel(text);
-        label.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        label.setForeground(new Color(30, 35, 45));
-        return label;
-    }
-    
     private static String moDisplayName(User mo) {
         if (mo == null) {
             return "—";
@@ -274,129 +239,6 @@ public class TACourseCatalogPanel extends JPanel {
         return at > 0 ? email.substring(0, at) : email;
     }
 
-    private static String moEmail(User mo) {
-        if (mo == null || mo.getEmail() == null) {
-            return "—";
-        }
-        return mo.getEmail();
-    }
-
-    private void showCourseDetailDialog(Job job) {
-        User mo = job.getMoUserId() != null ? userService.findById(job.getMoUserId()) : null;
-
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
-        panel.setBackground(Color.WHITE);
-        
-        JLabel titleLabel = new JLabel(job.getModuleCode() + " - " + job.getTitle());
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        titleLabel.setForeground(PRIMARY_BLUE);
-        titleLabel.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(15));
-        
-        panel.add(new JSeparator());
-        panel.add(Box.createVerticalStrut(15));
-        
-        JPanel infoPanel = new JPanel(new java.awt.GridLayout(0, 2, 10, 10));
-        infoPanel.setBackground(Color.WHITE);
-        infoPanel.setAlignmentX(LEFT_ALIGNMENT);
-        
-        infoPanel.add(createInfoLabel("Module Code:"));
-        infoPanel.add(createValueLabel(job.getModuleCode()));
-
-        infoPanel.add(createInfoLabel("Module Organiser (MO):"));
-        infoPanel.add(createValueLabel(moDisplayName(mo)));
-
-        infoPanel.add(createInfoLabel("MO Email:"));
-        infoPanel.add(createValueLabel(moEmail(mo)));
-
-        infoPanel.add(createInfoLabel("Weekly Hours:"));
-        infoPanel.add(createValueLabel(job.getWeeklyHours() + " hours/week"));
-        
-        infoPanel.add(createInfoLabel("Application Deadline:"));
-        String deadlineText = parseDeadlineFromDescription(job);
-        infoPanel.add(createValueLabel(deadlineText));
-        
-        infoPanel.add(createInfoLabel("Status:"));
-        String statusText = job.isApplicable() ? "Open for Applications" : 
-                           (job.isExpired() ? "Closed - Deadline Passed" : job.getStatus());
-        JLabel statusLabel = createValueLabel(statusText);
-        if (job.isApplicable()) {
-            statusLabel.setForeground(new Color(34, 197, 94));
-        } else {
-            statusLabel.setForeground(new Color(239, 68, 68));
-        }
-        infoPanel.add(statusLabel);
-        
-        if (job.getCreatedAt() != null) {
-            infoPanel.add(createInfoLabel("Posted Date:"));
-            infoPanel.add(createValueLabel(job.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))));
-        }
-        
-        panel.add(infoPanel);
-        panel.add(Box.createVerticalStrut(15));
-        
-        panel.add(new JSeparator());
-        panel.add(Box.createVerticalStrut(15));
-        
-        JLabel skillsTitle = new JLabel("Required Skills");
-        skillsTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
-        skillsTitle.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(skillsTitle);
-        panel.add(Box.createVerticalStrut(8));
-        
-        JPanel skillsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-        skillsPanel.setBackground(Color.WHITE);
-        skillsPanel.setAlignmentX(LEFT_ALIGNMENT);
-        
-        List<String> skills = job.getRequiredSkills();
-        if (skills != null && !skills.isEmpty()) {
-            for (String skill : skills) {
-                JLabel skillTag = new JLabel("  " + skill + "  ");
-                skillTag.setFont(new Font("SansSerif", Font.PLAIN, 12));
-                skillTag.setBackground(new Color(243, 246, 251));
-                skillTag.setForeground(PRIMARY_BLUE);
-                skillTag.setOpaque(true);
-                skillTag.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-                skillsPanel.add(skillTag);
-            }
-        } else {
-            skillsPanel.add(new JLabel("No specific skills required"));
-        }
-        panel.add(skillsPanel);
-        panel.add(Box.createVerticalStrut(15));
-        
-        panel.add(new JSeparator());
-        panel.add(Box.createVerticalStrut(15));
-        
-        JLabel descTitle = new JLabel("Job Description");
-        descTitle.setFont(new Font("SansSerif", Font.BOLD, 14));
-        descTitle.setAlignmentX(LEFT_ALIGNMENT);
-        panel.add(descTitle);
-        panel.add(Box.createVerticalStrut(8));
-        
-        JTextArea descArea = new JTextArea(8, 50);
-        descArea.setText(job.getDescription() != null ? job.getDescription() : "No description provided.");
-        descArea.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        descArea.setLineWrap(true);
-        descArea.setWrapStyleWord(true);
-        descArea.setEditable(false);
-        descArea.setBackground(Color.WHITE);
-        descArea.setBorder(BorderFactory.createLineBorder(new Color(220, 224, 230)));
-        
-        JScrollPane descScroll = new JScrollPane(descArea);
-        descScroll.setAlignmentX(LEFT_ALIGNMENT);
-        descScroll.setMaximumSize(new Dimension(500, 150));
-        panel.add(descScroll);
-        
-        JScrollPane outer = new JScrollPane(panel);
-        ScrollPaneTopHelper.installScrollStartsAtTop(outer);
-        JOptionPane.showConfirmDialog(null, outer, 
-            "Course Details", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE);
-    }
-    
     private void showApplicationDialog(Job job) {
         TAProfileService directService = new TAProfileService();
         TAProfile freshProfile = directService.getProfileByTaId(ta.getUserId());
@@ -423,13 +265,13 @@ public class TACourseCatalogPanel extends JPanel {
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
         
         JLabel courseLabel = new JLabel("Applying for: " + job.getModuleCode() + " - " + job.getTitle());
-        courseLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        courseLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         courseLabel.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(courseLabel);
         panel.add(Box.createVerticalStrut(15));
         
         JLabel cvLabel = new JLabel("Select CV:");
-        cvLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        cvLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         cvLabel.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(cvLabel);
         panel.add(Box.createVerticalStrut(5));
@@ -458,12 +300,12 @@ public class TACourseCatalogPanel extends JPanel {
         JButton uploadNewBtn = new JButton("📄 Upload New CV");
         uploadNewBtn.setAlignmentX(LEFT_ALIGNMENT);
         uploadNewBtn.setMaximumSize(new Dimension(200, 30));
-        uploadNewBtn.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        uploadNewBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(uploadNewBtn);
         panel.add(Box.createVerticalStrut(15));
         
         JLabel statementLabel = new JLabel("Application Statement:");
-        statementLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        statementLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
         statementLabel.setAlignmentX(LEFT_ALIGNMENT);
         panel.add(statementLabel);
         panel.add(Box.createVerticalStrut(5));

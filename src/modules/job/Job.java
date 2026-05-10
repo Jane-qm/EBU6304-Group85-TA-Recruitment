@@ -22,6 +22,8 @@ public class Job {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime applicationDeadline;  // 新增：申请截止日期
+    /** Last moment a TA may accept/reject an offer for this job (set by MO when publishing). */
+    private LocalDateTime offerResponseDeadline;
 
     // ==================== Getters and Setters ====================
     
@@ -111,6 +113,14 @@ public class Job {
     
     public void setApplicationDeadline(LocalDateTime applicationDeadline) { 
         this.applicationDeadline = applicationDeadline; 
+    }
+
+    public LocalDateTime getOfferResponseDeadline() {
+        return offerResponseDeadline;
+    }
+
+    public void setOfferResponseDeadline(LocalDateTime offerResponseDeadline) {
+        this.offerResponseDeadline = offerResponseDeadline;
     }
     
     // ==================== 辅助方法 ====================

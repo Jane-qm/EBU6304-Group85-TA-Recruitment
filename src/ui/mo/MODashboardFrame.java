@@ -161,12 +161,12 @@ public class MODashboardFrame extends BaseFrame {
         logoPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel logoLabel = new JLabel("TA Recruit");
-        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logoLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
         logoLabel.setForeground(Color.WHITE);
         logoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel logoSubLabel = new JLabel("Module Organiser Portal");
-        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        logoSubLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         logoSubLabel.setForeground(new Color(107, 114, 128));
         logoSubLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -184,12 +184,12 @@ public class MODashboardFrame extends BaseFrame {
         userPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel userLabel = new JLabel(currentUser.getEmail());
-        userLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        userLabel.setFont(new Font("SansSerif", Font.BOLD, 16));
         userLabel.setForeground(Color.WHITE);
         userLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel metaLabel = new JLabel("MO #" + currentUser.getUserId());
-        metaLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        metaLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         metaLabel.setForeground(new Color(107, 114, 128));
         metaLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -221,7 +221,7 @@ public class MODashboardFrame extends BaseFrame {
 
     private JButton createNavButton(String text, String cardName) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.PLAIN, 15));
+        btn.setFont(new Font("SansSerif", Font.PLAIN, 17));
         btn.setHorizontalAlignment(SwingConstants.LEFT);
         btn.setFocusPainted(false);
         btn.setBorderPainted(false);
@@ -266,7 +266,7 @@ public class MODashboardFrame extends BaseFrame {
 
     private JButton createSidebarLogoutButton() {
         JButton button = new JButton("Logout");
-        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        button.setFont(new Font("SansSerif", Font.PLAIN, 16));
         button.setHorizontalAlignment(SwingConstants.LEFT);
         button.setFocusPainted(false);
         button.setBorderPainted(false);
@@ -319,7 +319,7 @@ public class MODashboardFrame extends BaseFrame {
         topBar.setBorder(new EmptyBorder(15, 30, 15, 30));
 
         topBarTitleLabel = new JLabel("Dashboard");
-        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        topBarTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 20));
         topBarTitleLabel.setForeground(new Color(30, 35, 45));
 
         int unreadCount = notificationService.getUnreadCount(currentUser.getUserId());
@@ -346,7 +346,7 @@ public class MODashboardFrame extends BaseFrame {
         gc.anchor = GridBagConstraints.WEST;
 
         JLabel welcomeLabel = new JLabel("Welcome to the MO Portal");
-        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 28));
+        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 30));
         welcomeLabel.setForeground(new Color(30, 35, 45));
 
         gc.gridy = 0;
@@ -405,13 +405,13 @@ public class MODashboardFrame extends BaseFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.anchor = GridBagConstraints.WEST;
         JLabel title = new JLabel("Change Password");
-        title.setFont(new Font("SansSerif", Font.BOLD, 16));
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
         title.setForeground(new Color(30, 35, 45));
         panel.add(title, gbc);
 
         gbc.gridy = 1;
         JLabel adminLine = new JLabel("MO: " + currentUser.getEmail());
-        adminLine.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        adminLine.setFont(new Font("SansSerif", Font.PLAIN, 14));
         adminLine.setForeground(new Color(107, 114, 128));
         panel.add(adminLine, gbc);
 
@@ -456,7 +456,7 @@ public class MODashboardFrame extends BaseFrame {
         gbc.fill = GridBagConstraints.NONE;
         gbc.anchor = GridBagConstraints.CENTER;
         JButton changeBtn = new JButton("Update Password");
-        changeBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        changeBtn.setFont(new Font("SansSerif", Font.PLAIN, 15));
         MoUiStyles.applyTextButton(changeBtn);
         changeBtn.addActionListener(e -> changeMoPassword());
         panel.add(changeBtn, gbc);
@@ -504,20 +504,20 @@ public class MODashboardFrame extends BaseFrame {
         ));
 
         JLabel emojiLabel = new JLabel(emoji);
-        emojiLabel.setFont(new Font("SansSerif", Font.PLAIN, 24));
+        emojiLabel.setFont(new Font("SansSerif", Font.PLAIN, 26));
         emojiLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 32));
+        valueLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
         valueLabel.setForeground(valueColor);
         valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        titleLabel.setFont(new Font("SansSerif", Font.PLAIN, 15));
         titleLabel.setForeground(new Color(107, 114, 128));
         titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel subLabel = new JLabel(subtitle);
-        subLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        subLabel.setFont(new Font("SansSerif", Font.PLAIN, 13));
         subLabel.setForeground(new Color(156, 163, 175));
         subLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -587,7 +587,7 @@ public class MODashboardFrame extends BaseFrame {
         wrap.setOpaque(false);
 
         JLabel title = new JLabel("TA Team");
-        title.setFont(new Font("SansSerif", Font.BOLD, 16));
+        title.setFont(new Font("SansSerif", Font.BOLD, 18));
         title.setForeground(new Color(30, 35, 45));
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setOpaque(false);
@@ -602,9 +602,9 @@ public class MODashboardFrame extends BaseFrame {
             }
         };
         JTable table = new JTable(moTeamTableModel);
-        table.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        table.setFont(new Font("SansSerif", Font.PLAIN, 15));
         table.setRowHeight(36);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 13));
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 15));
         table.setGridColor(new Color(226, 232, 240));
         table.setShowGrid(true);
 

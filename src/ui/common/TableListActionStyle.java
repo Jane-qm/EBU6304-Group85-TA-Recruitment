@@ -19,8 +19,8 @@ public final class TableListActionStyle {
     public static final Color ACTION_RED = new Color(220, 38, 38);
     public static final Color ACTION_MUTED = new Color(156, 163, 175);
 
-    private static final Font BOLD = new Font("SansSerif", Font.BOLD, 12);
-    private static final Font PLAIN_MUTED = new Font("SansSerif", Font.PLAIN, 12);
+    private static final Font BOLD = new Font("SansSerif", Font.BOLD, 14);
+    private static final Font PLAIN_MUTED = new Font("SansSerif", Font.PLAIN, 14);
 
     private TableListActionStyle() {
     }
