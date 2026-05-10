@@ -336,7 +336,7 @@ public class LoginFrame extends BaseFrame {
 
                     // 4. Enforce strict super-admin rule before routing to Admin Portal.
                     if (user.getRole() == UserRole.ADMIN) {
-                        UserService userService = new UserService();
+                        UserService userService = UserService.getInstance();
                         if (!userService.isStrictAdmin(user)) {
                             showError("Only active super admin account admin@test.com can access Admin Portal.");
                             return;
@@ -452,7 +452,7 @@ public class LoginFrame extends BaseFrame {
                 showError("Email is not registered.");
                 return;
             }
-            User targetUser = new UserService().findByEmail(fullEmail.trim());
+            User targetUser = UserService.getInstance().findByEmail(fullEmail.trim());
             if (targetUser != null && targetUser.getRole() == UserRole.ADMIN) {
                 showError("Admin password cannot be reset via self-service recovery.\n"
                         + "Please use secure bootstrap/login flow.");

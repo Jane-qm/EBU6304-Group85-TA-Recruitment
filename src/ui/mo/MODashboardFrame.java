@@ -622,7 +622,7 @@ public class MODashboardFrame extends BaseFrame {
         if (moTeamTableModel == null || currentUser == null) {
             return;
         }
-        UserService userService = new UserService();
+        UserService userService = UserService.getInstance();
         TAProfileService profileService = new TAProfileService();
         Set<Long> myJobIds = jobById.keySet();
 

@@ -129,7 +129,6 @@ public class TAProfilePanel extends JPanel {
         if (cvList == null) {
             cvList = new ArrayList<>();
         }
-        System.out.println("Refreshed CV list, count=" + cvList.size());
     }
     
     private void initUI() {

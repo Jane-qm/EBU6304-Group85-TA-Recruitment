@@ -50,7 +50,29 @@ public class UserService {
     private final AtomicLong idGenerator = new AtomicLong(100000L);
     private final UserDAO fileDAO = new UserDAO();
 
-    public UserService() {
+    private static volatile UserService instance;
+
+    /** Shared in-memory user store for the whole app (single load from disk). */
+    public static UserService getInstance() {
+        if (instance == null) {
+            synchronized (UserService.class) {
+                if (instance == null) {
+                    instance = new UserService();
+                }
+            }
+        }
+        return instance;
+    }
+
+    /**
+     * Fresh service with its own map loaded from disk. For unit tests only;
+     * does not replace {@link #getInstance()}.
+     */
+    public static UserService newInstanceForTesting() {
+        return new UserService();
+    }
+
+    private UserService() {
         loadFromFile();
         // 不再创建演示账号，管理员从 users.json 加载
         // 如果 users.json 为空，系统启动后需要手动创建第一个用户
@@ -92,7 +114,6 @@ public class UserService {
             if (needsResave) {
                 saveToFile();
             }
-            System.out.println("加载用户数据成功，共 " + usersByEmail.size() + " 个用户");
         } catch (Exception e) {
             System.err.println("加载用户数据失败: " + e.getMessage());
         }

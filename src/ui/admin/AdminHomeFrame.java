@@ -61,7 +61,7 @@ import modules.profile.TAProfile;
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     private final SystemConfigService systemConfigService = new SystemConfigService();
 
     // Color scheme for sidebar
@@ -89,10 +89,10 @@ public class AdminHomeFrame extends JFrame {
     private JDateChooser endDateChooser;
 
     // System Data fields
-    private final TAProfileDAO taProfileDAO = new TAProfileDAO();
+    private final TAProfileDAO taProfileDAO = TAProfileDAO.getInstance();
     private final JobDAO moJobDAO = new JobDAO();
     private final ApplicationDAO applicationDAO = new ApplicationDAO();
-    private final CVDao cvDao = new CVDao();
+    private final CVDao cvDao = CVDao.getInstance();
     private final NotificationDAO notificationDAO = new NotificationDAO();
     private JTable dataTable;
     private DefaultTableModel dataTableModel;

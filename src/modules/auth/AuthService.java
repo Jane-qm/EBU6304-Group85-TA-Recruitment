@@ -25,7 +25,7 @@ import modules.profile.TAProfileService;
  */
 public class AuthService {
 
-    private static final UserService USER_SERVICE = new UserService();
+    private static final UserService USER_SERVICE = UserService.getInstance();
     private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
 
     /** Accepted school email domains enforced on registration. */
@@ -86,7 +86,6 @@ public class AuthService {
         if (!USER_SERVICE.emailExists(email)) {
             return false;
         }
-        System.out.println("Verification code sent to: " + email);
         return true;
     }
 

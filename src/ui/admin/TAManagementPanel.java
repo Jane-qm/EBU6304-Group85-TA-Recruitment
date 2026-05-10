@@ -39,7 +39,7 @@ import ui.common.TaProfileViewer;
  * TA can only be registered via registration page, not added/imported here
  */
 public class TAManagementPanel extends JPanel {
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     private final TAProfileService profileService = new TAProfileService();
     private final CVService cvService = new CVService();
     private JTable table;

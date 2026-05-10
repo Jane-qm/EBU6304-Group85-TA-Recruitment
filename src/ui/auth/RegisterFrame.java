@@ -237,13 +237,11 @@ public class RegisterFrame extends BaseFrame {
 
     @Override
     protected void onWindowMaximized() {
-        // 窗口最大化时的回调
-        System.out.println("Register window maximized");
+        // no-op
     }
 
     @Override
     protected void onWindowRestored() {
-        // 窗口还原时的回调
-        System.out.println("Register window restored");
+        // no-op
     }
 }

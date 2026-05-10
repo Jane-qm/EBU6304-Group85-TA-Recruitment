@@ -259,15 +259,9 @@ public class JobService {
                 getApplicationService().processExpiredApplicationsForJob(job.getJobId());
 
                 closedCount++;
-                System.out.println("[MOJobService] Auto-closed expired job #" + job.getJobId()
-                        + " (" + job.getModuleCode() + " – " + job.getTitle()
-                        + ") deadline was " + deadlineInstant);
             }
         }
 
-        if (closedCount > 0) {
-            System.out.println("[MOJobService] autoCloseExpiredJobs: closed " + closedCount + " job(s).");
-        }
         return closedCount;
     }
 

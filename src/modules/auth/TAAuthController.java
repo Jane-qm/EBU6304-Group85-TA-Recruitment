@@ -13,7 +13,7 @@ public class TAAuthController {
     private final TAProfileService profileService;
     
     public TAAuthController() {
-        this.userService = new UserService();
+        this.userService = UserService.getInstance();
         this.profileService = new TAProfileService();
     }
     

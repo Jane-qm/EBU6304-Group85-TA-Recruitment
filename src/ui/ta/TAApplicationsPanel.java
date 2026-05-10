@@ -48,7 +48,7 @@ public class TAApplicationsPanel extends JPanel {
     
     private final TA ta;
     private final ApplicationController applicationController;
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);

@@ -29,7 +29,7 @@ class SecurityHardeningTest {
 
     @Test
     void login_withLegacyHash_upgradesToPbkdf2() {
-        UserService service = new UserService();
+        UserService service = UserService.newInstanceForTesting();
         String email = "sec.upgrade." + UUID.randomUUID() + "@qmul.ac.uk";
         String raw = "StrongPass123";
 
@@ -51,7 +51,7 @@ class SecurityHardeningTest {
 
     @Test
     void login_fiveFailures_locksAccountFor15Minutes() {
-        UserService service = new UserService();
+        UserService service = UserService.newInstanceForTesting();
         String email = "sec.lock." + UUID.randomUUID() + "@qmul.ac.uk";
         String raw = "LockPass123";
 
@@ -72,7 +72,7 @@ class SecurityHardeningTest {
                         || System.getenv("TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD").isBlank(),
                 "Env var set in runner, skip negative bootstrap test.");
 
-        UserService service = new UserService();
+        UserService service = UserService.newInstanceForTesting();
 
         // Remove admin@test.com from in-memory map via reflection for this test.
         Field mapField = UserService.class.getDeclaredField("usersByEmail");

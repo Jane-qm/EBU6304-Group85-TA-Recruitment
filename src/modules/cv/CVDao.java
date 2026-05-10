@@ -32,11 +32,24 @@ public class CVDao {
     private static final String DATA_FILE = "data/ta_cvs.json";
     private static final String CV_DIR = "data/cvs/";
 
+    private static volatile CVDao instance;
+
     private final Gson gson;
     private final Map<Long, CVManager> cvManagers;  // key: taId
     private long nextCvId;
 
-    public CVDao() {
+    public static CVDao getInstance() {
+        if (instance == null) {
+            synchronized (CVDao.class) {
+                if (instance == null) {
+                    instance = new CVDao();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private CVDao() {
         this.gson = new GsonBuilder()
                 .setPrettyPrinting()
                 .registerTypeAdapter(java.time.LocalDateTime.class, new LocalDateTimeAdapter())
@@ -99,7 +112,6 @@ public class CVDao {
                     }
                 }
                 
-                System.out.println("加载 CV 数据成功，共 " + cvManagers.size() + " 个 TA 有 CV 记录");
             }
         } catch (IOException e) {
             System.err.println("加载 CV 数据失败: " + e.getMessage());
@@ -121,7 +133,6 @@ public class CVDao {
 
         try (Writer writer = new FileWriter(DATA_FILE)) {
             gson.toJson(allCVs, writer);
-            System.out.println("保存 CV 数据成功，共 " + allCVs.size() + " 条记录");
         } catch (IOException e) {
             System.err.println("保存 CV 数据失败: " + e.getMessage());
         }
@@ -153,7 +164,6 @@ public class CVDao {
         if (manager == null) {
             manager = new CVManager(taId, taEmail, taName);
             cvManagers.put(taId, manager);
-            System.out.println("创建新的 CVManager for taId=" + taId);
         } else {
             // 更新冗余信息
             if (taEmail != null && !taEmail.equals(manager.getTaEmail())) {
@@ -179,13 +189,9 @@ public class CVDao {
             return;
         }
 
-        System.out.println("=== CVDao.saveCV 开始 ===");
-        System.out.println("taId=" + cvInfo.getTaId() + ", cvName=" + cvInfo.getCvName() + ", cvId=" + cvInfo.getCvId());
-
         // 生成新的 CV ID
         if (cvInfo.getCvId() == null) {
             cvInfo.setCvId(nextCvId++);
-            System.out.println("生成新 CV ID: " + cvInfo.getCvId());
         }
 
         // 获取或创建 CVManager（确保使用最新的 manager）
@@ -204,28 +210,19 @@ public class CVDao {
         
         // 保存到文件
         saveAll();
-        
-        // 验证缓存是否更新成功
-        CVManager verify = cvManagers.get(cvInfo.getTaId());
-        System.out.println("缓存验证: TA " + cvInfo.getTaId() + " 现有 " + verify.getCVCount() + " 个 CV");
-        System.out.println("=== CVDao.saveCV 结束 ===");
     }
 
     /**
      * 删除 CV
      */
     public boolean deleteCV(Long taId, Long cvId) {
-        System.out.println("=== CVDao.deleteCV: taId=" + taId + ", cvId=" + cvId + " ===");
-        
         CVManager manager = cvManagers.get(taId);
         if (manager == null) {
-            System.out.println("CVManager not found for taId=" + taId);
             return false;
         }
 
         CVInfo cv = manager.getCVById(cvId);
         if (cv == null) {
-            System.out.println("CV not found for cvId=" + cvId);
             return false;
         }
 
@@ -237,7 +234,6 @@ public class CVDao {
             // 如果 manager 中不再有 CV，可以选择保留空 manager 或删除
             // 这里保留空 manager
             saveAll();
-            System.out.println("CV 删除成功");
         }
         return removed;
     }
@@ -246,8 +242,6 @@ public class CVDao {
      * 设置默认 CV
      */
     public boolean setDefaultCV(Long taId, Long cvId) {
-        System.out.println("=== CVDao.setDefaultCV: taId=" + taId + ", cvId=" + cvId + " ===");
-        
         CVManager manager = cvManagers.get(taId);
         if (manager == null) {
             return false;
@@ -256,7 +250,6 @@ public class CVDao {
         boolean success = manager.setDefaultCV(cvId);
         if (success) {
             saveAll();
-            System.out.println("设置默认 CV 成功");
         }
         return success;
     }
@@ -309,7 +302,6 @@ public class CVDao {
         }
         try {
             Files.deleteIfExists(Path.of(filePath));
-            System.out.println("删除物理文件: " + filePath);
         } catch (IOException e) {
             System.err.println("删除 CV 物理文件失败: " + e.getMessage());
         }
@@ -322,12 +314,9 @@ public class CVDao {
      * @param taId TA 用户 ID（如果为 null 则重新加载所有）
      */
     public void refreshFromFile(Long taId) {
-        System.out.println("=== CVDao.refreshFromFile: taId=" + taId + " ===");
-        
         // 保存当前文件状态，然后重新加载
         File file = new File(DATA_FILE);
         if (!file.exists()) {
-            System.out.println("CV 文件不存在，无需刷新");
             return;
         }
         
@@ -364,19 +353,14 @@ public class CVDao {
             cvManagers.clear();
             cvManagers.putAll(tempManagers);
             nextCvId = maxCvId + 1;
-            System.out.println("刷新所有 CV 缓存完成，共 " + cvManagers.size() + " 个 TA 有 CV");
         } else {
             // 只刷新指定的 TA
             CVManager refreshed = tempManagers.get(taId);
             if (refreshed != null) {
                 cvManagers.put(taId, refreshed);
-                System.out.println("刷新 TA " + taId + " 的 CV 缓存完成，共 " + refreshed.getCVCount() + " 个 CV");
             } else {
                 // 如果文件中没有该 TA 的 CV，但缓存中有，则清除缓存
-                CVManager removed = cvManagers.remove(taId);
-                if (removed != null) {
-                    System.out.println("清除 TA " + taId + " 的 CV 缓存（文件中不存在）");
-                }
+                cvManagers.remove(taId);
             }
         }
     }

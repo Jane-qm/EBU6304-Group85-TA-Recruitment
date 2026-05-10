@@ -65,7 +65,7 @@ public class MOApplicantReviewPanel extends JPanel {
     private static final String DISABLED_ACTION = "—";
 
     private final User currentUser;
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     private final JobService jobService = new JobService();
     private final ApplicationService appService = new ApplicationService();
     private final TAProfileService profileService = new TAProfileService();

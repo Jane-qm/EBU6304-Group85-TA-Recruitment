@@ -30,8 +30,8 @@ public class TAProfileService {
     private final UserService userService;
     
     public TAProfileService() {
-        this.profileDAO = new TAProfileDAO();
-        this.userService = new UserService();
+        this.profileDAO = TAProfileDAO.getInstance();
+        this.userService = UserService.getInstance();
     }
     
     public TAProfile getProfileByTaId(Long taId) {
@@ -194,7 +194,6 @@ public class TAProfileService {
      * @param taId TA 用户 ID
      */
     public void refreshProfile(Long taId) {
-        System.out.println("=== TAProfileService.refreshProfile: taId=" + taId + " ===");
         profileDAO.refreshFromFile(taId);
     }
     

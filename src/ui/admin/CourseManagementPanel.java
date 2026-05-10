@@ -50,7 +50,7 @@ public class CourseManagementPanel extends JPanel {
     private final CourseService courseService = new CourseService();
     private final JobService jobService = new JobService();
     private final ApplicationService appService = new ApplicationService();
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     private JTable table;
     private DefaultTableModel tableModel;
     private List<Course> courses;

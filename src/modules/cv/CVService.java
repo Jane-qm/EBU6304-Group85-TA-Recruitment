@@ -14,7 +14,7 @@ public class CVService {
     private final CVDao cvDao;
     
     public CVService() {
-        this.cvDao = new CVDao();
+        this.cvDao = CVDao.getInstance();
     }
     
     /**
@@ -250,12 +250,10 @@ public class CVService {
         
         CVManager manager = cvDao.getCVManager(taId);
         if (manager == null) {
-            System.out.println("getCVById: manager is null for taId=" + taId);
             return null;
         }
         
         CVInfo cv = manager.getCVById(cvId);
-        System.out.println("getCVById: taId=" + taId + ", cvId=" + cvId + ", found=" + (cv != null));
         
         // 验证 CV 属于该 TA
         if (cv != null && cv.getTaId().equals(taId)) {
@@ -268,7 +266,6 @@ public class CVService {
      * 强制刷新 TA 的 CV 缓存
      */
     public void refreshCVs(Long taId) {
-        System.out.println("=== CVService.refreshCVs: taId=" + taId + " ===");
         cvDao.refreshFromFile(taId);
     }
 }

@@ -56,7 +56,7 @@ public class TACourseCatalogPanel extends JPanel {
     private final TAAuthController authController;
     private final TAProfileController profileController;
     private final CVService cvService;
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     
     private static final Color TABLE_HEADER_BG = new Color(248, 250, 252);
     private static final Color PRIMARY_BLUE = new Color(59, 130, 246);

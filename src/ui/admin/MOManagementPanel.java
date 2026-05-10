@@ -41,7 +41,7 @@ import ui.common.TableScrollUtil;
  * Table actions: borderless bold text (blue / green / red by intent).
  */
 public class MOManagementPanel extends JPanel {
-    private final UserService userService = new UserService();
+    private final UserService userService = UserService.getInstance();
     private JTable table;
     private DefaultTableModel tableModel;
     private Runnable refreshCallback;

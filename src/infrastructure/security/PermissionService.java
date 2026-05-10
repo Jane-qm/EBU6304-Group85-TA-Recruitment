@@ -59,8 +59,6 @@ public class PermissionService {
                                 new HashSet<>(entry.getValue()));
                     }
                     roleAccessMatrix = Collections.unmodifiableMap(matrix);
-                    System.out.println("[PermissionService] Loaded RBAC matrix from "
-                            + PERMISSIONS_FILE.toAbsolutePath());
                     return;
                 }
             }
@@ -69,7 +67,6 @@ public class PermissionService {
                     + " — using built-in defaults. Reason: " + e.getMessage());
         }
         roleAccessMatrix = buildDefaults();
-        System.out.println("[PermissionService] Using built-in default RBAC matrix.");
     }
 
     private static Map<String, Set<String>> buildDefaults() {
