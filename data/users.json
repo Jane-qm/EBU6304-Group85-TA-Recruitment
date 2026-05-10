@@ -1,0 +1,104 @@
+[
+  {
+    "userId": 100002,
+    "email": "admin@bupt.edu.cn",
+    "passwordHash": "PBKDF2$120000$m+wzGDRp3buntMPhI/WkEA\u003d\u003d$kn8xof6uEm7yVRUvv6+oXQ4C+PTccObtIW6UEzsXCQE\u003d",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-08T00:00:00",
+    "lastLogin": "2026-05-09T17:17:26.1281248",
+    "mustChangePassword": false,
+    "failedLoginCount": 0
+  },
+  {
+    "userId": 100003,
+    "email": "1@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$Y9rMaRH7QvJzgPv2JhYNRw\u003d\u003d$4DzE5FeCDbIsrzyG8UxUWYJ9fjzczhRWhlIy37oNPFM\u003d",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-08T19:43:44.5723708",
+    "lastLogin": "2026-05-10T20:59:17.140514",
+    "mustChangePassword": false,
+    "failedLoginCount": 0
+  },
+  {
+    "userId": 100008,
+    "email": "mo5@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$ooYcfMkbL1ZYf+shpD/8EQ\u003d\u003d$CiW7DV4mez/MzZEQhtM8BPXVkrW3uUZrEJjniUwScvs\u003d",
+    "role": "MO",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T21:00:11.9062527",
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "name": "Chen Jie"
+  },
+  {
+    "userId": 100001,
+    "email": "admin@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$XbpaB3BP8C49xmjePKapaQ\u003d\u003d$H6Pwx1l9PxDTxKzDBwM5m6fQdqr4cn7qvEPXIWZfM0Y\u003d",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-08T00:00:00",
+    "lastLogin": "2026-05-10T19:48:56.9318026",
+    "mustChangePassword": false,
+    "failedLoginCount": 0
+  },
+  {
+    "userId": 100007,
+    "email": "mo4@bupt.edu.cn",
+    "passwordHash": "PBKDF2$120000$ppf4jMWmoPmHaUmY9TKGMQ\u003d\u003d$HH7rwKkSYUwgBeTPsiDlCbMoZECP4w8VZKDmLtmplP8\u003d",
+    "role": "MO",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T21:00:11.7742373",
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "name": "Zhao Lei"
+  },
+  {
+    "userId": 100009,
+    "email": "2@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$3ZCJM/U86lcIHpgyLG6PKQ\u003d\u003d$nck/ayk7ARyWTpr7LyfnI4hJUmEIcW3ZDVJ7Za3f3AA\u003d",
+    "role": "TA",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-10T19:54:40.9903735",
+    "lastLogin": "2026-05-10T19:54:45.1937641",
+    "mustChangePassword": false,
+    "failedLoginCount": 0
+  },
+  {
+    "userId": 100005,
+    "email": "mo2@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$FLHw0IhvaZyrCIKUvXiZwQ\u003d\u003d$Ex9wBq/pTNE/ZwzQB9/rPCYSm7vq5dJKpKiVGYhjJPg\u003d",
+    "role": "MO",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T21:00:11.5035958",
+    "lastLogin": "2026-05-10T19:47:54.1108787",
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "name": "Li Na"
+  },
+  {
+    "userId": 100004,
+    "email": "mo1@qmul.ac.uk",
+    "passwordHash": "PBKDF2$120000$GHsRsT7d//++U/cx0itfUg\u003d\u003d$DiZT3oScM1li8YZR/6RsYygIhj7xRWklJDMJN8OceFI\u003d",
+    "role": "MO",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T21:00:11.3672451",
+    "lastLogin": "2026-05-10T19:59:26.8619738",
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "name": "Zhang Wei"
+  },
+
+  {
+    "userId": 100006,
+    "email": "mo3@bupt.edu.cn",
+    "passwordHash": "PBKDF2$120000$K8eqP68CyC90AwIm6cxxIQ\u003d\u003d$n9iNyMaixBDOl2XVpqnCk6eSrnttajZ2AzsP7GfBtOk\u003d",
+    "role": "MO",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-09T21:00:11.6337252",
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "name": "Wang Qiang"
+  }
+]

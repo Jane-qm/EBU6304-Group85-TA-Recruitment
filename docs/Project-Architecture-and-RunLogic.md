@@ -598,7 +598,7 @@ protection, and operational auditability.
 | Account lockout | 5 failed attempts lock account for 15 minutes | `User.failedLoginCount`, `User.lockedUntil`, enforced in `UserService.login()` |
 | Auth audit log | Record success/failure without plaintext passwords | `AuthAuditLogger` -> `data/auth_audit.log` |
 | Admin audit log | Record account/config/export operations | `AdminAuditLogger` -> `data/admin_audit.log` |
-| Runtime data separation | Prevent committing live credential/config files | `.gitignore` excludes `data/users.json`, `data/permissions.json`, and audit logs; templates added |
+| Runtime data separation | Limit what leaves the machine unreviewed | `.gitignore` excludes `data/permissions.json` and audit logs; `data/users.json` may be committed for shared demo accounts (avoid real secrets) |
 
 ### 12.3 Data model changes (`users.json`)
 
