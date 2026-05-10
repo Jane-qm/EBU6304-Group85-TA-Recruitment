@@ -1,10 +1,7 @@
-package test.java.modules.auth;
+package modules.auth;
 
-import modules.auth.AuthService;
 import modules.user.UserRole;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -145,4 +142,42 @@ class AuthServiceTest {
         // demo@qmul.ac.uk is expected NOT to be in the seed data; result is just null
         assertNull(authService.login("nobody@qmul.ac.uk", "WrongPass"));
     }
+
+    // ── resetPassword validation (before UserService) ───────────────────────────
+
+    @Test
+    void resetPassword_withShortPassword_throwsIllegalArgument() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword("x@qmul.ac.uk", "abc"));
+        assertTrue(ex.getMessage().toLowerCase().contains("password")
+                        || ex.getMessage().contains("6"),
+                "Expected password-length error; got: " + ex.getMessage());
+    }
+
+    @Test
+    void resetPassword_withNullPassword_throwsIllegalArgument() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword("x@qmul.ac.uk", null));
+    }
+
+    @Test
+    void resetPassword_withInvalidEmail_throwsIllegalArgument() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword("not-an-email", "Secret12"));
+    }
+
+    // ── checkEmailExists validation ─────────────────────────────────────────────
+
+    @Test
+    void checkEmailExists_withBlankEmail_throwsIllegalArgument() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.checkEmailExists("   "));
+    }
+
+    @Test
+    void checkEmailExists_withInvalidFormat_throwsIllegalArgument() {
+        assertThrows(IllegalArgumentException.class,
+                () -> authService.checkEmailExists("nodomain"));
+    }
 }
+

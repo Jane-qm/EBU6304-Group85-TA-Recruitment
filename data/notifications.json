@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "notificationId": 7001,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "New Offer Received",
+    "content": "You have received an offer for EBU6305 with 10 hours/week. Please accept or reject before 2026-05-17 23:59:59.",
+    "type": "OFFER_RESPONSE",
+    "read": true,
+    "createdAt": "2026-05-10T19:49:39.8514019"
+  },
+  {
+    "notificationId": 7002,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "New Offer Received",
+    "content": "You have received an offer for EBU6309 with 10 hours/week. Please accept or reject before 2026-05-23 23:59:59.",
+    "type": "OFFER_RESPONSE",
+    "read": true,
+    "createdAt": "2026-05-10T19:53:43.7247126"
+  },
+  {
+    "notificationId": 7003,
+    "recipientUserId": 100004,
+    "recipientRole": "MO",
+    "title": "Offer Accepted",
+    "content": "TA has accepted the offer for EBU6309 - Artificial Intelligence",
+    "type": "OFFER_RESPONSE",
+    "read": true,
+    "createdAt": "2026-05-10T19:54:08.9908443"
+  },
+  {
+    "notificationId": 7004,
+    "recipientUserId": 100003,
+    "recipientRole": "TA",
+    "title": "Offer Accepted",
+    "content": "Congratulations! You have accepted the offer and been hired.",
+    "type": "OFFER_RESPONSE",
+    "read": false,
+    "createdAt": "2026-05-10T19:54:08.9927236"
+  }
+]
