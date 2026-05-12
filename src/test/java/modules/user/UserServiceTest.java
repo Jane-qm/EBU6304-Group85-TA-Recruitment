@@ -2,7 +2,10 @@ package modules.user;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -11,31 +14,78 @@ import static org.junit.jupiter.api.Assertions.*;
  * Tests for {@link UserService} admin helpers and account lifecycle methods.
  * Uses {@link UserService#newInstanceForTesting()} and unique emails (same pattern as
  * {@link infrastructure.security.SecurityHardeningTest}) so behaviour is observable via persisted data.
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Updated strict admin tests for the dual seeded admin access policy
+ * - Added regression coverage to prevent approved admin emails with non-admin roles from being promoted
  */
 class UserServiceTest {
 
     @Test
-    void isStrictAdmin_activeAdmin_returnsTrue() {
+    void isStrictAdmin_approvedActiveSeededAdmins_returnsTrue() {
         UserService service = UserService.newInstanceForTesting();
-        Admin admin = new Admin("admin.strict." + UUID.randomUUID() + "@qmul.ac.uk", "AdminPass1");
-        assertTrue(service.isStrictAdmin(admin));
+
+        Admin qmulAdmin = new Admin(" ADMIN@QMUL.AC.UK ", "AdminPass1");
+        Admin buptAdmin = new Admin("Admin@BUPT.edu.cn", "AdminPass1");
+
+        assertTrue(service.isStrictAdmin(qmulAdmin));
+        assertTrue(service.isStrictAdmin(buptAdmin));
     }
 
     @Test
-    void isStrictAdmin_nullOrNonAdminOrInactive_returnsFalse() {
+    void isStrictAdmin_unapprovedAdminOrWrongRoleOrInactive_returnsFalse() {
         UserService service = UserService.newInstanceForTesting();
         assertFalse(service.isStrictAdmin(null));
 
-        TA ta = new TA("ta.strict." + UUID.randomUUID() + "@qmul.ac.uk", "TaPass123");
-        assertFalse(service.isStrictAdmin(ta));
+        Admin unapprovedAdmin = new Admin("admin.strict." + UUID.randomUUID() + "@qmul.ac.uk", "AdminPass1");
+        assertFalse(service.isStrictAdmin(unapprovedAdmin));
 
-        Admin pending = new Admin("admin.pending." + UUID.randomUUID() + "@qmul.ac.uk", "AdminPass1");
+        TA taUsingApprovedEmail = new TA("admin@qmul.ac.uk", "TaPass123");
+        assertFalse(service.isStrictAdmin(taUsingApprovedEmail));
+
+        MO moUsingApprovedEmail = new MO("admin@bupt.edu.cn", "MoPass123");
+        assertFalse(service.isStrictAdmin(moUsingApprovedEmail));
+
+        Admin pending = new Admin("admin@qmul.ac.uk", "AdminPass1");
         pending.setStatus(AccountStatus.PENDING);
         assertFalse(service.isStrictAdmin(pending));
 
-        Admin disabled = new Admin("admin.disabled." + UUID.randomUUID() + "@qmul.ac.uk", "AdminPass1");
+        Admin disabled = new Admin("admin@bupt.edu.cn", "AdminPass1");
         disabled.setStatus(AccountStatus.DISABLED);
         assertFalse(service.isStrictAdmin(disabled));
+    }
+
+    @Test
+    void ensureSeededAdminAccounts_doesNotPromoteApprovedEmailWithNonAdminRole() throws Exception {
+        UserService service = UserService.newInstanceForTesting();
+        Map<String, User> usersByEmail = getUsersByEmailMap(service);
+
+        TA taUsingApprovedEmail = new TA("admin@qmul.ac.uk", "TaPass123");
+        taUsingApprovedEmail.setUserId(999001L);
+        taUsingApprovedEmail.setStatus(AccountStatus.ACTIVE);
+        usersByEmail.put("admin@qmul.ac.uk", taUsingApprovedEmail);
+
+        invokeEnsureSeededAdminAccounts(service);
+
+        User storedUser = usersByEmail.get("admin@qmul.ac.uk");
+        assertSame(taUsingApprovedEmail, storedUser);
+        assertEquals(UserRole.TA, storedUser.getRole());
+        assertFalse(service.isStrictAdmin(storedUser));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, User> getUsersByEmailMap(UserService service) throws Exception {
+        Field field = UserService.class.getDeclaredField("usersByEmail");
+        field.setAccessible(true);
+        return (Map<String, User>) field.get(service);
+    }
+
+    private void invokeEnsureSeededAdminAccounts(UserService service) throws Exception {
+        Method method = UserService.class.getDeclaredMethod("ensureSeededAdminAccounts");
+        method.setAccessible(true);
+        method.invoke(service);
     }
 
     @Test
