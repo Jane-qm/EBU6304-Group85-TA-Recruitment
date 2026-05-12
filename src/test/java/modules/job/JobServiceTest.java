@@ -106,6 +106,29 @@ class JobServiceTest {
     }
 
     @Test
+    void createOrUpdate_WhenOpenJobAlreadyPublishedPreviously_SkipsWindowCheckAndSaves() {
+        // 测试场景：已开放岗位再次更新时，预期不重复校验招聘窗口并正常保存
+        // Given
+        Job previous = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        previous.setApplicationDeadline(LocalDate.now().plusDays(1).atTime(23, 59, 59));
+        previous.setOfferResponseDeadline(LocalDate.now().plusDays(2).atTime(23, 59, 59));
+        Job incoming = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        incoming.setApplicationDeadline(LocalDate.now().plusDays(1).atTime(23, 59, 59));
+        incoming.setOfferResponseDeadline(LocalDate.now().plusDays(2).atTime(23, 59, 59));
+        when(jobDAO.findAll()).thenReturn(List.of(previous));
+        when(jobDAO.save(any(Job.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        doNothing().when(systemConfigService).validateDateWithinApplicationCycle(any(LocalDate.class));
+        doNothing().when(systemConfigService).validateDeadlineAfterNow(any(LocalDate.class));
+        when(systemConfigService.getConfig()).thenReturn(new SystemConfig());
+
+        // When
+        Job result = jobService.createOrUpdate(incoming);
+
+        // Then
+        assertEquals(incoming, result);
+    }
+
+    @Test
     void listAll_WhenJobsExist_ReturnsJobsWithSyncedDeadlines() {
         // 测试场景：查询全部岗位时存在描述中的 Deadline，预期返回同步后的岗位列表
         // Given
@@ -162,6 +185,36 @@ class JobServiceTest {
 
         // Then
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void listPublishedJobs_WhenStatusIsPublishedAndDeadlineToday_ReturnsVisibleJob() {
+        // 测试场景：岗位状态为 PUBLISHED 且截止时间尚未过去，预期返回可见岗位
+        // Given
+        Job publishedJob = createJob(2001L, 3001L, "EBU6304", "PUBLISHED");
+        publishedJob.setApplicationDeadline(LocalDateTime.now().plusHours(2));
+        when(jobDAO.findAll()).thenReturn(List.of(publishedJob));
+
+        // When
+        List<Job> result = jobService.listPublishedJobs();
+
+        // Then
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void listPublishedJobs_WhenDeadlineMissing_ReturnsVisibleJob() {
+        // 测试场景：岗位缺少申请截止时间，当前实现预期仍返回可见岗位
+        // Given
+        Job publishedJob = createJob(2001L, 3001L, "EBU6304", "PUBLISHED");
+        publishedJob.setApplicationDeadline(null);
+        when(jobDAO.findAll()).thenReturn(List.of(publishedJob));
+
+        // When
+        List<Job> result = jobService.listPublishedJobs();
+
+        // Then
+        assertEquals(1, result.size());
     }
 
     @Test
@@ -286,6 +339,20 @@ class JobServiceTest {
     }
 
     @Test
+    void closeJob_WhenJobDoesNotExist_ThrowsIllegalArgumentException() {
+        // 测试场景：关闭不存在岗位，预期抛出非法参数异常
+        // Given
+        when(jobDAO.findAll()).thenReturn(List.of());
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.closeJob(2001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Job not found."));
+    }
+
+    @Test
     void extractDeadline_WhenPersistedDeadlineExists_ReturnsPersistedDate() {
         // 测试场景：岗位已持久化 applicationDeadline，预期直接返回该日期
         // Given
@@ -312,6 +379,33 @@ class JobServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Job deadline must use format YYYY-MM-DD"));
+    }
+
+    @Test
+    void extractDeadline_WhenJobIsNull_ReturnsNull() {
+        // 测试场景：解析截止日期时岗位为空，预期返回 null
+        // Given
+        Job job = null;
+
+        // When
+        LocalDate result = jobService.extractDeadline(job);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void extractDeadline_WhenDescriptionMissing_ReturnsNull() {
+        // 测试场景：岗位描述缺失且无持久化截止时间，预期返回 null
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setDescription(" ");
+
+        // When
+        LocalDate result = jobService.extractDeadline(job);
+
+        // Then
+        assertNull(result);
     }
 
     @Test
@@ -380,6 +474,103 @@ class JobServiceTest {
     }
 
     @Test
+    void validateOfferResponseForPublishedJob_WhenDraftJob_ReturnsWithoutException() {
+        // 测试场景：草稿岗位校验 offer 响应截止时间，预期直接返回不抛异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "DRAFT");
+
+        // When
+        jobService.validateOfferResponseForPublishedJob(job);
+
+        // Then
+        assertTrue(true);
+    }
+
+    @Test
+    void validateOfferResponseForPublishedJob_WhenApplicationDeadlineMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：offer 截止时间存在但申请截止时间缺失，预期抛出非法参数异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setApplicationDeadline(null);
+        job.setOfferResponseDeadline(LocalDate.now().plusDays(2).atTime(23, 59, 59));
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.validateOfferResponseForPublishedJob(job));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Application deadline must be set"));
+    }
+
+    @Test
+    void validateOfferResponseForPublishedJob_WhenOfferDateBeforeApplicationDate_ThrowsIllegalArgumentException() {
+        // 测试场景：offer 响应日期早于申请截止日期，预期抛出非法参数异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setApplicationDeadline(LocalDate.now().plusDays(2).atTime(23, 59, 59));
+        job.setOfferResponseDeadline(LocalDate.now().plusDays(1).atTime(23, 59, 59));
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.validateOfferResponseForPublishedJob(job));
+
+        // Then
+        assertTrue(exception.getMessage().contains("on or after the application deadline"));
+    }
+
+    @Test
+    void validateOfferResponseForPublishedJob_WhenOfferDateAfterRecruitmentEnd_ThrowsIllegalArgumentException() {
+        // 测试场景：offer 响应日期晚于管理员招聘周期结束时间，预期抛出非法参数异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setApplicationDeadline(LocalDate.now().plusDays(1).atTime(23, 59, 59));
+        job.setOfferResponseDeadline(LocalDate.now().plusDays(4).atTime(23, 59, 59));
+        SystemConfig config = new SystemConfig();
+        config.setApplicationStart(LocalDate.now().atStartOfDay());
+        config.setApplicationEnd(LocalDate.now().plusDays(2).atTime(23, 59, 59));
+        when(systemConfigService.getConfig()).thenReturn(config);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.validateOfferResponseForPublishedJob(job));
+
+        // Then
+        assertTrue(exception.getMessage().contains("on or before the end of the administrator recruitment period"));
+    }
+
+    @Test
+    void validateOfferResponseForPublishedJob_WhenOfferDateBeforeToday_ThrowsIllegalArgumentException() {
+        // 测试场景：offer 响应日期早于今天，预期抛出非法参数异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setApplicationDeadline(LocalDate.now().minusDays(2).atTime(23, 59, 59));
+        job.setOfferResponseDeadline(LocalDate.now().minusDays(1).atTime(23, 59, 59));
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.validateOfferResponseForPublishedJob(job));
+
+        // Then
+        assertTrue(exception.getMessage().contains("today or a future date"));
+    }
+
+    @Test
+    void validateOfferResponseForPublishedJob_WhenOfferTimeAlreadyPassedToday_ThrowsIllegalArgumentException() {
+        // 测试场景：offer 响应时间虽为今天但时刻已过，预期抛出非法参数异常
+        // Given
+        Job job = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        job.setApplicationDeadline(LocalDate.now().atStartOfDay());
+        job.setOfferResponseDeadline(LocalDateTime.now().minusMinutes(5));
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> jobService.validateOfferResponseForPublishedJob(job));
+
+        // Then
+        assertTrue(exception.getMessage().contains("already passed"));
+    }
+
+    @Test
     void autoCloseExpiredJobs_WhenOpenJobIsExpired_ClosesJobAndReturnsCount() {
         // 测试场景：存在已过期开放岗位，预期自动关闭并返回关闭数量
         // Given
@@ -404,6 +595,35 @@ class JobServiceTest {
         Job activeJob = createJob(2001L, 3001L, "EBU6304", "OPEN");
         activeJob.setApplicationDeadline(LocalDateTime.now().plusDays(1));
         when(jobDAO.findAll()).thenReturn(List.of(activeJob));
+
+        // When
+        int result = jobService.autoCloseExpiredJobs();
+
+        // Then
+        assertEquals(0, result);
+    }
+
+    @Test
+    void autoCloseExpiredJobs_WhenJobStatusIsDraft_SkipsAndReturnsZero() {
+        // 测试场景：岗位状态不是 OPEN/PUBLISHED，预期跳过并返回 0
+        // Given
+        Job draftJob = createJob(2001L, 3001L, "EBU6304", "DRAFT");
+        when(jobDAO.findAll()).thenReturn(List.of(draftJob));
+
+        // When
+        int result = jobService.autoCloseExpiredJobs();
+
+        // Then
+        assertEquals(0, result);
+    }
+
+    @Test
+    void autoCloseExpiredJobs_WhenDeadlineMissing_SkipsAndReturnsZero() {
+        // 测试场景：开放岗位缺少截止日期，预期跳过并返回 0
+        // Given
+        Job openJob = createJob(2001L, 3001L, "EBU6304", "OPEN");
+        openJob.setApplicationDeadline(null);
+        when(jobDAO.findAll()).thenReturn(List.of(openJob));
 
         // When
         int result = jobService.autoCloseExpiredJobs();

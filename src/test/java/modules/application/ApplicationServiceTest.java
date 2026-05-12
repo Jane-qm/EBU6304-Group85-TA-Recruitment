@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -277,6 +278,63 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void validateApplicationAccess_WhenCvMissing_ThrowsIllegalStateException() {
+        // 测试场景：资料完整但未上传 CV，预期抛出非法状态异常
+        // Given
+        TAProfile profile = new TAProfile(1001L, "student@qmul.ac.uk");
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(profile);
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.hasCV(1001L)).thenReturn(false);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.validateApplicationAccess(1001L, 2001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Please upload a CV before applying."));
+    }
+
+    @Test
+    void validateApplicationAccess_WhenPublishedJobMissing_ThrowsIllegalStateException() {
+        // 测试场景：资料和 CV 都齐全但岗位不可申请，预期抛出非法状态异常
+        // Given
+        TAProfile profile = new TAProfile(1001L, "student@qmul.ac.uk");
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(profile);
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.hasCV(1001L)).thenReturn(true);
+        when(jobService.getPublishedJob(2001L)).thenReturn(null);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.validateApplicationAccess(1001L, 2001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("not available for application"));
+    }
+
+    @Test
+    void validateApplicationAccess_WhenPublishedJobExpired_ThrowsIllegalStateException() {
+        // 测试场景：岗位已过申请截止时间，预期抛出非法状态异常
+        // Given
+        Job job = createOpenJob(2001L, LocalDateTime.now().minusMinutes(1));
+        TAProfile profile = new TAProfile(1001L, "student@qmul.ac.uk");
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(profile);
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.hasCV(1001L)).thenReturn(true);
+        when(jobService.getPublishedJob(2001L)).thenReturn(job);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.validateApplicationAccess(1001L, 2001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("deadline for this position has passed"));
+    }
+
+    @Test
     void submitApplication_WhenRecruitmentClosed_ThrowsIllegalStateException() {
         // 测试场景：招聘周期关闭时提交申请，预期抛出非法状态异常
         // Given
@@ -308,6 +366,88 @@ class ApplicationServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Please complete your TA profile before applying."));
+    }
+
+    @Test
+    void submitApplication_WhenSelectedCvMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：所选 CV 不存在，预期抛出非法参数异常
+        // Given
+        when(systemConfigService.isWithinApplicationCycle(any(LocalDateTime.class))).thenReturn(true);
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(new TAProfile(1001L, "student@qmul.ac.uk"));
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.getCVById(1001L, 5001L)).thenReturn(null);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.submitApplication(1001L, 2001L, "statement", 5001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Selected CV not found"));
+    }
+
+    @Test
+    void submitApplication_WhenJobDeadlinePassed_ThrowsIllegalStateException() {
+        // 测试场景：岗位已过申请截止时间，预期抛出非法状态异常
+        // Given
+        Job job = createOpenJob(2001L, LocalDateTime.now().minusMinutes(1));
+        when(systemConfigService.isWithinApplicationCycle(any(LocalDateTime.class))).thenReturn(true);
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(new TAProfile(1001L, "student@qmul.ac.uk"));
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.getCVById(1001L, 5001L)).thenReturn(createCvInfo(1001L, 5001L));
+        when(jobService.getPublishedJob(2001L)).thenReturn(job);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.submitApplication(1001L, 2001L, "statement", 5001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("deadline for this position has passed"));
+    }
+
+    @Test
+    void submitApplication_WhenPreviousApplicationRejected_ThrowsIllegalStateException() {
+        // 测试场景：同一岗位曾被拒绝后再次申请，预期抛出非法状态异常
+        // Given
+        Job job = createOpenJob(2001L, LocalDateTime.now().plusDays(1));
+        Application existing = createApplication(3001L, 1001L, 2001L, ApplicationStatus.REJECTED);
+        when(systemConfigService.isWithinApplicationCycle(any(LocalDateTime.class))).thenReturn(true);
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(new TAProfile(1001L, "student@qmul.ac.uk"));
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.getCVById(1001L, 5001L)).thenReturn(createCvInfo(1001L, 5001L));
+        when(jobService.getPublishedJob(2001L)).thenReturn(job);
+        when(applicationDAO.findAll()).thenReturn(List.of(existing));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.submitApplication(1001L, 2001L, "statement", 5001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("previous application for this position was rejected"));
+    }
+
+    @Test
+    void submitApplication_WhenAlreadyHiredForJob_ThrowsIllegalStateException() {
+        // 测试场景：同一岗位已录用后再次申请，当前实现会先命中 active application 校验并抛出异常
+        // Given
+        Job job = createOpenJob(2001L, LocalDateTime.now().plusDays(1));
+        Application existing = createApplication(3001L, 1001L, 2001L, ApplicationStatus.HIRED);
+        when(systemConfigService.isWithinApplicationCycle(any(LocalDateTime.class))).thenReturn(true);
+        doNothing().when(taProfileService).refreshProfile(1001L);
+        when(taProfileService.getProfileByTaId(1001L)).thenReturn(new TAProfile(1001L, "student@qmul.ac.uk"));
+        when(taProfileService.isProfileComplete(1001L)).thenReturn(true);
+        when(cvService.getCVById(1001L, 5001L)).thenReturn(createCvInfo(1001L, 5001L));
+        when(jobService.getPublishedJob(2001L)).thenReturn(job);
+        when(applicationDAO.findAll()).thenReturn(List.of(existing));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.submitApplication(1001L, 2001L, "statement", 5001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("already have an active application"));
     }
 
     @Test
@@ -431,6 +571,38 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void cancelApplication_WhenStatusIsNotCancellable_ThrowsIllegalStateException() {
+        // 测试场景：取消非可取消状态申请，预期抛出非法状态异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.HIRED);
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.cancelApplication(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Cannot cancel application"));
+    }
+
+    @Test
+    void cancelApplication_WhenDeadlinePassed_ThrowsIllegalStateException() {
+        // 测试场景：申请截止后取消申请，预期抛出非法状态异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        Job job = createOpenJob(2001L, LocalDateTime.now().minusMinutes(1));
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+        when(jobService.getJobById(2001L)).thenReturn(job);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.cancelApplication(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Cannot cancel after the application deadline"));
+    }
+
+    @Test
     void sendOffer_WhenApplicationIsEligible_ReturnsOfferSentApplication() {
         // 测试场景：MO 对可处理申请发送 Offer，预期申请状态变为 OFFER_SENT
         // Given
@@ -463,6 +635,70 @@ class ApplicationServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Application not found."));
+    }
+
+    @Test
+    void sendOffer_WhenApplicationStatusNotEligible_ThrowsIllegalStateException() {
+        // 测试场景：对非 SUBMITTED/WAITLISTED 申请发送 Offer，预期抛出非法状态异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.REJECTED);
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.sendOffer(3001L, 10));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Cannot send offer"));
+    }
+
+    @Test
+    void sendOffer_WhenOfferedHoursNotPositive_ThrowsIllegalArgumentException() {
+        // 测试场景：发送 Offer 时工时小于等于 0，预期抛出非法参数异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.sendOffer(3001L, 0));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Offered hours must be positive"));
+    }
+
+    @Test
+    void sendOffer_WhenJobMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：发送 Offer 时岗位不存在，预期抛出非法参数异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+        when(jobService.getJobById(2001L)).thenReturn(null);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.sendOffer(3001L, 10));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Job not found."));
+    }
+
+    @Test
+    void sendOffer_WhenJobOfferDeadlinePassed_ThrowsIllegalStateException() {
+        // 测试场景：岗位 offer 响应截止时间已过，预期抛出非法状态异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        Job job = createOpenJob(2001L, LocalDateTime.now().plusDays(1));
+        job.setOfferResponseDeadline(LocalDateTime.now().minusMinutes(1));
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+        when(jobService.getJobById(2001L)).thenReturn(job);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.sendOffer(3001L, 10));
+
+        // Then
+        assertTrue(exception.getMessage().contains("offer response deadline for this job has passed"));
     }
 
     @Test
@@ -503,6 +739,35 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void acceptOffer_WhenApplicationDoesNotExist_ThrowsIllegalArgumentException() {
+        // 测试场景：接受不存在的 Offer，预期抛出非法参数异常
+        // Given
+        when(applicationDAO.findAll()).thenReturn(List.of());
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.acceptOffer(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Application not found."));
+    }
+
+    @Test
+    void acceptOffer_WhenStatusIsNotOfferSent_ThrowsIllegalStateException() {
+        // 测试场景：接受非 OFFER_SENT 状态申请，预期抛出非法状态异常
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.acceptOffer(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("must be in OFFER_SENT status"));
+    }
+
+    @Test
     void rejectOffer_WhenOfferIsValid_ReturnsRejectedApplication() {
         // 测试场景：TA 拒绝有效 Offer，预期申请状态变为 REJECTED
         // Given
@@ -537,6 +802,38 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void rejectOffer_WhenApplicationDoesNotExist_ThrowsIllegalArgumentException() {
+        // 测试场景：拒绝不存在的 Offer，预期抛出非法参数异常
+        // Given
+        when(applicationDAO.findAll()).thenReturn(List.of());
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.rejectOffer(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Application not found."));
+    }
+
+    @Test
+    void rejectOffer_WhenOfferExpired_ThrowsIllegalStateException() {
+        // 测试场景：拒绝已过期 Offer，预期抛出非法状态异常并标记 EXPIRED
+        // Given
+        Application application = createApplication(3001L, 1001L, 2001L, ApplicationStatus.OFFER_SENT);
+        application.setOfferExpiryAt(LocalDateTime.now().minusDays(1));
+        when(applicationDAO.findAll()).thenReturn(List.of(application));
+        when(applicationDAO.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> applicationService.rejectOffer(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("offer has expired"));
+        assertEquals(ApplicationStatus.EXPIRED, application.getStatus());
+    }
+
+    @Test
     void autoExpireOffers_WhenExpiredOfferExists_ReturnsExpiredCount() {
         // 测试场景：存在已过期 Offer，预期自动过期并返回数量
         // Given
@@ -566,6 +863,21 @@ class ApplicationServiceTest {
 
         // Then
         assertEquals(0, result);
+    }
+
+    @Test
+    void autoExpireOffers_WhenApplicationNotOfferSent_SkipsWithoutSaving() {
+        // 测试场景：申请不是 OFFER_SENT 状态，预期跳过且不保存
+        // Given
+        Application submitted = createApplication(3001L, 1001L, 2001L, ApplicationStatus.SUBMITTED);
+        when(applicationDAO.findAll()).thenReturn(List.of(submitted));
+
+        // When
+        int result = applicationService.autoExpireOffers();
+
+        // Then
+        assertEquals(0, result);
+        verify(applicationDAO, never()).save(any(Application.class));
     }
 
     @Test
@@ -631,6 +943,20 @@ class ApplicationServiceTest {
     }
 
     @Test
+    void markAsWaitlisted_WhenApplicationMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：加入候选名单的申请不存在，预期抛出非法参数异常
+        // Given
+        when(applicationDAO.findAll()).thenReturn(List.of());
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.markAsWaitlisted(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Application not found."));
+    }
+
+    @Test
     void rejectApplication_WhenApplicationIsSubmitted_ReturnsRejectedApplication() {
         // 测试场景：MO 拒绝已提交申请，预期状态变为 REJECTED
         // Given
@@ -658,6 +984,20 @@ class ApplicationServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Cannot reject application"));
+    }
+
+    @Test
+    void rejectApplication_WhenApplicationMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：拒绝的申请不存在，预期抛出非法参数异常
+        // Given
+        when(applicationDAO.findAll()).thenReturn(List.of());
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> applicationService.rejectApplication(3001L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Application not found."));
     }
 
     @Test

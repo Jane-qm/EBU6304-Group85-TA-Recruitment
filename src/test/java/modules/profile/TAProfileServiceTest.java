@@ -1,6 +1,7 @@
 package modules.profile;
 
 import modules.user.TA;
+import modules.user.UserRole;
 import modules.user.User;
 import modules.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,8 +17,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +83,49 @@ class TAProfileServiceTest {
     }
 
     @Test
+    void getProfileByEmail_WhenProfileDoesNotExist_ReturnsNull() {
+        // 测试场景：按邮箱未查询到资料，预期返回 null
+        // Given
+        when(profileDAO.findByEmail("student@qmul.ac.uk")).thenReturn(null);
+
+        // When
+        TAProfile result = taProfileService.getProfileByEmail("student@qmul.ac.uk");
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getProfileByUser_WhenUserIdIsNull_ReturnsNull() {
+        // 测试场景：用户对象存在但 userId 为空，预期返回 null
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+
+        // When
+        TAProfile result = taProfileService.getProfileByUser(user);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getProfileByUser_WhenProfileFoundByTaId_ReturnsExistingProfileWithoutSaving() {
+        // 测试场景：按 taId 直接找到资料，预期直接返回且不触发重建保存
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile existing = new TAProfile(1001L, "student@qmul.ac.uk");
+        when(profileDAO.findByTaId(1001L)).thenReturn(existing);
+
+        // When
+        TAProfile result = taProfileService.getProfileByUser(user);
+
+        // Then
+        assertEquals(existing, result);
+        verify(profileDAO, never()).save(existing);
+    }
+
+    @Test
     void getProfileByUser_WhenProfileNotFound_CreatesAndSavesNewProfile() {
         // 测试场景：按用户查询时资料不存在，预期创建新资料并保存
         // Given
@@ -95,6 +141,25 @@ class TAProfileServiceTest {
         assertNotNull(result);
         assertEquals(1001L, result.getTaId());
         verify(profileDAO).save(result);
+    }
+
+    @Test
+    void getProfileByUser_WhenProfileFoundByEmailWithDifferentTaId_RebindsAndReturnsProfile() {
+        // 测试场景：按邮箱找到旧资料但 taId 不一致，预期删除旧记录、重绑新 taId 并保存
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = new TAProfile(999L, "student@qmul.ac.uk");
+        when(profileDAO.findByTaId(1001L)).thenReturn(null);
+        when(profileDAO.findByEmail("student@qmul.ac.uk")).thenReturn(profile);
+
+        // When
+        TAProfile result = taProfileService.getProfileByUser(user);
+
+        // Then
+        assertEquals(1001L, result.getTaId());
+        verify(profileDAO).delete(999L);
+        verify(profileDAO).save(profile);
     }
 
     @Test
@@ -143,6 +208,127 @@ class TAProfileServiceTest {
     }
 
     @Test
+    void saveProfile_WhenUserIsNotTa_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时 taId 对应用户不是 TA，预期抛出非法参数异常
+        // Given
+        User user = new User("student@qmul.ac.uk", "Password123", UserRole.ADMIN) {};
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid TA ID"));
+    }
+
+    @Test
+    void saveProfile_WhenUserDoesNotExist_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时 taId 对应用户不存在，预期抛出非法参数异常
+        // Given
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        when(userService.findById(1001L)).thenReturn(null);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid TA ID"));
+    }
+
+    @Test
+    void saveProfile_WhenStudentIdMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时 studentId 缺失，预期抛出非法参数异常
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        profile.setStudentId(null);
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Student ID is required"));
+    }
+
+    @Test
+    void saveProfile_WhenEmailInvalid_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时邮箱格式非法，预期抛出非法参数异常
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "invalid-email");
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid email format"));
+    }
+
+    @Test
+    void saveProfile_WhenSurnameMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时 surname 缺失，预期抛出非法参数异常
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        profile.setSurname(" ");
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Surname is required"));
+    }
+
+    @Test
+    void saveProfile_WhenPhoneInvalid_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时手机号格式非法，预期抛出非法参数异常
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        profile.setPhone("abc");
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid phone number format"));
+    }
+
+    @Test
+    void saveProfile_WhenSupervisorMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：保存资料时导师姓名缺失，预期抛出非法参数异常
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        TAProfile profile = createCompleteProfile(1001L, "student@qmul.ac.uk");
+        profile.setSupervisor(" ");
+        when(userService.findById(1001L)).thenReturn(user);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.saveProfile(profile));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Supervisor name is required"));
+    }
+
+    @Test
     void updateProfile_WhenProfileExists_PreservesCreatedAtAndSaves() {
         // 测试场景：更新已存在资料，预期保留原 createdAt 并保存
         // Given
@@ -173,6 +359,20 @@ class TAProfileServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Profile not found"));
+    }
+
+    @Test
+    void updateProfile_WhenProfileIsNull_ThrowsIllegalArgumentException() {
+        // 测试场景：更新资料时传入 null，预期抛出非法参数异常
+        // Given
+        TAProfile incoming = null;
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> taProfileService.updateProfile(incoming));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid profile data"));
     }
 
     @Test
@@ -235,6 +435,34 @@ class TAProfileServiceTest {
     }
 
     @Test
+    void getProfileCompletion_WhenProfileMissing_ReturnsZero() {
+        // 测试场景：资料不存在，预期完善度返回 0
+        // Given
+        when(profileDAO.findByTaId(1001L)).thenReturn(null);
+
+        // When
+        int result = taProfileService.getProfileCompletion(1001L);
+
+        // Then
+        assertEquals(0, result);
+    }
+
+    @Test
+    void getMissingFields_WhenProfileExists_ReturnsMissingFieldList() {
+        // 测试场景：资料存在但字段缺失，预期返回缺失字段列表
+        // Given
+        TAProfile profile = new TAProfile(1001L, "student@qmul.ac.uk");
+        profile.setStudentId("240001");
+        when(profileDAO.findByTaId(1001L)).thenReturn(profile);
+
+        // When
+        List<String> result = taProfileService.getMissingFields(1001L);
+
+        // Then
+        assertFalse(result.isEmpty());
+    }
+
+    @Test
     void getMissingFields_WhenProfileMissing_ReturnsProfileNotFoundMessage() {
         // 测试场景：资料不存在，预期返回包含 Profile not found 的列表
         // Given
@@ -259,6 +487,85 @@ class TAProfileServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("TA ID and email cannot be null"));
+    }
+
+    @Test
+    void initializeProfile_WhenExistingProfileHasBlankEmail_UpdatesEmailAndReturnsExistingProfile() {
+        // 测试场景：已存在资料邮箱为空白，预期补全邮箱并返回已有资料
+        // Given
+        TAProfile existing = new TAProfile(1001L, " ");
+        when(profileDAO.findByTaId(1001L)).thenReturn(existing);
+
+        // When
+        TAProfile result = taProfileService.initializeProfile(1001L, "student@qmul.ac.uk");
+
+        // Then
+        assertEquals("student@qmul.ac.uk", result.getEmail());
+        verify(profileDAO).save(existing);
+    }
+
+    @Test
+    void initializeProfile_WhenProfileExistsByEmailWithDifferentTaId_RebindsAndReturnsProfile() {
+        // 测试场景：按邮箱找到旧资料且 taId 不一致，预期删除旧资料并重绑新 taId
+        // Given
+        TAProfile existingByEmail = new TAProfile(999L, "student@qmul.ac.uk");
+        when(profileDAO.findByTaId(1001L)).thenReturn(null);
+        when(profileDAO.findByEmail("student@qmul.ac.uk")).thenReturn(existingByEmail);
+
+        // When
+        TAProfile result = taProfileService.initializeProfile(1001L, "student@qmul.ac.uk");
+
+        // Then
+        assertEquals(1001L, result.getTaId());
+        verify(profileDAO).delete(999L);
+        verify(profileDAO).save(existingByEmail);
+    }
+
+    @Test
+    void initializeProfile_WhenExistingProfileAlreadyHasEmail_ReturnsExistingWithoutSaving() {
+        // 测试场景：已存在资料且邮箱已正常填写，预期直接返回且不额外保存
+        // Given
+        TAProfile existing = new TAProfile(1001L, "student@qmul.ac.uk");
+        when(profileDAO.findByTaId(1001L)).thenReturn(existing);
+
+        // When
+        TAProfile result = taProfileService.initializeProfile(1001L, "student@qmul.ac.uk");
+
+        // Then
+        assertEquals(existing, result);
+        verify(profileDAO, never()).save(existing);
+    }
+
+    @Test
+    void initializeProfile_WhenExistingProfileFoundByEmailWithSameTaId_ReturnsExistingWithoutRebinding() {
+        // 测试场景：按邮箱找到同一 taId 的资料，预期直接返回且不删除不重绑
+        // Given
+        TAProfile existingByEmail = new TAProfile(1001L, "student@qmul.ac.uk");
+        when(profileDAO.findByTaId(1001L)).thenReturn(null);
+        when(profileDAO.findByEmail("student@qmul.ac.uk")).thenReturn(existingByEmail);
+
+        // When
+        TAProfile result = taProfileService.initializeProfile(1001L, "student@qmul.ac.uk");
+
+        // Then
+        assertEquals(existingByEmail, result);
+        verify(profileDAO, never()).delete(1001L);
+    }
+
+    @Test
+    void initializeProfile_WhenProfileDoesNotExist_CreatesAndSavesNewProfile() {
+        // 测试场景：按 taId 和邮箱都查不到资料，预期新建并保存资料
+        // Given
+        when(profileDAO.findByTaId(1001L)).thenReturn(null);
+        when(profileDAO.findByEmail("student@qmul.ac.uk")).thenReturn(null);
+
+        // When
+        TAProfile result = taProfileService.initializeProfile(1001L, "student@qmul.ac.uk");
+
+        // Then
+        assertEquals(1001L, result.getTaId());
+        assertEquals("student@qmul.ac.uk", result.getEmail());
+        verify(profileDAO).save(result);
     }
 
     @Test

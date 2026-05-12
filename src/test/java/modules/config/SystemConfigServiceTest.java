@@ -98,6 +98,36 @@ class SystemConfigServiceTest {
     }
 
     @Test
+    void updateApplicationCycle_WhenStartDateIsBeforeToday_ThrowsIllegalArgumentException() {
+        // 测试场景：招聘开始日期早于今天，预期抛出非法参数异常
+        // Given
+        LocalDateTime start = LocalDate.now().minusDays(1).atStartOfDay();
+        LocalDateTime end = LocalDate.now().plusDays(1).atStartOfDay();
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> systemConfigService.updateApplicationCycle(start, end, "admin@test.com"));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Recruitment start date must be today or a future date"));
+    }
+
+    @Test
+    void updateApplicationCycle_WhenEndDateBeforeStartDate_ThrowsIllegalArgumentException() {
+        // 测试场景：招聘结束日期早于开始日期，预期抛出非法参数异常
+        // Given
+        LocalDateTime start = LocalDate.now().plusDays(3).atStartOfDay();
+        LocalDateTime end = LocalDate.now().plusDays(1).atStartOfDay();
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> systemConfigService.updateApplicationCycle(start, end, "admin@test.com"));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Recruitment end date must be on or after the start date"));
+    }
+
+    @Test
     void isNowWithinRecruitmentWindow_WhenNowWithinConfiguredWindow_ReturnsTrue() {
         // 测试场景：当前时间在招聘周期内，预期返回 true
         // Given
@@ -255,6 +285,20 @@ class SystemConfigServiceTest {
     }
 
     @Test
+    void validateDeadlineAfterNow_WhenDeadlineIsBeforeToday_ThrowsIllegalArgumentException() {
+        // 测试场景：截止日期早于今天，预期抛出非法参数异常
+        // Given
+        LocalDate deadline = LocalDate.now().minusDays(1);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> systemConfigService.validateDeadlineAfterNow(deadline));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Job deadline must be today or a future date."));
+    }
+
+    @Test
     void requireOpenRecruitmentWindowForPublish_WhenWindowIsConfiguredAndOpen_ReturnsWithoutException() {
         // 测试场景：招聘周期已配置且当前时间在周期内，预期允许发布
         // Given
@@ -284,5 +328,23 @@ class SystemConfigServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("Recruitment period is not configured yet."));
+    }
+
+    @Test
+    void requireOpenRecruitmentWindowForPublish_WhenNowOutsideWindow_ThrowsIllegalStateException() {
+        // 测试场景：招聘周期已配置但当前不在周期内，预期抛出非法状态异常
+        // Given
+        SystemConfig config = new SystemConfig();
+        config.setApplicationStart(LocalDateTime.now().plusDays(1));
+        config.setApplicationEnd(LocalDateTime.now().plusDays(2));
+        when(persistenceManager.readObject(JsonPersistenceManager.SYSTEM_CONFIG_FILE, SystemConfig.class))
+                .thenReturn(config);
+
+        // When
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                systemConfigService::requireOpenRecruitmentWindowForPublish);
+
+        // Then
+        assertTrue(exception.getMessage().contains("Jobs can only be published during the recruitment period"));
     }
 }

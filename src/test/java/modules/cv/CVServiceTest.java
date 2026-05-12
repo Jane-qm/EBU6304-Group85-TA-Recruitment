@@ -91,6 +91,69 @@ class CVServiceTest {
     }
 
     @Test
+    void uploadCV_WhenTaIdIsNull_ThrowsIllegalArgumentException() {
+        // 测试场景：上传 CV 时 taId 为空，预期抛出非法参数异常
+        // Given
+        byte[] fileData = new byte[]{1, 2, 3};
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> cvService.uploadCV(null, "ta@test.com", "TA Name",
+                        "Resume1", "Main CV", "resume.pdf", fileData));
+
+        // Then
+        assertTrue(exception.getMessage().contains("TA ID cannot be null"));
+    }
+
+    @Test
+    void uploadCV_WhenCvNameInvalid_ThrowsIllegalArgumentException() {
+        // 测试场景：上传 CV 时名称非法，预期抛出非法参数异常
+        // Given
+        byte[] fileData = new byte[]{1, 2, 3};
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> cvService.uploadCV(1L, "ta@test.com", "TA Name",
+                        "", "Main CV", "resume.pdf", fileData));
+
+        // Then
+        assertTrue(exception.getMessage().contains("CV name must be 1-50 characters"));
+    }
+
+    @Test
+    void uploadCV_WhenFileTypeUnsupported_ThrowsIllegalArgumentException() {
+        // 测试场景：上传 CV 文件类型不支持，预期抛出非法参数异常
+        // Given
+        byte[] fileData = new byte[]{1, 2, 3};
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> cvService.uploadCV(1L, "ta@test.com", "TA Name",
+                        "Resume1", "Main CV", "resume.txt", fileData));
+
+        // Then
+        assertTrue(exception.getMessage().contains("File type not supported"));
+    }
+
+    @Test
+    void uploadCV_WhenSaveFileFails_ThrowsRuntimeException() {
+        // 测试场景：底层文件保存失败，预期抛出运行时异常
+        // Given
+        CVManager manager = new CVManager(1L, "ta@test.com", "TA Name");
+        byte[] fileData = new byte[]{1, 2, 3};
+        when(cvDao.getOrCreateCVManager(1L, "ta@test.com", "TA Name")).thenReturn(manager);
+        when(cvDao.saveCVFile(1L, "Resume1", "resume.pdf", fileData)).thenReturn(null);
+
+        // When
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> cvService.uploadCV(1L, "ta@test.com", "TA Name",
+                        "Resume1", "Main CV", "resume.pdf", fileData));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Failed to save CV file"));
+    }
+
+    @Test
     void downloadCV_WhenManagerMissing_ThrowsIllegalArgumentException() {
         // 测试场景：指定 TA 不存在 CV 管理器，预期抛出非法参数异常
         // Given
@@ -126,6 +189,21 @@ class CVServiceTest {
     }
 
     @Test
+    void downloadCV_WhenCvMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：管理器存在但指定 CV 不存在，预期抛出非法参数异常
+        // Given
+        CVManager manager = new CVManager(1L, "ta@test.com", "TA Name");
+        when(cvDao.getCVManager(1L)).thenReturn(manager);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> cvService.downloadCV(1L, 10L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("CV not found with ID"));
+    }
+
+    @Test
     void downloadDefaultCV_WhenDefaultCvMissing_ThrowsIllegalArgumentException() {
         // 测试场景：TA 没有默认 CV，预期抛出非法参数异常
         // Given
@@ -138,6 +216,20 @@ class CVServiceTest {
 
         // Then
         assertTrue(exception.getMessage().contains("No default CV found"));
+    }
+
+    @Test
+    void downloadDefaultCV_WhenManagerMissing_ThrowsIllegalArgumentException() {
+        // 测试场景：指定 TA 没有 CV 管理器，预期抛出非法参数异常
+        // Given
+        when(cvDao.getCVManager(1L)).thenReturn(null);
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> cvService.downloadDefaultCV(1L));
+
+        // Then
+        assertTrue(exception.getMessage().contains("No CV found for TA ID"));
     }
 
     @Test
@@ -166,6 +258,46 @@ class CVServiceTest {
         // Then
         assertFalse(result);
         verify(cvDao).refreshFromFile(1L);
+    }
+
+    @Test
+    void setDefaultCV_WhenDaoReturnsTrue_ReturnsTrueAndRefreshesCache() {
+        // 测试场景：设置默认 CV 成功，预期返回 true 并刷新缓存
+        // Given
+        when(cvDao.setDefaultCV(1L, 10L)).thenReturn(true);
+
+        // When
+        boolean result = cvService.setDefaultCV(1L, 10L);
+
+        // Then
+        assertTrue(result);
+        verify(cvDao).refreshFromFile(1L);
+    }
+
+    @Test
+    void getCVManager_WhenManagerMissing_ReturnsNull() {
+        // 测试场景：DAO 中不存在指定 TA 的 CV 管理器，预期返回 null
+        // Given
+        when(cvDao.getCVManager(1L)).thenReturn(null);
+
+        // When
+        CVManager result = cvService.getCVManager(1L);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getDefaultCV_WhenManagerMissing_ReturnsNull() {
+        // 测试场景：管理器不存在，预期返回 null
+        // Given
+        when(cvDao.getCVManager(1L)).thenReturn(null);
+
+        // When
+        CVInfo result = cvService.getDefaultCV(1L);
+
+        // Then
+        assertNull(result);
     }
 
     @Test
@@ -212,6 +344,33 @@ class CVServiceTest {
     }
 
     @Test
+    void hasCV_WhenManagerMissing_ReturnsFalse() {
+        // 测试场景：不存在 CV 管理器，预期返回 false
+        // Given
+        when(cvDao.getCVManager(1L)).thenReturn(null);
+
+        // When
+        boolean result = cvService.hasCV(1L);
+
+        // Then
+        assertFalse(result);
+    }
+
+    @Test
+    void hasCV_WhenManagerHasNoCv_ReturnsFalse() {
+        // 测试场景：管理器存在但没有 CV，预期返回 false
+        // Given
+        CVManager manager = new CVManager(1L, "ta@test.com", "TA Name");
+        when(cvDao.getCVManager(1L)).thenReturn(manager);
+
+        // When
+        boolean result = cvService.hasCV(1L);
+
+        // Then
+        assertFalse(result);
+    }
+
+    @Test
     void getCVCount_WhenManagerMissing_ReturnsZero() {
         // 测试场景：指定 TA 没有 CV 管理器，预期返回 0
         // Given
@@ -222,6 +381,26 @@ class CVServiceTest {
 
         // Then
         assertEquals(0, result);
+    }
+
+    @Test
+    void getCVCount_WhenManagerExists_ReturnsCount() {
+        // 测试场景：管理器存在多个 CV，预期返回正确数量
+        // Given
+        CVManager manager = new CVManager(1L, "ta@test.com", "TA Name");
+        CVInfo cv1 = new CVInfo(1L, "ta@test.com", "TA Name");
+        cv1.setCvName("Resume1");
+        CVInfo cv2 = new CVInfo(1L, "ta@test.com", "TA Name");
+        cv2.setCvName("Resume2");
+        manager.addCV(cv1);
+        manager.addCV(cv2);
+        when(cvDao.getCVManager(1L)).thenReturn(manager);
+
+        // When
+        int result = cvService.getCVCount(1L);
+
+        // Then
+        assertEquals(2, result);
     }
 
     @Test
@@ -314,6 +493,19 @@ class CVServiceTest {
         cvInfo.setCvId(10L);
         manager.addCV(cvInfo);
         when(cvDao.getCVManager(1L)).thenReturn(manager);
+
+        // When
+        CVInfo result = cvService.getCVById(1L, 10L);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void getCVById_WhenManagerMissing_ReturnsNull() {
+        // 测试场景：不存在 CV 管理器，预期返回 null
+        // Given
+        when(cvDao.getCVManager(1L)).thenReturn(null);
 
         // When
         CVInfo result = cvService.getCVById(1L, 10L);
