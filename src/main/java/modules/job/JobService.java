@@ -18,10 +18,24 @@ import modules.application.ApplicationService;
  * @version 3.2 - 修复 autoCloseExpiredJobs 中的异常处理，避免解析失败导致启动中断
  */
 public class JobService {
-    private final JobDAO dao = new JobDAO();
-    private final ApplicationDAO appDao = new ApplicationDAO();
-    private final SystemConfigService systemConfigService = new SystemConfigService();
+    private final JobDAO dao;
+    private final ApplicationDAO appDao;
+    private final SystemConfigService systemConfigService;
     private ApplicationService applicationService;
+
+    public JobService() {
+        this(new JobDAO(), new ApplicationDAO(), new SystemConfigService(), null);
+    }
+
+    JobService(JobDAO dao,
+               ApplicationDAO appDao,
+               SystemConfigService systemConfigService,
+               ApplicationService applicationService) {
+        this.dao = dao;
+        this.appDao = appDao;
+        this.systemConfigService = systemConfigService;
+        this.applicationService = applicationService;
+    }
 
     private ApplicationService getApplicationService() {
         if (applicationService == null) {

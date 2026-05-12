@@ -17,9 +17,14 @@ import java.time.LocalTime;
  * - Added date-based validation helpers for MO job deadline enforcement
  */
 public class SystemConfigService {
-    private final JsonPersistenceManager persistenceManager = new JsonPersistenceManager();
+    private final JsonPersistenceManager persistenceManager;
 
     public SystemConfigService() {
+        this(new JsonPersistenceManager());
+    }
+
+    SystemConfigService(JsonPersistenceManager persistenceManager) {
+        this.persistenceManager = persistenceManager;
         persistenceManager.initializeBaseFiles();
     }
 

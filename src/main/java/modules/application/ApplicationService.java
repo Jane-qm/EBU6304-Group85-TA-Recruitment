@@ -23,12 +23,37 @@ import modules.profile.TAProfileService;
  */
 public class ApplicationService {
 
-    private final ApplicationDAO dao = new ApplicationDAO();
-    private final JobService jobService = new JobService();
-    private final TAProfileService taProfileService = new TAProfileService();
-    private final CVService cvService = new CVService();
-    private final NotificationService notificationService = new NotificationService();
-    private final SystemConfigService systemConfigService = new SystemConfigService();
+    private final ApplicationDAO dao;
+    private final JobService jobService;
+    private final TAProfileService taProfileService;
+    private final CVService cvService;
+    private final NotificationService notificationService;
+    private final SystemConfigService systemConfigService;
+
+    public ApplicationService() {
+        this(
+                new ApplicationDAO(),
+                new JobService(),
+                new TAProfileService(),
+                new CVService(),
+                new NotificationService(),
+                new SystemConfigService()
+        );
+    }
+
+    ApplicationService(ApplicationDAO dao,
+                       JobService jobService,
+                       TAProfileService taProfileService,
+                       CVService cvService,
+                       NotificationService notificationService,
+                       SystemConfigService systemConfigService) {
+        this.dao = dao;
+        this.jobService = jobService;
+        this.taProfileService = taProfileService;
+        this.cvService = cvService;
+        this.notificationService = notificationService;
+        this.systemConfigService = systemConfigService;
+    }
 
     // ==================== 基础 CRUD 方法 ====================
 

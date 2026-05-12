@@ -48,7 +48,7 @@ public class UserService {
 
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(100000L);
-    private final UserDAO fileDAO = new UserDAO();
+    private final UserDAO fileDAO;
 
     private static volatile UserService instance;
 
@@ -73,6 +73,11 @@ public class UserService {
     }
 
     private UserService() {
+        this(new UserDAO());
+    }
+
+    UserService(UserDAO fileDAO) {
+        this.fileDAO = fileDAO;
         loadFromFile();
         // 不再创建演示账号，管理员从 users.json 加载
         // 如果 users.json 为空，系统启动后需要手动创建第一个用户

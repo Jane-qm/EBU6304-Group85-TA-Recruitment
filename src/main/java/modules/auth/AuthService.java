@@ -25,11 +25,20 @@ import modules.profile.TAProfileService;
  */
 public class AuthService {
 
-    private static final UserService USER_SERVICE = UserService.getInstance();
-    private static final TAProfileService TA_PROFILE_SERVICE = new TAProfileService();
+    private final UserService userService;
+    private final TAProfileService taProfileService;
 
     /** Accepted school email domains enforced on registration. */
     private static final String[] ALLOWED_DOMAINS = {"@qmul.ac.uk", "@bupt.edu.cn"};
+
+    public AuthService() {
+        this(UserService.getInstance(), new TAProfileService());
+    }
+
+    AuthService(UserService userService, TAProfileService taProfileService) {
+        this.userService = userService;
+        this.taProfileService = taProfileService;
+    }
 
     public User register(String email, String password, UserRole role) {
         validateEmail(email);
@@ -51,11 +60,11 @@ public class AuthService {
             throw new IllegalArgumentException("Only TA (Teaching Assistant) self-registration is allowed.");
         }
 
-        User user = USER_SERVICE.register(email.trim(), password, role);
+        User user = userService.register(email.trim(), password, role);
 
         // Create a blank TA profile as soon as a TA account is created.
         if (user != null && user.getRole() == UserRole.TA) {
-            TA_PROFILE_SERVICE.initializeProfile(user.getUserId(), user.getEmail());
+            taProfileService.initializeProfile(user.getUserId(), user.getEmail());
         }
 
         return user;
@@ -64,7 +73,7 @@ public class AuthService {
     public User login(String email, String password) {
         validateEmail(email);
         validatePassword(password);
-        return USER_SERVICE.login(email, password);
+        return userService.login(email, password);
     }
 
     public boolean isAccountValid(User user) {
@@ -83,7 +92,7 @@ public class AuthService {
     }
 
     public boolean sendVerificationCode(String email) {
-        if (!USER_SERVICE.emailExists(email)) {
+        if (!userService.emailExists(email)) {
             return false;
         }
         return true;
@@ -91,18 +100,18 @@ public class AuthService {
 
     public boolean checkEmailExists(String email) {
         validateEmail(email);
-        return USER_SERVICE.emailExists(email);
+        return userService.emailExists(email);
     }
 
     public void resetPassword(String email, String newPassword) {
         validateEmail(email);
         validatePassword(newPassword);
-        USER_SERVICE.updatePassword(email, newPassword);
+        userService.updatePassword(email, newPassword);
     }
 
     public boolean isPasswordChangeRequired(String email) {
         validateEmail(email);
-        return USER_SERVICE.isPasswordChangeRequired(email);
+        return userService.isPasswordChangeRequired(email);
     }
 
     private static void validateEmail(String email) {
