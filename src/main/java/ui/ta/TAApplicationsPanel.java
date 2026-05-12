@@ -89,15 +89,22 @@ public class TAApplicationsPanel extends JPanel {
         // 添加刷新按钮
         JButton refreshBtn = new JButton("⟳ Refresh");
         refreshBtn.setFont(new Font("SansSerif", Font.BOLD, 15));
-        refreshBtn.setBackground(PRIMARY_BLUE);
-        refreshBtn.setForeground(Color.WHITE);
-        refreshBtn.setFocusPainted(false);
+        applyPrimaryButtonStyle(refreshBtn);
         refreshBtn.addActionListener(e -> refresh());
         
         panel.add(titleLabel, BorderLayout.WEST);
         panel.add(refreshBtn, BorderLayout.EAST);
         
         return panel;
+    }
+
+    private void applyPrimaryButtonStyle(JButton button) {
+        button.setForeground(Color.WHITE);
+        button.setBackground(PRIMARY_BLUE);
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
     }
     
     private JScrollPane createContentPanel() {

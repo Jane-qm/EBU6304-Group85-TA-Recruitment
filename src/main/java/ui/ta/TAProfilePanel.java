@@ -567,10 +567,7 @@ public class TAProfilePanel extends JPanel {
         
         JButton browseBtn = new JButton("Click to upload");
         browseBtn.setFont(new Font("SansSerif", Font.BOLD, 16));
-        browseBtn.setForeground(Color.WHITE);
-        browseBtn.setBackground(PRIMARY_BLUE);
-        browseBtn.setBorderPainted(false);
-        browseBtn.setFocusPainted(false);
+        applyPrimaryButtonStyle(browseBtn);
         browseBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         browseBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
         browseBtn.setPreferredSize(new Dimension(150, 38));
@@ -680,10 +677,7 @@ public class TAProfilePanel extends JPanel {
         
         JButton viewBtn = new JButton("View");
         viewBtn.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        viewBtn.setBackground(PRIMARY_BLUE);
-        viewBtn.setForeground(Color.WHITE);
-        viewBtn.setBorderPainted(false);
-        viewBtn.setFocusPainted(false);
+        applyPrimaryButtonStyle(viewBtn);
         viewBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         viewBtn.addActionListener(e -> viewCV(cv));
         
@@ -715,6 +709,15 @@ public class TAProfilePanel extends JPanel {
         panel.add(buttonPanel, BorderLayout.EAST);
         
         return panel;
+    }
+
+    private void applyPrimaryButtonStyle(JButton button) {
+        button.setForeground(Color.WHITE);
+        button.setBackground(PRIMARY_BLUE);
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
     }
     
     private void updateSkillTagsDisplay() {
