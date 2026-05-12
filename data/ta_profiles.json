@@ -42,5 +42,15 @@
     "profileCompleted": true,
     "profileLastUpdated": "2026-05-10T19:55:30.585887",
     "createdAt": "2026-05-10T19:54:40.991408"
+  },
+  {
+    "taId": 100010,
+    "email": "1111111@qmul.ac.uk",
+    "campus": "XITUCHENG",
+    "skillTags": [],
+    "availableWorkingHours": 0,
+    "profileCompleted": false,
+    "profileLastUpdated": "2026-05-11T23:52:03.7190213",
+    "createdAt": "2026-05-11T23:52:03.7190213"
   }
 ]
