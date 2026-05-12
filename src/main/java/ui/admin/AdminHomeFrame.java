@@ -58,11 +58,18 @@ import ui.common.TableScrollUtil;
 /**
  * Admin Portal
  * Layout: Top - Change Password, Middle - Recruitment period (MO publish window), Bottom - System Data Export
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned Admin access messages with the dual seeded admin policy
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
     private final UserService userService = UserService.getInstance();
     private final SystemConfigService systemConfigService = new SystemConfigService();
+    private static final String ADMIN_ACCESS_DENIED_MESSAGE =
+            "Only approved active system administrator accounts can access Admin Portal.";
 
     // Color scheme for sidebar
     private static final Color APP_BG = new Color(248, 250, 252);
@@ -119,7 +126,7 @@ public class AdminHomeFrame extends JFrame {
 
         if (!userService.isStrictAdmin(user)) {
             JOptionPane.showMessageDialog(null,
-                    "Access denied. Only active super admin account can enter Admin Portal.",
+                    ADMIN_ACCESS_DENIED_MESSAGE,
                     "Permission Denied", JOptionPane.ERROR_MESSAGE);
             new LoginFrame().setVisible(true);
             dispose();

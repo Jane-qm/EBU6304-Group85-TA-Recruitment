@@ -75,11 +75,16 @@ import ui.mo.MODashboardFrame;   // 导入 MO 首页
  *
  * @author Jiaze Wang
  * @version 6.0
- * @update Add strict super-admin access validation before routing to Admin Portal
+ * @update Add strict admin access validation before routing to Admin Portal
  *
  * @author (Your Name)
  * @version 7.0
  * @update 邮箱输入改为前缀 + 后缀下拉选择 (@qmul.ac.uk / @bupt.edu.cn)
+ *
+ * @version 7.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned Admin access messages with the dual seeded admin policy
  */
 
 /**
@@ -96,6 +101,8 @@ public class LoginFrame extends BaseFrame {
 
     private static final int CONTENT_WIDTH = 360;
     private static final int FIELD_HEIGHT = 56;
+    private static final String ADMIN_ACCESS_DENIED_MESSAGE =
+            "Only approved active system administrator accounts can access Admin Portal.";
 
     public LoginFrame() {
         super("TA Recruitment System - Login", 760, 720);
@@ -334,11 +341,11 @@ public class LoginFrame extends BaseFrame {
                         return;
                     }
 
-                    // 4. Enforce strict super-admin rule before routing to Admin Portal.
+                    // 4. Enforce the centralized strict admin policy before routing to Admin Portal.
                     if (user.getRole() == UserRole.ADMIN) {
                         UserService userService = UserService.getInstance();
                         if (!userService.isStrictAdmin(user)) {
-                            showError("Only active super admin account admin@test.com can access Admin Portal.");
+                            showError(ADMIN_ACCESS_DENIED_MESSAGE);
                             return;
                         }
                         if (user.isMustChangePassword()) {
