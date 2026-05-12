@@ -63,11 +63,6 @@ import ui.common.TableScrollUtil;
  * @contributor Jiaze Wang
  * @update
  * - Aligned Admin access messages with the dual seeded admin policy
- *
- * @version 1.2
- * @contributor Jiaze Wang
- * @update
- * - Passed current admin email to MO Management for account audit logging
  */
 public class AdminHomeFrame extends JFrame {
     private final User currentUser;
@@ -172,7 +167,7 @@ public class AdminHomeFrame extends JFrame {
 
         // Management panels
         moPanel = new MOManagementPanel(this::refreshAllPanels, currentUser.getEmail());
-        taPanel = new TAManagementPanel(this::refreshAllPanels);
+        taPanel = new TAManagementPanel(this::refreshAllPanels, currentUser.getEmail());
         coursePanel = new CourseManagementPanel();
 
         mainCardPanel.add(moPanel, CARD_MO);
