@@ -66,11 +66,14 @@ Run:
 
 ```bash
 mvn -q test
+mvn -q verify
+open target/site/jacoco/index.html
 ```
 
 Expected result:
 
 - tests pass successfully
+- JaCoCo report is generated successfully
 - Mockito may print Java agent warnings on some JDKs
 - those warnings are non-fatal
 
@@ -103,21 +106,51 @@ Already satisfied:
 
 Not treated as blockers:
 
+- branch coverage is below the originally suggested `85%` target
 - a few trivial public methods do not have forced normal and exception symmetry
 
 Reason:
 
+- current core-service instruction coverage and line coverage are already above `90%`
+- current target-class branch coverage is `80.90%`, which is acceptable for this submission version
+- remaining uncovered branches are mainly defensive, overlapping, or low-value paths
 - some methods are simple pass-through delegations
 - some methods naturally use `null` or empty collections as the contract instead of exceptions
 - extra mechanical tests would increase noise more than confidence
 
 ## Recommended Commit Split
 
-The work is suitable to be submitted as three commits:
+The current finishing work is suitable to be submitted as two focused commits:
 
-1. `refactor: add injectable constructors for core services`
-2. `test: add JUnit 5 Mockito coverage for core services`
-3. `docs: finalize testing delivery documentation`
+1. `test: expand white-box coverage for core services`
+2. `docs: refresh final testing and coverage delivery`
+
+## Final Local Commands
+
+For course submission re-checks, use:
+
+```bash
+# full unit test suite
+mvn -q test
+
+# full test suite + JaCoCo report
+mvn -q verify
+
+# open coverage report in browser on macOS
+open target/site/jacoco/index.html
+```
+
+## Final Status Snapshot
+
+As of `2026-05-12 20:47:12 +0800` on branch `Zhixuan_GUO`:
+
+- full Maven test suite passes
+- latest target-class coverage summary is:
+  - instruction `94.63%`
+  - branch `80.90%`
+  - line `93.93%`
+- `pom.xml` local JaCoCo-related edits are intentionally not included in this submission commit set
+- runtime-generated files under `data/cvs/` should not be committed
 
 
 ## Result
