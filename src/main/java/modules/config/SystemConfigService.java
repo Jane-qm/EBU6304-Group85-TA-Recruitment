@@ -1,6 +1,7 @@
 package modules.config;
 
 import infrastructure.persistence.JsonPersistenceManager;
+import infrastructure.time.TimeProvider;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,7 +49,7 @@ public class SystemConfigService {
             throw new IllegalArgumentException("Start and end time must not be null.");
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = TimeProvider.today();
         LocalDate startDay = start.toLocalDate();
         LocalDate endDay = end.toLocalDate();
 
@@ -70,7 +71,7 @@ public class SystemConfigService {
         SystemConfig config = new SystemConfig();
         config.setApplicationStart(startLdt);
         config.setApplicationEnd(endLdt);
-        config.setUpdatedAt(LocalDateTime.now());
+        config.setUpdatedAt(TimeProvider.now());
         config.setUpdatedBy(adminEmail);
 
         persistenceManager.writeObject(JsonPersistenceManager.SYSTEM_CONFIG_FILE, config);
@@ -140,13 +141,13 @@ public class SystemConfigService {
         if (deadlineDate == null) {
             throw new IllegalArgumentException("Deadline date is required.");
         }
-        LocalDate today = LocalDate.now();
+        LocalDate today = TimeProvider.today();
         if (deadlineDate.isBefore(today)) {
             throw new IllegalArgumentException(
                     "Job deadline must be today or a future date.");
         }
         LocalDateTime endOfDeadlineDay = LocalDateTime.of(deadlineDate, LocalTime.MAX);
-        if (LocalDateTime.now().isAfter(endOfDeadlineDay)) {
+        if (TimeProvider.now().isAfter(endOfDeadlineDay)) {
             throw new IllegalArgumentException(
                     "That deadline date has already ended (end of that calendar day).");
         }
@@ -163,7 +164,7 @@ public class SystemConfigService {
                     "Recruitment period is not configured yet. Ask an administrator to set it in Admin → "
                             + "Recruitment Period. You can still save the job as a draft.");
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         if (now.isBefore(config.getApplicationStart()) || now.isAfter(config.getApplicationEnd())) {
             throw new IllegalStateException(
                     "Jobs can only be published during the recruitment period set by an administrator "

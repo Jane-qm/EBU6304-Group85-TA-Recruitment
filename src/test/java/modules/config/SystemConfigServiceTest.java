@@ -1,6 +1,7 @@
 package modules.config;
 
 import infrastructure.persistence.JsonPersistenceManager;
+import infrastructure.time.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,8 +9,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,6 +35,7 @@ class SystemConfigServiceTest {
 
     @BeforeEach
     void setUp() {
+        TimeProvider.setClock(Clock.fixed(Instant.parse("2026-05-13T12:00:00Z"), ZoneId.systemDefault()));
         systemConfigService = new SystemConfigService(persistenceManager);
     }
 

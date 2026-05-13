@@ -1,5 +1,6 @@
 package modules.job;
 
+import infrastructure.time.TimeProvider;
 import modules.application.Application;
 import modules.application.ApplicationDAO;
 import modules.application.ApplicationService;
@@ -12,8 +13,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,6 +51,7 @@ class JobServiceTest {
 
     @BeforeEach
     void setUp() {
+        TimeProvider.setClock(Clock.fixed(Instant.parse("2026-05-13T12:00:00Z"), ZoneId.systemDefault()));
         jobService = new JobService(jobDAO, applicationDAO, systemConfigService, applicationService);
     }
 
@@ -192,7 +197,7 @@ class JobServiceTest {
         // 测试场景：岗位状态为 PUBLISHED 且截止时间尚未过去，预期返回可见岗位
         // Given
         Job publishedJob = createJob(2001L, 3001L, "EBU6304", "PUBLISHED");
-        publishedJob.setApplicationDeadline(LocalDateTime.now().plusHours(2));
+        publishedJob.setApplicationDeadline(TimeProvider.now().plusHours(2));
         when(jobDAO.findAll()).thenReturn(List.of(publishedJob));
 
         // When

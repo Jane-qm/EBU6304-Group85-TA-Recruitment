@@ -1,5 +1,7 @@
 package modules.user;
 
+import infrastructure.time.TimeProvider;
+
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -164,7 +166,7 @@ public class UserService {
             return null;
         }
 
-        if (user.getLockedUntil() != null && LocalDateTime.now().isBefore(user.getLockedUntil())) {
+        if (user.getLockedUntil() != null && TimeProvider.now().isBefore(user.getLockedUntil())) {
             AuthAuditLogger.logFailure(normalizedEmail,
                     "account locked until " + user.getLockedUntil());
             return null;
@@ -174,7 +176,7 @@ public class UserService {
             int failCount = user.getFailedLoginCount() + 1;
             user.setFailedLoginCount(failCount);
             if (failCount >= MAX_FAILED_LOGIN_ATTEMPTS) {
-                user.setLockedUntil(LocalDateTime.now().plusMinutes(ACCOUNT_LOCK_MINUTES));
+                user.setLockedUntil(TimeProvider.now().plusMinutes(ACCOUNT_LOCK_MINUTES));
                 user.setFailedLoginCount(0);
                 AuthAuditLogger.logFailure(normalizedEmail,
                         "too many failures; locked for " + ACCOUNT_LOCK_MINUTES + " minutes");
@@ -191,7 +193,7 @@ public class UserService {
         if (PasswordService.needsUpgrade(user.getPasswordHash())) {
             user.setPassword(password);
         }
-        user.setLastLogin(LocalDateTime.now());
+        user.setLastLogin(TimeProvider.now());
         saveToFile();
         AuthAuditLogger.logSuccess(normalizedEmail, String.valueOf(user.getRole()));
         return user;

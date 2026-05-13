@@ -1,5 +1,7 @@
 package modules.application;
 
+import infrastructure.time.TimeProvider;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +61,7 @@ public class ApplicationService {
 
     public Application createOrUpdate(Application application) {
         if (application.getAppliedAt() == null) {
-            application.setAppliedAt(LocalDateTime.now());
+            application.setAppliedAt(TimeProvider.now());
         }
         return dao.save(application);
     }
@@ -147,7 +149,7 @@ public class ApplicationService {
 
         // 检查职位截止日期
         if (job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("The application deadline for this position has passed.");
         }
     }
@@ -157,7 +159,7 @@ public class ApplicationService {
      */
     public Application submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
         // 检查全局申请周期
-        if (!systemConfigService.isWithinApplicationCycle(LocalDateTime.now())) {
+        if (!systemConfigService.isWithinApplicationCycle(TimeProvider.now())) {
             SystemConfig cfg = systemConfigService.getConfig();
             String window = cfg.isConfigured()
                     ? cfg.getApplicationStart().toLocalDate() + " to " + cfg.getApplicationEnd().toLocalDate()
@@ -186,7 +188,7 @@ public class ApplicationService {
 
         // 检查职位截止日期
         if (job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("The application deadline for this position has passed.");
         }
 
@@ -210,7 +212,7 @@ public class ApplicationService {
 
         // 检查是否已录用
         boolean wasHired = userApplications.stream()
-                .anyMatch(a -> jobId.equals(a.getJobId()) && 
+                .anyMatch(a -> jobId.equals(a.getJobId()) &&
                         ApplicationStatus.isHired(a.getStatus()));
         if (wasHired) {
             throw new IllegalStateException("You have already been hired for this position.");
@@ -252,7 +254,7 @@ public class ApplicationService {
         // 检查职位截止日期
         Job job = jobService.getJobById(application.getJobId());
         if (job != null && job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("Cannot cancel after the application deadline.");
         }
 
@@ -299,7 +301,7 @@ public class ApplicationService {
             throw new IllegalArgumentException("Job not found.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         LocalDateTime expiry = job.getOfferResponseDeadline();
         if (expiry == null) {
             expiry = now.plusDays(7);
@@ -353,7 +355,7 @@ public class ApplicationService {
         }
 
         application.setStatus(ApplicationStatus.HIRED);
-        application.setRespondedAt(LocalDateTime.now());
+        application.setRespondedAt(TimeProvider.now());
         Application saved = dao.save(application);
 
         // 通知 MO
@@ -403,7 +405,7 @@ public class ApplicationService {
         }
 
         application.setStatus(ApplicationStatus.REJECTED);
-        application.setRespondedAt(LocalDateTime.now());
+        application.setRespondedAt(TimeProvider.now());
         Application saved = dao.save(application);
 
         // 通知 MO

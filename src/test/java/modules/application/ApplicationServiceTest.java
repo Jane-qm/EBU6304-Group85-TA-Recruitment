@@ -1,5 +1,6 @@
 package modules.application;
 
+import infrastructure.time.TimeProvider;
 import modules.config.SystemConfig;
 import modules.config.SystemConfigService;
 import modules.cv.CVInfo;
@@ -16,7 +17,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,6 +60,7 @@ class ApplicationServiceTest {
 
     @BeforeEach
     void setUp() {
+        TimeProvider.setClock(Clock.fixed(Instant.parse("2026-05-13T12:00:00Z"), ZoneId.systemDefault()));
         applicationService = new ApplicationService(
                 applicationDAO,
                 jobService,

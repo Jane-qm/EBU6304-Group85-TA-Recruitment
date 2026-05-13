@@ -1,5 +1,6 @@
 package modules.user;
 
+import infrastructure.time.TimeProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,7 +10,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +36,7 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
+        TimeProvider.setClock(Clock.fixed(Instant.parse("2026-05-13T12:00:00Z"), ZoneId.systemDefault()));
         when(userDAO.loadAll()).thenReturn(List.of());
         userService = new UserService(userDAO);
     }
@@ -122,7 +127,7 @@ class UserServiceTest {
         String email = "student@qmul.ac.uk";
         userService.register(email, "Password123", UserRole.TA);
         User storedUser = userService.findByEmail(email);
-        storedUser.setLockedUntil(LocalDateTime.now().plusMinutes(10));
+        storedUser.setLockedUntil(TimeProvider.now().plusMinutes(10));
         userService.saveUser(storedUser);
 
         // When

@@ -1,5 +1,7 @@
 package modules.job;
 
+import infrastructure.time.TimeProvider;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -166,7 +168,7 @@ public class JobService {
             throw new IllegalArgumentException("Job must not be null.");
         }
         if (job.getCreatedAt() == null) {
-            job.setCreatedAt(LocalDateTime.now());
+            job.setCreatedAt(TimeProvider.now());
         }
 
         // 同步 deadline / offer 字段（与 description 一致）
@@ -203,7 +205,7 @@ public class JobService {
      */
     public List<Job> listPublishedJobs() {
         List<Job> result = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         for (Job job : dao.findAll()) {
             // 确保 deadline 字段同步
             syncApplicationDeadline(job);
@@ -341,11 +343,11 @@ public class JobService {
             throw new IllegalArgumentException(
                     "Offer response date must be on or after the application deadline date (same day is allowed).");
         }
-        LocalDate today = LocalDate.now();
+        LocalDate today = TimeProvider.today();
         if (offerEnd.toLocalDate().isBefore(today)) {
             throw new IllegalArgumentException("Offer response date must be today or a future date.");
         }
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         if (now.isAfter(offerEnd)) {
             throw new IllegalArgumentException(
                     "That offer response deadline has already passed (end of that calendar day).");
@@ -362,7 +364,7 @@ public class JobService {
      * 自动关闭过期职位
      */
     public int autoCloseExpiredJobs() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         int closedCount = 0;
 
         for (Job job : dao.findAll()) {
