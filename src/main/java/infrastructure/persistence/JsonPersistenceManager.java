@@ -31,9 +31,16 @@ import java.util.function.Function;
  * - Restored missing file constants for compatibility with existing DAO classes
  * - Fixed base file initialization for list stores and system_config.json
  * - Kept ta_cvs.json and data/cvs/ directory initialization aligned with TA CV storage
+ *
+ * @version 2.2
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned users.json initialization with users.template.json for dual seeded admin accounts
+ * - Preserved the existing coursework demo admin password policy without forcing first-login password rotation
  */
 public class JsonPersistenceManager {
     public static final String USERS_FILE = "users.json";
+    public static final String USERS_TEMPLATE_FILE = "users.template.json";
     public static final String TA_PROFILES_FILE = "ta_profiles.json";
     public static final String MO_JOBS_FILE = "mo_jobs.json";
     public static final String TA_APPLICATIONS_FILE = "ta_applications.json";
@@ -79,7 +86,7 @@ public class JsonPersistenceManager {
             for (String file : ALL_FILES) {
                 Path path = dataDirectory.resolve(file);
                 if (!Files.exists(path)) {
-                    Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                    initializeMissingListFile(file, path);
                 }
             }
 
@@ -159,13 +166,41 @@ public class JsonPersistenceManager {
                 if (SYSTEM_CONFIG_FILE.equals(fileName)) {
                     Files.writeString(path, "{}", StandardCharsets.UTF_8);
                 } else {
-                    Files.writeString(path, "[]", StandardCharsets.UTF_8);
+                    initializeMissingListFile(fileName, path);
                 }
             }
             return Files.readString(path, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read file: " + path, e);
         }
+    }
+
+    private void initializeMissingListFile(String fileName, Path targetPath) throws IOException {
+        if (USERS_FILE.equals(fileName) && initializeUsersFromTemplate(targetPath)) {
+            return;
+        }
+        Files.writeString(targetPath, "[]", StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Copies users.template.json only when users.json is missing. This keeps clean
+     * environments aligned with committed seeded demo accounts without overwriting
+     * existing runtime user data.
+     */
+    private boolean initializeUsersFromTemplate(Path usersPath) throws IOException {
+        Path templatePath = dataDirectory.resolve(USERS_TEMPLATE_FILE);
+        if (!Files.exists(templatePath)) {
+            return false;
+        }
+
+        String templateJson = Files.readString(templatePath, StandardCharsets.UTF_8);
+        if (!GsonUtils.isValidJson(templateJson)) {
+            System.err.println("[JsonPersistenceManager] WARNING: users.template.json is invalid; users.json will be initialized as an empty list.");
+            return false;
+        }
+
+        Files.writeString(usersPath, templateJson, StandardCharsets.UTF_8);
+        return true;
     }
 
     private void writeRaw(String fileName, String content) {

@@ -51,6 +51,48 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * 登录窗口
+ * Swing 实现，处理用户登录交互
+ *
+ * @author Can Chen
+ * @version 1.0
+ *
+ * @author Yiping Zheng
+ * @version 2.0
+ * @update 添加背景图片
+ * “Remember Me”（记住我） 的多选框勾选逻辑。
+ * “Password Recovery”（找回密码） 的邮件验证和密码重置流程。
+ *
+ * @author Yiping Zheng
+ * @version 3.0
+ * @update 修改UI界面
+ *
+ * @version 3.0
+ * @update 修改原有只弹窗拦截的逻辑，接入根据账户状态（ACTIVE/PENDING）
+ * 及 PermissionService 跳转首页的功能。
+ *
+ * @author Can Chen
+ * @version 4.0
+ * @update 继承 BaseFrame，支持窗口最大化/还原功能
+ *
+ * @author Can Chen
+ * @version 5.0
+ * @update 添加 TA 登录跳转到 TAMainFrame
+ *
+ * @author Jiaze Wang
+ * @version 6.0
+ * @update Add strict admin access validation before routing to Admin Portal
+ *
+ * @author (Your Name)
+ * @version 7.0
+ * @update 邮箱输入改为前缀 + 后缀下拉选择 (@qmul.ac.uk / @bupt.edu.cn)
+ *
+ * @version 7.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Aligned Admin access messages with the dual seeded admin policy
+ */
 public class LoginFrame extends BaseFrame {
 
     static final int FRAME_WIDTH = 1200;
@@ -69,6 +111,9 @@ public class LoginFrame extends BaseFrame {
     private JCheckBox showPasswordBox;
     private final AuthService authService;
     private final String prefilledEmail;
+
+    private static final String ADMIN_ACCESS_DENIED_MESSAGE =
+            "Only approved active system administrator accounts can access Admin Portal.";
 
     public LoginFrame() {
         this(null);
@@ -363,10 +408,11 @@ public class LoginFrame extends BaseFrame {
                         return;
                     }
 
+                    // Enforce the centralized strict admin policy before routing to Admin Portal.
                     if (user.getRole() == UserRole.ADMIN) {
                         UserService userService = UserService.getInstance();
                         if (!userService.isStrictAdmin(user)) {
-                            showError("Only active super admin account admin@test.com can access Admin Portal.");
+                            showError(ADMIN_ACCESS_DENIED_MESSAGE);
                             return;
                         }
                         if (user.isMustChangePassword()) {

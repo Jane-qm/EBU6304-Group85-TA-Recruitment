@@ -1,6 +1,9 @@
 package infrastructure.persistence;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import infrastructure.security.PasswordService;
 import modules.application.Application;
 import modules.config.SystemConfig;
 import modules.notification.NotificationMessage;
@@ -18,6 +21,15 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Tests JSON persistence initialization and read/write helpers.
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added coverage for users.template.json based initialization
+ * - Added coverage for the dual seeded admin demo password template
+ */
 class JsonPersistenceManagerTest {
 
     @Test
@@ -28,6 +40,88 @@ class JsonPersistenceManagerTest {
         assertTrue(Files.isDirectory(root.resolve("cvs")));
         assertEquals("[]", Files.readString(root.resolve(JsonPersistenceManager.USERS_FILE), StandardCharsets.UTF_8).trim());
         assertEquals("{}", Files.readString(root.resolve(JsonPersistenceManager.SYSTEM_CONFIG_FILE), StandardCharsets.UTF_8).trim());
+    }
+
+    @Test
+    void initializeBaseFiles_copiesUsersTemplateWhenUsersJsonMissing(@TempDir Path root) throws Exception {
+        String templateJson = """
+                [
+                  {
+                    "userId": 100001,
+                    "email": "admin@qmul.ac.uk",
+                    "passwordHash": "PBKDF2$120000$XbpaB3BP8C49xmjePKapaQ==$H6Pwx1l9PxDTxKzDBwM5m6fQdqr4cn7qvEPXIWZfM0Y=",
+                    "role": "ADMIN",
+                    "status": "ACTIVE",
+                    "mustChangePassword": false,
+                    "failedLoginCount": 0,
+                    "lockedUntil": null
+                  },
+                  {
+                    "userId": 100002,
+                    "email": "admin@bupt.edu.cn",
+                    "passwordHash": "PBKDF2$120000$m+wzGDRp3buntMPhI/WkEA==$kn8xof6uEm7yVRUvv6+oXQ4C+PTccObtIW6UEzsXCQE=",
+                    "role": "ADMIN",
+                    "status": "ACTIVE",
+                    "mustChangePassword": false,
+                    "failedLoginCount": 0,
+                    "lockedUntil": null
+                  }
+                ]
+                """;
+        Files.writeString(root.resolve(JsonPersistenceManager.USERS_TEMPLATE_FILE), templateJson, StandardCharsets.UTF_8);
+
+        JsonPersistenceManager pm = new JsonPersistenceManager(root.toString());
+        pm.initializeBaseFiles();
+
+        assertEquals(templateJson.trim(),
+                Files.readString(root.resolve(JsonPersistenceManager.USERS_FILE), StandardCharsets.UTF_8).trim());
+    }
+
+    @Test
+    void initializeBaseFiles_doesNotOverwriteExistingUsersJson(@TempDir Path root) throws Exception {
+        String existingUsersJson = "[{\"email\":\"existing.ta@qmul.ac.uk\",\"role\":\"TA\"}]";
+        String templateJson = "[{\"email\":\"admin@qmul.ac.uk\",\"role\":\"ADMIN\"}]";
+        Files.writeString(root.resolve(JsonPersistenceManager.USERS_FILE), existingUsersJson, StandardCharsets.UTF_8);
+        Files.writeString(root.resolve(JsonPersistenceManager.USERS_TEMPLATE_FILE), templateJson, StandardCharsets.UTF_8);
+
+        JsonPersistenceManager pm = new JsonPersistenceManager(root.toString());
+        pm.initializeBaseFiles();
+
+        assertEquals(existingUsersJson,
+                Files.readString(root.resolve(JsonPersistenceManager.USERS_FILE), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void committedUsersTemplate_containsDualSeededAdminsWithDemoPasswordPolicy() throws Exception {
+        Path templatePath = Path.of("data", JsonPersistenceManager.USERS_TEMPLATE_FILE);
+        String json = Files.readString(templatePath, StandardCharsets.UTF_8);
+        JsonArray users = JsonParser.parseString(json).getAsJsonArray();
+
+        JsonObject qmulAdmin = findUserByEmail(users, "admin@qmul.ac.uk");
+        JsonObject buptAdmin = findUserByEmail(users, "admin@bupt.edu.cn");
+
+        assertSeededAdminTemplate(qmulAdmin);
+        assertSeededAdminTemplate(buptAdmin);
+    }
+
+    private JsonObject findUserByEmail(JsonArray users, String email) {
+        for (int i = 0; i < users.size(); i++) {
+            JsonObject user = users.get(i).getAsJsonObject();
+            if (email.equals(user.get("email").getAsString())) {
+                return user;
+            }
+        }
+        fail("Missing seeded admin in users.template.json: " + email);
+        return null;
+    }
+
+    private void assertSeededAdminTemplate(JsonObject user) {
+        assertEquals("ADMIN", user.get("role").getAsString());
+        assertEquals("ACTIVE", user.get("status").getAsString());
+        assertFalse(user.get("mustChangePassword").getAsBoolean());
+        assertEquals(0, user.get("failedLoginCount").getAsInt());
+        assertTrue(user.get("lockedUntil").isJsonNull());
+        assertTrue(PasswordService.verify("111111", user.get("passwordHash").getAsString()));
     }
 
     @Test
