@@ -36,3 +36,4 @@ exports/
 data/permissions.json
 data/auth_audit.log
 data/admin_audit.log
+data/cvs/*.pdf
