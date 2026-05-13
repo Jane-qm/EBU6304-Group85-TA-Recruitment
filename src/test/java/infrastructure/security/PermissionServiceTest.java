@@ -17,13 +17,16 @@ class PermissionServiceTest {
     private static final Path PERMISSIONS_FILE = Path.of("data", "permissions.json");
     private String originalPermissionsContent;
     private boolean permissionsFileOriginallyExisted;
+    private Path originalConfiguredPermissionsFile;
 
     @BeforeEach
     void setUp() throws IOException {
+        originalConfiguredPermissionsFile = PermissionService.getPermissionsFile();
         permissionsFileOriginallyExisted = Files.exists(PERMISSIONS_FILE);
         if (permissionsFileOriginallyExisted) {
             originalPermissionsContent = Files.readString(PERMISSIONS_FILE);
         }
+        PermissionService.setPermissionsFile(PERMISSIONS_FILE);
         PermissionService.reload();
     }
 
@@ -34,6 +37,7 @@ class PermissionServiceTest {
         } else {
             Files.deleteIfExists(PERMISSIONS_FILE);
         }
+        PermissionService.setPermissionsFile(originalConfiguredPermissionsFile);
         PermissionService.reload();
     }
 

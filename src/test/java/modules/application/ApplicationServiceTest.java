@@ -435,7 +435,7 @@ class ApplicationServiceTest {
 
     @Test
     void submitApplication_WhenAlreadyHiredForJob_ThrowsIllegalStateException() {
-        // 测试场景：同一岗位已录用后再次申请，当前实现会先命中 active application 校验并抛出异常
+        // 测试场景：同一岗位已录用后再次申请，预期抛出已录用异常
         // Given
         Job job = createOpenJob(2001L, LocalDateTime.now().plusDays(1));
         Application existing = createApplication(3001L, 1001L, 2001L, ApplicationStatus.HIRED);
@@ -452,7 +452,7 @@ class ApplicationServiceTest {
                 () -> applicationService.submitApplication(1001L, 2001L, "statement", 5001L));
 
         // Then
-        assertTrue(exception.getMessage().contains("already have an active application"));
+        assertTrue(exception.getMessage().contains("already been hired"));
     }
 
     @Test

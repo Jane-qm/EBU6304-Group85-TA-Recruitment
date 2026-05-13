@@ -194,6 +194,14 @@ public class ApplicationService {
 
         List<Application> userApplications = listByTaUserId(taUserId);
 
+        // 检查是否已录用
+        boolean wasHired = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) &&
+                        ApplicationStatus.isHired(a.getStatus()));
+        if (wasHired) {
+            throw new IllegalStateException("You have already been hired for this position.");
+        }
+
         // 检查是否已有活跃申请
         boolean hasActiveApplication = userApplications.stream()
                 .anyMatch(a -> jobId.equals(a.getJobId()) && 
@@ -208,14 +216,6 @@ public class ApplicationService {
                         ApplicationStatus.isRejected(a.getStatus()));
         if (wasRejected) {
             throw new IllegalStateException("Your previous application for this position was rejected. You cannot reapply.");
-        }
-
-        // 检查是否已录用
-        boolean wasHired = userApplications.stream()
-                .anyMatch(a -> jobId.equals(a.getJobId()) &&
-                        ApplicationStatus.isHired(a.getStatus()));
-        if (wasHired) {
-            throw new IllegalStateException("You have already been hired for this position.");
         }
 
         // 检查活跃申请数量限制
