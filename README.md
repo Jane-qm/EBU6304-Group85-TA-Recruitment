@@ -186,6 +186,46 @@ Run from the repository root so that relative paths under `./data/` resolve corr
 
 ---
 
+## Admin Setup and Runtime Data
+
+### Demo Admin Accounts
+
+| Role | Email | Initial Demo Password | Notes |
+|---|---|---|---|
+| Admin | admin@qmul.ac.uk | 111111 | Seeded demo administrator |
+| Admin | admin@bupt.edu.cn | 111111 | Seeded demo administrator |
+
+These are seeded demo administrator accounts for coursework testing. Passwords are stored as PBKDF2 hashes in template/runtime data, not plain text. Admin users can change their own password from Admin Dashboard -> Change Password.
+
+### Admin Access Policy
+
+Only approved active seeded Admin accounts can access the Admin Portal.
+
+Access requires:
+
+- role = ADMIN
+- status = ACTIVE
+- email exactly matches admin@qmul.ac.uk or admin@bupt.edu.cn
+
+Public registration creates TA accounts only. Admin accounts cannot be created from the public registration page. TA and MO users are routed to their own dashboards. An ADMIN-role user with an unapproved email is denied Admin Portal access.
+
+### Runtime Data Policy
+
+- data/users.template.json is committed.
+- data/users.json is local runtime data and should not be committed.
+- If data/users.json is missing, it is initialized from data/users.template.json.
+- Existing data/users.json is not overwritten.
+
+Do not commit runtime/generated files such as:
+
+- data/users.json
+- data/admin_audit.log
+- data/auth_audit.log
+- exports/
+- target/
+
+---
+
 ## Team & Responsibilities
 
 | # | Member | GitHub | QMID | Primary Contributions |
