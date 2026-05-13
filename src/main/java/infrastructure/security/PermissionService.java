@@ -32,7 +32,8 @@ import java.util.*;
  */
 public class PermissionService {
 
-    private static final Path PERMISSIONS_FILE = Path.of("data", "permissions.json");
+    private static final Path DEFAULT_PERMISSIONS_FILE = Path.of("data", "permissions.json");
+    private static volatile Path permissionsFile = DEFAULT_PERMISSIONS_FILE;
 
     /** role-name → set of accessible portal area names (e.g. "TA", "MO", "ADMIN") */
     private static volatile Map<String, Set<String>> roleAccessMatrix = null;
@@ -47,8 +48,8 @@ public class PermissionService {
             return;
         }
         try {
-            if (Files.exists(PERMISSIONS_FILE)) {
-                String json = Files.readString(PERMISSIONS_FILE);
+            if (Files.exists(permissionsFile)) {
+                String json = Files.readString(permissionsFile);
                 Gson gson = GsonUtils.getGson();
                 Type type = new TypeToken<PermissionsConfig>() {}.getType();
                 PermissionsConfig config = gson.fromJson(json, PermissionsConfig.class);
@@ -63,7 +64,7 @@ public class PermissionService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[PermissionService] Could not load " + PERMISSIONS_FILE
+            System.err.println("[PermissionService] Could not load " + permissionsFile
                     + " — using built-in defaults. Reason: " + e.getMessage());
         }
         roleAccessMatrix = buildDefaults();
@@ -84,6 +85,20 @@ public class PermissionService {
     public static synchronized void reload() {
         roleAccessMatrix = null;
         ensureLoaded();
+    }
+
+    public static synchronized void setPermissionsFile(Path file) {
+        permissionsFile = file == null ? DEFAULT_PERMISSIONS_FILE : file;
+        roleAccessMatrix = null;
+    }
+
+    public static synchronized Path getPermissionsFile() {
+        return permissionsFile;
+    }
+
+    public static synchronized void resetPermissionsFile() {
+        permissionsFile = DEFAULT_PERMISSIONS_FILE;
+        roleAccessMatrix = null;
     }
 
     // -----------------------------------------------------------------------

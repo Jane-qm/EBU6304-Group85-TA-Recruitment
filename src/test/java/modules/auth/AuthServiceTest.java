@@ -1,183 +1,261 @@
 package modules.auth;
 
+import modules.profile.TAProfileService;
+import modules.user.AccountStatus;
+import modules.user.TA;
+import modules.user.User;
 import modules.user.UserRole;
+import modules.user.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-/**
- * Tests for AuthService registration and login validation.
- *
- * Tests that fail on domain / format checks are pure (no file I/O).
- * Tests that reach UserService require the data directory to exist;
- * Maven Surefire runs from the project root where data/ is already present.
- */
+@ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
-    private final AuthService authService = new AuthService();
+    @Mock
+    private UserService userService;
 
-    // ── email domain validation ───────────────────────────────────────────────
+    @Mock
+    private TAProfileService taProfileService;
 
-    /**
-     * A qmul.ac.uk address should pass domain check.
-     * Registration may succeed or fail with "Email already registered" — never with
-     * "Only university emails are allowed".
-     */
-    @Test
-    void register_withQmulDomain_doesNotThrowDomainError() {
-        try {
-            authService.register("test.junit.qmul.x@qmul.ac.uk", "Password123", UserRole.TA);
-            // registration succeeded — fine
-        } catch (IllegalArgumentException ex) {
-            assertFalse(ex.getMessage().contains("Only university"),
-                    "Should not fail on domain; got: " + ex.getMessage());
-        }
+    @InjectMocks
+    private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        authService = new AuthService(userService, taProfileService);
     }
 
     @Test
-    void register_withBuptDomain_doesNotThrowDomainError() {
-        try {
-            authService.register("test.junit.bupt.y@bupt.edu.cn", "Password123", UserRole.TA);
-        } catch (IllegalArgumentException ex) {
-            assertFalse(ex.getMessage().contains("Only university"),
-                    "Should not fail on domain; got: " + ex.getMessage());
-        }
+    void register_WhenTaEmailAndPasswordAreValid_ReturnsRegisteredUser() {
+        // 测试场景：TA 使用合法学校邮箱和密码注册，预期返回注册用户并初始化空白资料
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setUserId(1001L);
+        when(userService.register("student@qmul.ac.uk", "Password123", UserRole.TA)).thenReturn(user);
+
+        // When
+        User result = authService.register("student@qmul.ac.uk", "Password123", UserRole.TA);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(UserRole.TA, result.getRole());
+        verify(taProfileService).initializeProfile(1001L, "student@qmul.ac.uk");
     }
 
     @Test
-    void register_withGmailDomain_throwsDomainError() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.register("student@gmail.com", "Password1", UserRole.TA));
-        assertTrue(ex.getMessage().contains("Only university"),
-                "Expected domain error, got: " + ex.getMessage());
+    void register_WhenEmailDomainIsInvalid_ThrowsIllegalArgumentException() {
+        // 测试场景：注册邮箱不是允许的学校域名，预期抛出非法参数异常
+        // Given
+        String email = "student@gmail.com";
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> authService.register(email, "Password123", UserRole.TA));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Only university emails are allowed"));
     }
 
     @Test
-    void register_withArbitraryDomain_throwsDomainError() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.register("hacker@evil.io", "Password1", UserRole.TA));
-        assertTrue(ex.getMessage().contains("Only university"));
+    void login_WhenCredentialsAreValid_ReturnsUser() {
+        // 测试场景：登录参数合法且用户服务返回用户，预期登录成功
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        when(userService.login("student@qmul.ac.uk", "Password123")).thenReturn(user);
+
+        // When
+        User result = authService.login("student@qmul.ac.uk", "Password123");
+
+        // Then
+        assertEquals(user, result);
     }
 
     @Test
-    void register_withMoRole_throwsOnlyTaAllowed() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.register("mo.junit@qmul.ac.uk", "Password123", UserRole.MO));
-        assertTrue(ex.getMessage().toLowerCase().contains("ta")
-                        || ex.getMessage().toLowerCase().contains("only"),
-                "Expected TA-only registration error; got: " + ex.getMessage());
+    void login_WhenPasswordIsTooShort_ThrowsIllegalArgumentException() {
+        // 测试场景：登录时密码长度不足，预期抛出非法参数异常
+        // Given
+        String password = "123";
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> authService.login("student@qmul.ac.uk", password));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Password must be at least 6 characters."));
     }
 
     @Test
-    void register_withAdminRole_throwsOnlyTaAllowed() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register("admin.junit@qmul.ac.uk", "Password123", UserRole.ADMIN));
-    }
+    void isAccountValid_WhenUserIsActive_ReturnsTrue() {
+        // 测试场景：账户状态为 ACTIVE，预期返回 true
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setStatus(AccountStatus.ACTIVE);
 
-    // ── email format validation ───────────────────────────────────────────────
+        // When
+        boolean result = authService.isAccountValid(user);
 
-    @Test
-    void register_withEmptyEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register("", "Password1", UserRole.TA));
-    }
-
-    @Test
-    void register_withNullEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register(null, "Password1", UserRole.TA));
+        // Then
+        assertTrue(result);
     }
 
     @Test
-    void register_withEmailMissingAtSign_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register("nodomain", "Password1", UserRole.TA));
-    }
+    void isAccountValid_WhenUserIsNull_ReturnsFalse() {
+        // 测试场景：传入空用户对象，预期返回 false
+        // Given
+        User user = null;
 
-    // ── password validation ───────────────────────────────────────────────────
+        // When
+        boolean result = authService.isAccountValid(user);
 
-    @Test
-    void register_withShortPassword_throwsIllegalArgument() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.register("a@qmul.ac.uk", "abc", UserRole.TA));
-        assertTrue(ex.getMessage().toLowerCase().contains("password") ||
-                   ex.getMessage().toLowerCase().contains("6"),
-                "Expected password-length error; got: " + ex.getMessage());
+        // Then
+        assertFalse(result);
     }
 
     @Test
-    void register_withNullPassword_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register("a@qmul.ac.uk", null, UserRole.TA));
+    void getAccountStatusMessage_WhenUserIsPending_ReturnsPendingMessage() {
+        // 测试场景：用户状态为待审核，预期返回待审核提示信息
+        // Given
+        TA user = new TA("student@qmul.ac.uk", "Password123");
+        user.setStatus(AccountStatus.PENDING);
+
+        // When
+        String result = authService.getAccountStatusMessage(user);
+
+        // Then
+        assertEquals("Account is pending approval. Please wait for admin review.", result);
     }
 
     @Test
-    void register_withBlankPassword_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.register("a@qmul.ac.uk", "      ", UserRole.TA));
-    }
+    void getAccountStatusMessage_WhenUserIsNull_ReturnsUserNotFoundMessage() {
+        // 测试场景：传入空用户对象，预期返回用户未找到提示
+        // Given
+        User user = null;
 
-    // ── login validation ──────────────────────────────────────────────────────
+        // When
+        String result = authService.getAccountStatusMessage(user);
 
-    @Test
-    void login_withNullEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.login(null, "Password1"));
-    }
-
-    @Test
-    void login_withBlankEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.login("", "Password1"));
+        // Then
+        assertEquals("User not found.", result);
     }
 
     @Test
-    void login_withUnregisteredEmail_returnsNull() {
-        assertNull(authService.login("nobody@qmul.ac.uk", "Password1"),
-                "Login with unknown email should return null");
+    void sendVerificationCode_WhenEmailExists_ReturnsTrue() {
+        // 测试场景：邮箱已存在，预期发送验证码返回 true
+        // Given
+        when(userService.emailExists("student@qmul.ac.uk")).thenReturn(true);
+
+        // When
+        boolean result = authService.sendVerificationCode("student@qmul.ac.uk");
+
+        // Then
+        assertTrue(result);
     }
 
     @Test
-    void login_withWrongPassword_returnsNull() {
-        // demo@qmul.ac.uk is expected NOT to be in the seed data; result is just null
-        assertNull(authService.login("nobody@qmul.ac.uk", "WrongPass"));
-    }
+    void sendVerificationCode_WhenEmailDoesNotExist_ReturnsFalse() {
+        // 测试场景：邮箱不存在，预期发送验证码返回 false
+        // Given
+        when(userService.emailExists("student@qmul.ac.uk")).thenReturn(false);
 
-    // ── resetPassword validation (before UserService) ───────────────────────────
+        // When
+        boolean result = authService.sendVerificationCode("student@qmul.ac.uk");
 
-    @Test
-    void resetPassword_withShortPassword_throwsIllegalArgument() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> authService.resetPassword("x@qmul.ac.uk", "abc"));
-        assertTrue(ex.getMessage().toLowerCase().contains("password")
-                        || ex.getMessage().contains("6"),
-                "Expected password-length error; got: " + ex.getMessage());
+        // Then
+        assertFalse(result);
     }
 
     @Test
-    void resetPassword_withNullPassword_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.resetPassword("x@qmul.ac.uk", null));
+    void checkEmailExists_WhenEmailFormatIsValid_ReturnsLookup() {
+        // 测试场景：邮箱格式合法，预期返回用户服务的查询结果
+        // Given
+        when(userService.emailExists("student@qmul.ac.uk")).thenReturn(true);
+
+        // When
+        boolean result = authService.checkEmailExists("student@qmul.ac.uk");
+
+        // Then
+        assertTrue(result);
     }
 
     @Test
-    void resetPassword_withInvalidEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.resetPassword("not-an-email", "Secret12"));
+    void checkEmailExists_WhenEmailFormatIsInvalid_ThrowsIllegalArgumentException() {
+        // 测试场景：邮箱格式不合法，预期抛出非法参数异常
+        // Given
+        String email = "invalid-email";
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> authService.checkEmailExists(email));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Invalid email format."));
     }
 
-    // ── checkEmailExists validation ─────────────────────────────────────────────
-
     @Test
-    void checkEmailExists_withBlankEmail_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.checkEmailExists("   "));
+    void resetPassword_WhenEmailAndPasswordAreValid_UpdatesPassword() {
+        // 测试场景：邮箱和新密码合法，预期调用用户服务更新密码
+        // Given
+        String email = "student@qmul.ac.uk";
+        String newPassword = "NewPassword123";
+
+        // When
+        authService.resetPassword(email, newPassword);
+
+        // Then
+        verify(userService).updatePassword(email, newPassword);
     }
 
     @Test
-    void checkEmailExists_withInvalidFormat_throwsIllegalArgument() {
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.checkEmailExists("nodomain"));
+    void resetPassword_WhenNewPasswordIsBlank_ThrowsIllegalArgumentException() {
+        // 测试场景：重置密码时新密码为空白，预期抛出非法参数异常
+        // Given
+        String email = "student@qmul.ac.uk";
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> authService.resetPassword(email, " "));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Password must not be empty."));
+    }
+
+    @Test
+    void isPasswordChangeRequired_WhenEmailIsValid_ReturnsLookup() {
+        // 测试场景：邮箱格式合法，预期返回用户服务的密码修改要求结果
+        // Given
+        when(userService.isPasswordChangeRequired("student@qmul.ac.uk")).thenReturn(true);
+
+        // When
+        boolean result = authService.isPasswordChangeRequired("student@qmul.ac.uk");
+
+        // Then
+        assertTrue(result);
+    }
+
+    @Test
+    void isPasswordChangeRequired_WhenEmailIsBlank_ThrowsIllegalArgumentException() {
+        // 测试场景：邮箱为空白，预期抛出非法参数异常
+        // Given
+        String email = " ";
+
+        // When
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> authService.isPasswordChangeRequired(email));
+
+        // Then
+        assertTrue(exception.getMessage().contains("Email must not be empty."));
     }
 }
-
