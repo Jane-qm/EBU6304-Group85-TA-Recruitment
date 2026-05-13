@@ -14,7 +14,11 @@ public class CVService {
     private final CVDao cvDao;
     
     public CVService() {
-        this.cvDao = CVDao.getInstance();
+        this(CVDao.getInstance());
+    }
+
+    CVService(CVDao cvDao) {
+        this.cvDao = cvDao == null ? CVDao.getInstance() : cvDao;
     }
     
     /**

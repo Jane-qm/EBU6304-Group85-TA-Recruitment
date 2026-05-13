@@ -1,5 +1,7 @@
 package modules.application;
 
+import infrastructure.time.TimeProvider;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,18 +25,43 @@ import modules.profile.TAProfileService;
  */
 public class ApplicationService {
 
-    private final ApplicationDAO dao = new ApplicationDAO();
-    private final JobService jobService = new JobService();
-    private final TAProfileService taProfileService = new TAProfileService();
-    private final CVService cvService = new CVService();
-    private final NotificationService notificationService = new NotificationService();
-    private final SystemConfigService systemConfigService = new SystemConfigService();
+    private final ApplicationDAO dao;
+    private final JobService jobService;
+    private final TAProfileService taProfileService;
+    private final CVService cvService;
+    private final NotificationService notificationService;
+    private final SystemConfigService systemConfigService;
+
+    public ApplicationService() {
+        this(
+                new ApplicationDAO(),
+                new JobService(),
+                new TAProfileService(),
+                new CVService(),
+                new NotificationService(),
+                new SystemConfigService()
+        );
+    }
+
+    ApplicationService(ApplicationDAO dao,
+                       JobService jobService,
+                       TAProfileService taProfileService,
+                       CVService cvService,
+                       NotificationService notificationService,
+                       SystemConfigService systemConfigService) {
+        this.dao = dao;
+        this.jobService = jobService;
+        this.taProfileService = taProfileService;
+        this.cvService = cvService;
+        this.notificationService = notificationService;
+        this.systemConfigService = systemConfigService;
+    }
 
     // ==================== 基础 CRUD 方法 ====================
 
     public Application createOrUpdate(Application application) {
         if (application.getAppliedAt() == null) {
-            application.setAppliedAt(LocalDateTime.now());
+            application.setAppliedAt(TimeProvider.now());
         }
         return dao.save(application);
     }
@@ -122,7 +149,7 @@ public class ApplicationService {
 
         // 检查职位截止日期
         if (job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("The application deadline for this position has passed.");
         }
     }
@@ -132,7 +159,7 @@ public class ApplicationService {
      */
     public Application submitApplication(Long taUserId, Long jobId, String statement, Long cvId) {
         // 检查全局申请周期
-        if (!systemConfigService.isWithinApplicationCycle(LocalDateTime.now())) {
+        if (!systemConfigService.isWithinApplicationCycle(TimeProvider.now())) {
             SystemConfig cfg = systemConfigService.getConfig();
             String window = cfg.isConfigured()
                     ? cfg.getApplicationStart().toLocalDate() + " to " + cfg.getApplicationEnd().toLocalDate()
@@ -161,11 +188,19 @@ public class ApplicationService {
 
         // 检查职位截止日期
         if (job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("The application deadline for this position has passed.");
         }
 
         List<Application> userApplications = listByTaUserId(taUserId);
+
+        // 检查是否已录用
+        boolean wasHired = userApplications.stream()
+                .anyMatch(a -> jobId.equals(a.getJobId()) &&
+                        ApplicationStatus.isHired(a.getStatus()));
+        if (wasHired) {
+            throw new IllegalStateException("You have already been hired for this position.");
+        }
 
         // 检查是否已有活跃申请
         boolean hasActiveApplication = userApplications.stream()
@@ -181,14 +216,6 @@ public class ApplicationService {
                         ApplicationStatus.isRejected(a.getStatus()));
         if (wasRejected) {
             throw new IllegalStateException("Your previous application for this position was rejected. You cannot reapply.");
-        }
-
-        // 检查是否已录用
-        boolean wasHired = userApplications.stream()
-                .anyMatch(a -> jobId.equals(a.getJobId()) && 
-                        ApplicationStatus.isHired(a.getStatus()));
-        if (wasHired) {
-            throw new IllegalStateException("You have already been hired for this position.");
         }
 
         // 检查活跃申请数量限制
@@ -227,7 +254,7 @@ public class ApplicationService {
         // 检查职位截止日期
         Job job = jobService.getJobById(application.getJobId());
         if (job != null && job.getApplicationDeadline() != null && 
-            LocalDateTime.now().isAfter(job.getApplicationDeadline())) {
+            TimeProvider.now().isAfter(job.getApplicationDeadline())) {
             throw new IllegalStateException("Cannot cancel after the application deadline.");
         }
 
@@ -274,7 +301,7 @@ public class ApplicationService {
             throw new IllegalArgumentException("Job not found.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeProvider.now();
         LocalDateTime expiry = job.getOfferResponseDeadline();
         if (expiry == null) {
             expiry = now.plusDays(7);
@@ -328,7 +355,7 @@ public class ApplicationService {
         }
 
         application.setStatus(ApplicationStatus.HIRED);
-        application.setRespondedAt(LocalDateTime.now());
+        application.setRespondedAt(TimeProvider.now());
         Application saved = dao.save(application);
 
         // 通知 MO
@@ -378,7 +405,7 @@ public class ApplicationService {
         }
 
         application.setStatus(ApplicationStatus.REJECTED);
-        application.setRespondedAt(LocalDateTime.now());
+        application.setRespondedAt(TimeProvider.now());
         Application saved = dao.save(application);
 
         // 通知 MO

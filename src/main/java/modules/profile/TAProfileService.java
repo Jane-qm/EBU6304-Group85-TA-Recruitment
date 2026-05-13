@@ -30,8 +30,12 @@ public class TAProfileService {
     private final UserService userService;
     
     public TAProfileService() {
-        this.profileDAO = TAProfileDAO.getInstance();
-        this.userService = UserService.getInstance();
+        this(TAProfileDAO.getInstance(), UserService.getInstance());
+    }
+
+    TAProfileService(TAProfileDAO profileDAO, UserService userService) {
+        this.profileDAO = profileDAO;
+        this.userService = userService;
     }
     
     public TAProfile getProfileByTaId(Long taId) {
