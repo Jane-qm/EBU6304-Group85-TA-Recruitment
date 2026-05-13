@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -16,17 +18,31 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link UserService} registration, login, account lifecycle, MO import,
+ * and Admin access policy helper methods.
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Restored dual seeded Admin policy regression tests after merge conflict
+ * - Added coverage for approved Admin emails, unapproved Admin emails,
+ *   wrong-role approved emails, inactive Admin status, and no automatic promotion
+ */
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
@@ -412,17 +428,18 @@ class UserServiceTest {
     }
 
     @Test
-    void isStrictAdmin_WhenUserIsActiveAdmin_ReturnsTrue() {
-        // 测试场景：用户为 ACTIVE 状态的 ADMIN，预期返回 true
+    void isStrictAdmin_WhenApprovedSeededAdminsAreActive_ReturnsTrue() {
+        // Test scenario: both approved seeded Admin emails should pass strict Admin validation.
         // Given
-        Admin admin = new Admin("admin@qmul.ac.uk", "Password123");
-        admin.setStatus(AccountStatus.ACTIVE);
+        Admin qmulAdmin = new Admin(" ADMIN@QMUL.AC.UK ", "Password123");
+        qmulAdmin.setStatus(AccountStatus.ACTIVE);
 
-        // When
-        boolean result = userService.isStrictAdmin(admin);
+        Admin buptAdmin = new Admin("Admin@BUPT.edu.cn", "Password123");
+        buptAdmin.setStatus(AccountStatus.ACTIVE);
 
         // Then
-        assertTrue(result);
+        assertTrue(userService.isStrictAdmin(qmulAdmin));
+        assertTrue(userService.isStrictAdmin(buptAdmin));
     }
 
     @Test
@@ -437,6 +454,69 @@ class UserServiceTest {
         // Then
         assertFalse(result);
     }
+
+    @Test
+    void isStrictAdmin_WhenAdminEmailIsNotApproved_ReturnsFalse() {
+        // Test scenario: role ADMIN alone is not enough to access Admin Portal.
+        // Given
+        Admin unapprovedAdmin = new Admin("admin.strict." + UUID.randomUUID() + "@qmul.ac.uk", "Password123");
+        unapprovedAdmin.setStatus(AccountStatus.ACTIVE);
+
+        // Then
+        assertFalse(userService.isStrictAdmin(unapprovedAdmin));
+    }
+
+    @Test
+    void isStrictAdmin_WhenApprovedEmailHasNonAdminRole_ReturnsFalse() {
+        // Test scenario: approved Admin email should not pass if the role is not ADMIN.
+        // Given
+        TA taUsingApprovedEmail = new TA("admin@qmul.ac.uk", "Password123");
+        taUsingApprovedEmail.setStatus(AccountStatus.ACTIVE);
+
+        MO moUsingApprovedEmail = new MO("admin@bupt.edu.cn", "Password123");
+        moUsingApprovedEmail.setStatus(AccountStatus.ACTIVE);
+
+        // Then
+        assertFalse(userService.isStrictAdmin(taUsingApprovedEmail));
+        assertFalse(userService.isStrictAdmin(moUsingApprovedEmail));
+    }
+
+    @Test
+    void isStrictAdmin_WhenApprovedAdminIsPendingOrDisabled_ReturnsFalse() {
+        // Test scenario: approved Admin email still requires ACTIVE status.
+        // Given
+        Admin pendingAdmin = new Admin("admin@qmul.ac.uk", "Password123");
+        pendingAdmin.setStatus(AccountStatus.PENDING);
+
+        Admin disabledAdmin = new Admin("admin@bupt.edu.cn", "Password123");
+        disabledAdmin.setStatus(AccountStatus.DISABLED);
+
+        // Then
+        assertFalse(userService.isStrictAdmin(pendingAdmin));
+        assertFalse(userService.isStrictAdmin(disabledAdmin));
+    }
+
+    @Test
+    void ensureSeededAdminAccounts_WhenApprovedEmailHasNonAdminRole_DoesNotPromoteUser() throws Exception {
+        // Test scenario: an approved Admin email with TA role must not be promoted automatically.
+        // Given
+        Map<String, User> usersByEmail = getUsersByEmailMap(userService);
+
+        TA taUsingApprovedEmail = new TA("admin@qmul.ac.uk", "Password123");
+        taUsingApprovedEmail.setUserId(999001L);
+        taUsingApprovedEmail.setStatus(AccountStatus.ACTIVE);
+        usersByEmail.put("admin@qmul.ac.uk", taUsingApprovedEmail);
+
+        // When
+        invokeEnsureSeededAdminAccounts(userService);
+
+        // Then
+        User storedUser = usersByEmail.get("admin@qmul.ac.uk");
+        assertSame(taUsingApprovedEmail, storedUser);
+        assertEquals(UserRole.TA, storedUser.getRole());
+        assertFalse(userService.isStrictAdmin(storedUser));
+    }
+
 
     @Test
     void listAllUsers_WhenUsersExist_ReturnsSortedUsers() {
@@ -772,4 +852,18 @@ class UserServiceTest {
         assertEquals(0, result.failCount);
         assertTrue(result.errors.isEmpty());
     }
+    @SuppressWarnings("unchecked")
+    private Map<String, User> getUsersByEmailMap(UserService service) throws Exception {
+        Field field = UserService.class.getDeclaredField("usersByEmail");
+        field.setAccessible(true);
+        return (Map<String, User>) field.get(service);
+    }
+
+    private void invokeEnsureSeededAdminAccounts(UserService service) throws Exception {
+        Method method = UserService.class.getDeclaredMethod("ensureSeededAdminAccounts");
+        method.setAccessible(true);
+        method.invoke(service);
+    }
+
+
 }
