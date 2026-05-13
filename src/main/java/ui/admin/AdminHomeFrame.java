@@ -166,8 +166,8 @@ public class AdminHomeFrame extends JFrame {
         mainCardPanel.add(createDashboardPanel(), CARD_DASHBOARD);
 
         // Management panels
-        moPanel = new MOManagementPanel(this::refreshAllPanels);
-        taPanel = new TAManagementPanel(this::refreshAllPanels);
+        moPanel = new MOManagementPanel(this::refreshAllPanels, currentUser.getEmail());
+        taPanel = new TAManagementPanel(this::refreshAllPanels, currentUser.getEmail());
         coursePanel = new CourseManagementPanel();
 
         mainCardPanel.add(moPanel, CARD_MO);

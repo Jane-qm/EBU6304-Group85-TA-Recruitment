@@ -26,6 +26,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
+import infrastructure.audit.AdminAuditLogger;
 import modules.cv.CVInfo;
 import modules.cv.CVService;
 import modules.profile.TAProfile;
@@ -43,6 +44,11 @@ import ui.common.TaProfileViewer;
  * TA Management Panel for Admin
  * Table actions: borderless bold text (blue / green / red by intent).
  * TA can only be registered via registration page, not added/imported here
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added admin audit logging for TA account lifecycle actions
  */
 public class TAManagementPanel extends JPanel {
     private final UserService userService = UserService.getInstance();
@@ -51,6 +57,7 @@ public class TAManagementPanel extends JPanel {
     private JTable table;
     private DefaultTableModel tableModel;
     private Runnable refreshCallback;
+    private final String adminEmail;
     private List<User> allTaUsers;
     private List<User> taUsers;
 
@@ -58,7 +65,12 @@ public class TAManagementPanel extends JPanel {
     private JComboBox<String> searchAttrCombo;
 
     public TAManagementPanel(Runnable refreshCallback) {
+        this(refreshCallback, null);
+    }
+
+    public TAManagementPanel(Runnable refreshCallback, String adminEmail) {
         this.refreshCallback = refreshCallback;
+        this.adminEmail = (adminEmail == null || adminEmail.isBlank()) ? "unknown" : adminEmail.trim();
         setLayout(new BorderLayout());
         setBackground(new Color(248, 250, 252));
         setBorder(new EmptyBorder(20, 20, 20, 20));
@@ -348,6 +360,7 @@ public class TAManagementPanel extends JPanel {
 
     private void disableTA(User user) {
         userService.disableAccount(user.getEmail());
+        AdminAuditLogger.log(adminEmail, "DISABLE_TA", auditTarget(user, "SUCCESS"));
         JOptionPane.showMessageDialog(this, "TA disabled: " + user.getEmail());
         loadData();
         if (refreshCallback != null) refreshCallback.run();
@@ -355,6 +368,7 @@ public class TAManagementPanel extends JPanel {
 
     private void activateTA(User user) {
         userService.updateAccountStatus(user.getEmail(), AccountStatus.ACTIVE);
+        AdminAuditLogger.log(adminEmail, "ACTIVATE_TA", auditTarget(user, "SUCCESS"));
         JOptionPane.showMessageDialog(this, "TA activated: " + user.getEmail());
         loadData();
         if (refreshCallback != null) refreshCallback.run();
@@ -363,10 +377,17 @@ public class TAManagementPanel extends JPanel {
     private void resetPassword(User user) {
         try {
             new AuthService().resetPassword(user.getEmail(), "000000");
+            AdminAuditLogger.log(adminEmail, "RESET_TA_PASSWORD", auditTarget(user, "SUCCESS"));
             JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
         } catch (Exception ex) {
+            AdminAuditLogger.log(adminEmail, "RESET_TA_PASSWORD", auditTarget(user, "FAILED: " + ex.getMessage()));
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Reset failed", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private String auditTarget(User user, String result) {
+        String targetEmail = user == null ? "unknown" : user.getEmail();
+        return targetEmail + " RESULT=" + result;
     }
 
     private String getStatusText(AccountStatus status) {
