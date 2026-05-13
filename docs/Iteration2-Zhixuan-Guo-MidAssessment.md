@@ -43,7 +43,7 @@
 
 1. **基础设施与 JSON 持久化**
    - 引入并维护 **Gson + `JsonPersistenceManager`** 思路：`data/*.json` 初始化、`data/cvs/` 等目录准备、与 `Main` 启动流程衔接。  
-   - 相关提交主题示例：`feat: implement Gson persistence foundation...`、`feat(iter2): extend JSON bootstrap...`。
+   - 相关提交主题示例：`feat: implement Gson persistence foundation...`、`feat(iter2): extend JSON initialization...`。
 
 2. **跨角色共享领域与服务**
    - 在 Iteration 2 阶段推动 **`ApplicationStatus` / `NotificationKind`** 等共享常量，统一申请状态与通知类型表达，降低 TA/MO/通知逻辑分叉成本。  
