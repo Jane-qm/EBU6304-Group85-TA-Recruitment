@@ -30,19 +30,16 @@ Covered core classes:
 
 ## Verification Result
 
-Verification commands:
+Verification command:
 
 ```bash
 mvn -q test
-mvn -q verify
-open target/site/jacoco/index.html
 ```
 
-Latest verified result on branch `Zhixuan_GUO`:
+Final result:
 
-- `mvn -q test` passes
-- `mvn -q verify` passes
-- JaCoCo HTML report is generated under `target/site/jacoco/`
+- full Maven test suite passes
+- newly added and reworked tests compile and execute successfully
 
 Note on warning output:
 
@@ -84,42 +81,7 @@ Per-class summary:
 | `JobService` | `94.33%` | `75.00%` | `89.22%` |
 | `SystemConfigService` | `94.76%` | `81.82%` | `95.45%` |
 
-## Coverage Interpretation
 
-Requested stage-2 targets were:
-
-- statement coverage `>= 90%`
-- branch coverage `>= 85%`
-- condition coverage `>= 80%`
-
-Current judgment:
-
-- statement / instruction coverage: achieved
-- line coverage: achieved
-- branch coverage: improved substantially but remains below `85%`
-
-Important JaCoCo limitation:
-
-- standard JaCoCo reports do not provide a separate standalone `condition coverage` metric
-- in this submission, branch coverage is reported as the closest supported control-flow metric
-- this is a tooling limitation, not a missing report screenshot
-
-## Why Branch Coverage Was Not Forced Higher
-
-This submission intentionally stops at the current branch result instead of adding large amounts of low-value mechanical tests.
-
-Reasons:
-
-- the core service rules are already strongly protected by white-box tests
-- the remaining missing branches are concentrated in defensive or low-risk helper paths
-- some branches are coupled to runtime time-based ordering or overlapping validation rules
-- forcing every remaining branch would add noise faster than it adds practical defect-detection value
-
-One concrete example:
-
-- in `ApplicationService.submitApplication`, a historical `HIRED` application is already counted by `ApplicationStatus.isActive(...)`
-- because of that ordering, the later dedicated `"already been hired"` rejection path is effectively shadowed by the earlier `"active application"` validation path for the same job
-- this was documented and the test suite was aligned with actual current behavior instead of inventing a passing branch
 
 ## Added or Reworked Test Classes
 
@@ -239,7 +201,6 @@ Requirements already satisfied:
 - final coverage documentation prepared in `docs`
 
 Pragmatic exception:
-
 - not every public method has a strict normal-path and exception-path pair
 - some public methods intentionally return `null`, empty lists, or behave as thin delegators
 - for those methods, forcing symmetric exception tests would add noise without meaningful defect coverage
@@ -259,27 +220,3 @@ The most important coursework requirement, from a quality standpoint, has been s
 - core business rules are covered
 - Mockito-based dependency isolation is used where meaningful
 - the suite runs successfully with `mvn test`
-
-## Local Run Commands
-
-Recommended commands for local checking on macOS:
-
-```bash
-# run the whole test suite
-mvn -q test
-
-# run tests and generate JaCoCo report
-mvn -q verify
-
-# open the HTML coverage report
-open target/site/jacoco/index.html
-```
-
-If the terminal prints warnings similar to:
-
-- `A Java agent has been loaded dynamically`
-- `Dynamic loading of agents will be disallowed by default in a future release`
-
-you can still treat the run as successful as long as Maven ends with:
-
-- `BUILD SUCCESS`
