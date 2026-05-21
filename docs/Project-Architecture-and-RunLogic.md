@@ -55,7 +55,7 @@ All business data lives under `data/` (created automatically by `JsonPersistence
 ```mermaid
 flowchart TD
     A[App Start: Main.main] --> B[JsonPersistenceManager.initializeBaseFiles]
-    B --> C[UserService.ensureDefaultAdmin]
+    B --> C[UserService.ensureSeededAdminAccounts]
     C --> D[MOJobService.autoCloseExpiredJobs]
     D --> E[Set Swing LookAndFeel]
     E --> F[Open LoginFrame]
@@ -68,7 +68,7 @@ flowchart TD
 ```
 
 **Startup side effects:**
-- `ensureDefaultAdmin()` — seeds `admin@test.com / admin123` if entry is missing from `users.json`.
+- `ensureSeededAdminAccounts()` — ensures the two approved seeded Admin accounts from `data/users.template.json` are available when local runtime data is initialized. If `data/users.json` already exists, existing runtime data is not overwritten.
 - `autoCloseExpiredJobs()` — scans all OPEN/PUBLISHED jobs; closes those whose deadline is before today. Also re-runs when MO logs in.
 - `PermissionService` lazy-loads `data/permissions.json` on first `hasAccess()` call, falling back to hardcoded defaults if file is absent.
 
@@ -98,15 +98,16 @@ sequenceDiagram
 
 Key behavior:
 - Accepted domains: `@qmul.ac.uk` and `@bupt.edu.cn`.
-- MO accounts start as `PENDING` — must be approved by Admin before login.
-- TA and Admin accounts start as `ACTIVE`.
-- After registration, `LoginFrame` opens with the registered role's tab pre-selected.
+- Public registration creates TA accounts only in the final demo policy.
+- Admin accounts are seeded through template/runtime data and cannot be created from the public registration page.
+- MO accounts are managed through the Admin-side account workflow rather than public Admin registration.
+- After public registration, `LoginFrame` routes the user to the TA login flow.
 
 ### 3.2 Login (`LoginFrame` → `AuthService.login`)
 
 1. Role tab must match the account's actual role.
 2. `DISABLED` accounts are blocked.
-3. Admin accounts additionally require `isStrictAdmin` (email = `admin@test.com`, status = `ACTIVE`).
+3. Admin accounts additionally require strict Admin validation: role `ADMIN`, status `ACTIVE`, and normalized email exactly matching `admin@qmul.ac.uk` or `admin@bupt.edu.cn`.
 4. `PermissionService.hasAccess` determines routing.
 5. Each portal (TAMainFrame, MODashboardFrame) now also carries a defensive role guard in its own constructor.
 
@@ -299,15 +300,34 @@ MOJobService.autoCloseExpiredJobs()
 
 ## 6. Admin Role Runtime Logic
 
-### 6.1 Admin Access Rule (ADM-001)
+### 6.1 Admin Access and Seeded Account Run Logic (ADM-001)
 
-- Only `admin@test.com` with role `ADMIN` and status `ACTIVE` passes `isStrictAdmin`.
-- `ensureDefaultAdmin()` is called at startup to seed this account if `data/users.json` is ever deleted.  
-  Default credentials: **email** `admin@test.com` / **password** `admin123`.
-- All three portals now have their own constructor-level role guard (defense-in-depth):
-  - `AdminHomeFrame` — `isStrictAdmin` check
-  - `MODashboardFrame` — `PermissionService.hasAccess(role, MO)`
-  - `TAMainFrame` — `PermissionService.hasAccess(role, TA)`
+The final Admin Portal access policy uses two seeded demo administrator accounts:
+
+- admin@qmul.ac.uk / 111111
+- admin@bupt.edu.cn / 111111
+
+The system only routes a user to the Admin Portal when all of the following conditions are satisfied:
+
+1. The user exists.
+2. The user role is ADMIN.
+3. The account status is ACTIVE.
+4. The normalized email exactly matches one of the approved seeded Admin emails.
+
+The email check alone is not sufficient. If a TA, MO, or other non-admin record uses one of the approved Admin emails, it must not be promoted automatically and must not pass strict Admin validation.
+
+The public registration flow creates TA accounts only. Admin users are seeded through template/runtime data and are not created from the registration page.
+
+If data/users.json is missing, the runtime data is initialized from data/users.template.json. If data/users.json already exists, it is not overwritten.
+
+Admin users can change their own password from Admin Dashboard -> Change Password. The final seeded demo setup does not require a mandatory password rotation on first visit.
+
+All three portals now have their own constructor-level role guard (defense-in-depth):
+
+- `AdminHomeFrame` — strict Admin validation
+- `MODashboardFrame` — `PermissionService.hasAccess(role, MO)`
+- `TAMainFrame` — `PermissionService.hasAccess(role, TA)`
+
 
 ### 6.2 Admin Portal (`AdminHomeFrame`) — Three Tabs
 
@@ -322,7 +342,7 @@ MOJobService.autoCloseExpiredJobs()
 
 Every action is appended to `data/admin_audit.log`:
 ```
-[2026-04-16 14:23:01]  ADMIN=admin@test.com        ACTION=APPROVE_MO              TARGET=mo@test.com
+[2026-04-16 14:23:01]  ADMIN=admin@qmul.ac.uk     ACTION=APPROVE_MO              TARGET=mo@test.com
 ```
 
 **Audit log format:** `[YYYY-MM-DD HH:mm:ss]  ADMIN=<email>  ACTION=<verb>  TARGET=<email/label>`
@@ -358,7 +378,7 @@ AdminHomeFrame.saveApplicationCycle()
   "applicationStart": "2026-04-01T00:00:00",
   "applicationEnd":   "2026-05-24T23:59:59",
   "updatedAt":        "2026-04-16T10:00:00",
-  "updatedBy":        "admin@test.com"
+  "updatedBy":        "admin@qmul.ac.uk"
 }
 ```
 
@@ -393,7 +413,7 @@ Stored in `data/permissions.json` and loaded lazily by `PermissionService`:
 |---|---|---|
 | L1 — Login gate | Role tab must match account role | `LoginFrame` |
 | L2 — Account status | DISABLED accounts blocked | `LoginFrame` |
-| L3 — Admin strict | Only `admin@test.com` reaches Admin portal | `LoginFrame` + `AdminHomeFrame` |
+| L3 — Admin strict | Only approved active seeded Admin accounts reach Admin portal | `LoginFrame` + `AdminHomeFrame` |
 | L4 — Portal guard | Each portal checks role via `PermissionService.hasAccess` | `TAMainFrame`, `MODashboardFrame` constructors |
 | L5 — Cycle guard | TA cannot submit outside configured window | `TAApplicationService.submitApplication` |
 
@@ -580,8 +600,8 @@ protection, and operational auditability.
 
 ### 12.1 Threat model and design intent
 
-- Avoid hardcoded default credentials in source code.
-- Ensure initial bootstrap credentials are short-lived and rotated immediately.
+- Use seeded demo administrator accounts only for coursework testing.
+- Keep the final Admin access policy consistent across code, template data, tests, and documentation.
 - Improve password storage from fast hash to slow KDF with salt and iterations.
 - Protect against online brute-force/password spraying via lockout policy.
 - Separate runtime-sensitive data files from version-controlled templates.
@@ -591,14 +611,15 @@ protection, and operational auditability.
 
 | Control | Design decision | Implementation |
 |---|---|---|
-| Bootstrap admin secret | Read from environment variable only | `UserService.ensureDefaultAdmin()` reads `TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD`; if missing, auto-create is denied |
-| First-login password rotation | Bootstrap admin must change password before entering portal | `User.mustChangePassword`; enforced in `LoginFrame` for ADMIN login |
+| Seeded Admin accounts | Two approved demo administrators are stored in template/runtime data as PBKDF2 hashes | `data/users.template.json`, `UserService.ensureSeededAdminAccounts()` |
+| Strict Admin validation | Admin Portal access requires approved email, role ADMIN, and status ACTIVE | `UserService.isStrictAdmin()`, `LoginFrame`, `AdminHomeFrame` |
+| Admin dashboard password change | Admin users change their own password from the Admin Dashboard after login | `AdminHomeFrame` password-change workflow |
 | Password hashing upgrade | Move from SHA-256 to PBKDF2 with salt/iterations | `PasswordService` uses `PBKDF2WithHmacSHA256`, format `PBKDF2$iter$salt$hash` |
 | Backward compatibility | Keep old users functional while upgrading | `PasswordService.verify()` accepts legacy SHA-256; successful login upgrades hash |
 | Account lockout | 5 failed attempts lock account for 15 minutes | `User.failedLoginCount`, `User.lockedUntil`, enforced in `UserService.login()` |
 | Auth audit log | Record success/failure without plaintext passwords | `AuthAuditLogger` -> `data/auth_audit.log` |
 | Admin audit log | Record account/config/export operations | `AdminAuditLogger` -> `data/admin_audit.log` |
-| Runtime data separation | Limit what leaves the machine unreviewed | `.gitignore` excludes `data/permissions.json` and audit logs; `data/users.json` may be committed for shared demo accounts (avoid real secrets) |
+| Runtime data separation | Limit what leaves the machine unreviewed | `data/users.template.json` is committed; local runtime files such as `data/users.json`, audit logs, `exports/`, and `target/` should not be committed |
 
 ### 12.3 Data model changes (`users.json`)
 
@@ -615,7 +636,7 @@ Automated coverage added in `test.java.common.SecurityHardeningTest`:
 1. Legacy SHA-256 verification remains functional.
 2. Legacy hash is upgraded to PBKDF2 after successful login.
 3. 5 failed logins trigger 15-minute lockout.
-4. Missing bootstrap env var prevents auto-creation of default admin.
+4. Final dual seeded Admin policy rejects unapproved Admin emails, inactive Admin accounts, and non-admin roles using approved Admin emails.
 
 Manual coverage added in `TestCase.md`:
 

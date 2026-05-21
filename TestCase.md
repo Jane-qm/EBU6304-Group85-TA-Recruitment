@@ -5,9 +5,39 @@ Testers: Jiayi Lou, Zhixuan Guo
 
 ---
 
+## Final Admin Policy for Testing
+
+Approved seeded Admin accounts:
+
+- admin@qmul.ac.uk / 111111
+- admin@bupt.edu.cn / 111111
+
+Admin Portal access requires:
+
+- role == ADMIN
+- status == ACTIVE
+- email exactly matches one of the approved seeded Admin emails
+
+Current final behavior:
+
+- Public registration creates TA accounts only.
+- Admin accounts are seeded and cannot be created through public registration.
+- TA users are routed to the TA dashboard.
+- MO users are routed to the MO dashboard.
+- An ADMIN-role user with an unapproved email is denied Admin Portal access.
+- Admin users can change password from Admin Dashboard -> Change Password.
+- There is no first-login forced password change in the final seeded demo setup.
+- Runtime files such as data/users.json and data/admin_audit.log should not be committed.
+
+Note: Some role-tab and registration tests in earlier sections are historical tests from previous iterations. The current final registration policy creates TA accounts only. Admin accounts are seeded, and MO/Admin account creation is not part of the public registration flow. Final Admin access uses the dual seeded Admin policy.
+
+---
+
 ## Manual / UI Test Cases
 
 ### Iteration 2 (TC-001 – TC-014)
+
+> Note: TC-013 and TC-014 are retained as historical role-tab UI tests from earlier iterations. The final public registration flow creates TA accounts only. Admin accounts are seeded, and MO/Admin account creation is not part of the public registration flow. These historical UI tests should not be read as final registration-policy evidence.
 
 | Test ID | Test Function | Steps | Expected Result | Actual Result | Pass |
 | ------- | ------------- | ----- | --------------- | ------------- | ---- |
@@ -23,8 +53,8 @@ Testers: Jiayi Lou, Zhixuan Guo
 | TC-010 | Registration Email Domain Validation | 1. Click Register 2. Enter email ending in @gmail.com or other non-university domain 3. Submit | Error: "Only university emails are allowed"; registration blocked | Normal | Yes |
 | TC-011 | Registration with @bupt.edu.cn | 1. Click Register 2. Enter valid @bupt.edu.cn email 3. Submit | Registration succeeds; login page opens with correct role tab active | Normal | Yes |
 | TC-012 | Auto Role Tab after Registration (TA) | 1. Register as TA 2. Observe login page | TA tab is highlighted / pre-selected on login page | Normal | Yes |
-| TC-013 | Auto Role Tab after Registration (MO) | 1. Register as MO 2. Observe login page | MO tab is highlighted / pre-selected on login page | Normal | Yes |
-| TC-014 | Auto Role Tab — Back to Login | 1. On Register page, switch to ADMIN tab 2. Click "Back to Login" | Login page opens with ADMIN tab pre-selected | Normal | Yes |
+| TC-013 | Auto Role Tab after Registration (MO) | 1. Register as MO 2. Observe login page | MO tab is highlighted / pre-selected on login page | Historical test from earlier iteration; final registration policy creates TA accounts only | Historical / To be re-verified |
+| TC-014 | Auto Role Tab — Back to Login | 1. On Register page, switch to ADMIN tab 2. Click "Back to Login" | Login page opens with ADMIN tab pre-selected | Historical role-tab UI test; final LoginFrame should be re-verified | Historical / To be re-verified |
 
 ---
 
@@ -36,7 +66,7 @@ Run command:
 mvn test
 ```
 
-### Test Class: `test.java.modules.application.ApplicationStatusTest`
+### Test Class: `src/test/java/modules/application/ApplicationStatusTest.java`
 
 | Test Method | Input | Expected | Pass |
 | ----------- | ----- | -------- | ---- |
@@ -63,7 +93,7 @@ mvn test
 | `displayText_cancelled_returnsCancelled` | `CANCELLED` | `"cancelled"` | Yes |
 | `displayText_null_returnsUnknown` | `null` | `"unknown"` | Yes |
 
-### Test Class: `ta.entity.TAProfileTest`
+### Test Class: `src/test/java/modules/profile/TAProfileTest.java`
 
 | Test Method | What is tested | Pass |
 | ----------- | -------------- | ---- |
@@ -90,7 +120,7 @@ mvn test
 | `fullName_whenBothNamesSet` | `"Guo Zhixuan"` | Yes |
 | `fullName_fallsBackToChineseName` | Falls back to chineseName | Yes |
 
-### Test Class: `auth.AuthServiceTest`
+### Test Class: `src/test/java/modules/auth/AuthServiceTest.java`
 
 | Test Method | What is tested | Pass |
 | ----------- | -------------- | ---- |
@@ -113,14 +143,15 @@ mvn test
 
 ---
 
-### Test Class: `test.java.common.SecurityHardeningTest` (Iteration 3 security minimum set)
+### Test Class: `modules.user.UserServiceTest` (Final Admin policy regression set)
 
 | Test Method | What is tested | Pass |
 | ----------- | -------------- | ---- |
-| `passwordService_legacySha256_isStillAcceptedAndFlaggedForUpgrade` | Legacy SHA-256 users can still log in and are flagged for hash upgrade | Yes |
-| `login_withLegacyHash_upgradesToPbkdf2` | Legacy hash is automatically upgraded to PBKDF2 after successful login | Yes |
-| `login_fiveFailures_locksAccountFor15Minutes` | 5 wrong-password attempts trigger 15-minute account lockout | Yes |
-| `ensureDefaultAdmin_withoutEnvVar_doesNotAutoCreateAdmin` | If bootstrap env var is missing, default admin is NOT auto-created | Yes |
+| `isStrictAdmin_WhenApprovedSeededAdminsAreActive_ReturnsTrue` | Both approved seeded Admin emails pass strict validation only when role is ADMIN and status is ACTIVE | Yes |
+| `isStrictAdmin_WhenAdminEmailIsNotApproved_ReturnsFalse` | ADMIN-role users with unapproved emails are denied Admin Portal access | Yes |
+| `isStrictAdmin_WhenApprovedEmailHasNonAdminRole_ReturnsFalse` | Approved Admin emails with TA/MO roles are not promoted automatically | Yes |
+| `isStrictAdmin_WhenApprovedAdminIsPendingOrDisabled_ReturnsFalse` | Approved Admin emails still require ACTIVE status | Yes |
+| `ensureSeededAdminAccounts_WhenApprovedEmailHasNonAdminRole_DoesNotPromoteUser` | Runtime initialization does not overwrite or promote existing non-admin users with approved Admin emails | Yes |
 
 ---
 
@@ -142,13 +173,13 @@ mvn test
 | TC-026 | MO-009.1 | Manual close changes status | 1. Select a PUBLISHED job 2. Click "Close Recruitment" 3. Confirm dialog | Job status changes to CLOSED in table; mo_jobs.json updated; TA course catalog no longer shows this job | Yes |
 | TC-027 | MO-009.1 | Cannot close already-closed job | 1. Select a CLOSED job 2. Click "Close Recruitment" | Info dialog: "This job is already closed"; no state change | Yes |
 | TC-028 | MO-009.2 | Auto-close on MO login | 1. Set a job's deadline to yesterday's date in mo_jobs.json 2. Log in as MO | Console shows auto-close log; job status updated to CLOSED; job no longer visible to TAs | Yes |
-| TC-029 | ADM-001 | Bootstrap admin requires environment variable | 1. Remove admin@test.com from users.json 2. Ensure `TA_SYSTEM_ADMIN_BOOTSTRAP_PASSWORD` is NOT set 3. Restart app | Console warns that bootstrap env var is missing; admin account is not auto-created | Yes |
+| TC-029 | ADM-001 | Dual seeded Admin access policy | 1. Ensure data/users.json is initialized from data/users.template.json 2. Log in with admin@qmul.ac.uk / 111111 3. Log out and log in with admin@bupt.edu.cn / 111111 | Both approved seeded Admin accounts reach Admin Portal only when role is ADMIN and status is ACTIVE | Yes |
 | TC-030 | ADM-003 | TA blocked outside cycle | 1. Log in as Admin 2. Set cycle end to yesterday 3. Log in as TA 4. Attempt to apply for a job | Error dialog: "Applications are currently closed. Recruitment window: ... to ..." | Yes |
 | TC-031 | ADM-004.2 | Audit log records admin actions | 1. Log in as Admin 2. Approve an MO 3. Disable an account 4. Reset a password 5. Check data/admin_audit.log | Each action produces one line in admin_audit.log with timestamp, admin email, action verb, and target email | Yes |
 | TC-032 | SYS-001 | Wrong-role login blocked | 1. Select MO tab on login page 2. Enter TA credentials | Error: "Role mismatch. Account Role: TA"; login blocked; MO portal not opened | Yes |
 | TC-033 | SYS-001 | RBAC guard in portal | Attempt to directly instantiate `TAMainFrame` with an MO user object in code | "Access denied. A TA account is required" dialog shown; LoginFrame opens; TAMainFrame closes | Yes |
 | TC-034 | SYS-001 | permissions.json loaded | 1. Check console on startup 2. Verify data/permissions.json exists | Console logs "[PermissionService] Loaded RBAC matrix from data/permissions.json" | Yes |
-| TC-035 | SEC-001 | Admin self-service reset blocked | 1. Click Forgot Password 2. Enter `admin@test.com` 3. Continue | Reset is blocked with security warning; admin password cannot be changed by weak self-service flow | Yes |
+| TC-035 | SEC-001 | Admin self-service reset blocked | 1. Click Forgot Password 2. Enter admin@qmul.ac.uk 3. Continue | Reset is blocked with security warning; admin password cannot be changed by weak self-service flow | Yes |
 
 ---
 
