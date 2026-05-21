@@ -31,6 +31,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 
+import infrastructure.audit.AdminAuditLogger;
 import modules.user.AccountStatus;
 import modules.user.User;
 import modules.user.UserRole;
@@ -43,12 +44,18 @@ import ui.common.TableScrollUtil;
 /**
  * MO Management Panel for Admin
  * Table actions: borderless bold text (blue / green / red by intent).
+ *
+ * @version 1.1
+ * @contributor Jiaze Wang
+ * @update
+ * - Added admin audit logging for MO account lifecycle actions
  */
 public class MOManagementPanel extends JPanel {
     private final UserService userService = UserService.getInstance();
     private JTable table;
     private DefaultTableModel tableModel;
     private Runnable refreshCallback;
+    private final String adminEmail;
     private List<User> allMoUsers;
     private List<User> moUsers;
 
@@ -56,7 +63,12 @@ public class MOManagementPanel extends JPanel {
     private JComboBox<String> searchAttrCombo;
 
     public MOManagementPanel(Runnable refreshCallback) {
+        this(refreshCallback, null);
+    }
+
+    public MOManagementPanel(Runnable refreshCallback, String adminEmail) {
         this.refreshCallback = refreshCallback;
+        this.adminEmail = (adminEmail == null || adminEmail.isBlank()) ? "unknown" : adminEmail.trim();
         setLayout(new BorderLayout());
         setBackground(new Color(248, 250, 252));
         setBorder(new EmptyBorder(20, 20, 20, 20));
@@ -384,6 +396,7 @@ public class MOManagementPanel extends JPanel {
 
     private void activateMO(User user) {
         userService.updateAccountStatus(user.getEmail(), AccountStatus.ACTIVE);
+        AdminAuditLogger.log(adminEmail, "ACTIVATE_MO", auditTarget(user, "SUCCESS"));
         JOptionPane.showMessageDialog(this, "MO activated: " + user.getEmail());
         loadData();
         if (refreshCallback != null) refreshCallback.run();
@@ -391,6 +404,7 @@ public class MOManagementPanel extends JPanel {
 
     private void disableMO(User user) {
         userService.disableAccount(user.getEmail());
+        AdminAuditLogger.log(adminEmail, "DISABLE_MO", auditTarget(user, "SUCCESS"));
         JOptionPane.showMessageDialog(this, "MO disabled: " + user.getEmail());
         loadData();
         if (refreshCallback != null) refreshCallback.run();
@@ -399,10 +413,17 @@ public class MOManagementPanel extends JPanel {
     private void resetPassword(User user) {
         try {
             new AuthService().resetPassword(user.getEmail(), "000000");
+            AdminAuditLogger.log(adminEmail, "RESET_MO_PASSWORD", auditTarget(user, "SUCCESS"));
             JOptionPane.showMessageDialog(this, "Password reset to 000000\nEmail: " + user.getEmail());
         } catch (Exception ex) {
+            AdminAuditLogger.log(adminEmail, "RESET_MO_PASSWORD", auditTarget(user, "FAILED: " + ex.getMessage()));
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Reset failed", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private String auditTarget(User user, String result) {
+        String email = user == null || user.getEmail() == null ? "unknown" : user.getEmail();
+        return email + " RESULT=" + result;
     }
 
     private String getStatusText(AccountStatus status) {

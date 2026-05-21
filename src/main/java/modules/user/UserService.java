@@ -43,10 +43,26 @@ import infrastructure.security.PasswordService;
  * - Fixed duplicated methods and broken class structure after merge
  * - Kept legacy helper methods used by existing panels
  * - Restored a compilable and compatible UserService implementation
+ *
+ * @version 2.4
+ * @contributor Jiaze Wang
+ * @update
+ * - Defined the dual seeded admin access policy for Admin Portal access
+ * - Restricted strict admin access to active ADMIN users with approved seeded admin emails
+ * - Added safe seeded admin repair without promoting non-admin users automatically
  */
 public class UserService {
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
     private static final int ACCOUNT_LOCK_MINUTES = 15;
+
+    /** Approved seeded system-admin emails for Admin Portal access. */
+    private static final Set<String> APPROVED_ADMIN_EMAILS = Set.of(
+            "admin@qmul.ac.uk",
+            "admin@bupt.edu.cn"
+    );
+
+    /** Temporary constructor password is overwritten immediately by a persisted password hash. */
+    private static final String REPAIR_PLACEHOLDER_PASSWORD = "temporary_seed_repair_password";
 
     private final Map<String, User> usersByEmail = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(100000L);
@@ -81,8 +97,7 @@ public class UserService {
     UserService(UserDAO fileDAO) {
         this.fileDAO = fileDAO;
         loadFromFile();
-        // 不再创建演示账号，管理员从 users.json 加载
-        // 如果 users.json 为空，系统启动后需要手动创建第一个用户
+        ensureSeededAdminAccounts();
     }
 
     /**
@@ -124,6 +139,81 @@ public class UserService {
         } catch (Exception e) {
             System.err.println("加载用户数据失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * Ensures approved seeded admin accounts are aligned with the access policy.
+     * Missing approved admins may be created only by reusing an existing seeded
+     * ADMIN password hash. Existing non-admin users with approved admin emails
+     * are never promoted automatically.
+     */
+    private void ensureSeededAdminAccounts() {
+        boolean needsResave = false;
+        User passwordSource = findSeededAdminPasswordSource();
+
+        for (String adminEmail : APPROVED_ADMIN_EMAILS) {
+            User existing = usersByEmail.get(adminEmail);
+
+            if (existing == null) {
+                if (passwordSource == null) {
+                    System.err.println("[UserService] WARNING: seeded admin account " + adminEmail
+                            + " is missing and cannot be auto-created because no existing seeded admin password hash is available.");
+                    continue;
+                }
+                Admin seededAdmin = buildSeededAdminFromSource(adminEmail, passwordSource);
+                usersByEmail.put(adminEmail, seededAdmin);
+                needsResave = true;
+                continue;
+            }
+
+            if (existing.getRole() != UserRole.ADMIN) {
+                System.err.println("[UserService] WARNING: approved seeded admin email exists with non-admin role and will not be promoted automatically: "
+                        + adminEmail);
+                continue;
+            }
+
+            if (existing.getStatus() != AccountStatus.ACTIVE) {
+                existing.setStatus(AccountStatus.ACTIVE);
+                needsResave = true;
+            }
+        }
+
+        if (needsResave) {
+            saveToFile();
+        }
+    }
+
+    /**
+     * Finds an existing approved ADMIN password hash to keep bootstrap
+     * compatibility without hard-coding a new raw password.
+     */
+    private User findSeededAdminPasswordSource() {
+        for (String adminEmail : APPROVED_ADMIN_EMAILS) {
+            User user = usersByEmail.get(adminEmail);
+            if (user != null
+                    && user.getRole() == UserRole.ADMIN
+                    && user.getPasswordHash() != null
+                    && !user.getPasswordHash().isBlank()) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Builds a missing seeded admin while preserving the password policy from
+     * another approved seeded admin account.
+     */
+    private Admin buildSeededAdminFromSource(String adminEmail, User source) {
+        Admin admin = new Admin(adminEmail, REPAIR_PLACEHOLDER_PASSWORD);
+        admin.setUserId(idGenerator.incrementAndGet());
+        admin.setPasswordHash(source.getPasswordHash());
+        admin.setStatus(AccountStatus.ACTIVE);
+        admin.setCreatedAt(LocalDateTime.now());
+        admin.setMustChangePassword(source.isMustChangePassword());
+        admin.setFailedLoginCount(0);
+        admin.setLockedUntil(null);
+        return admin;
     }
 
     /**
@@ -307,13 +397,13 @@ public class UserService {
     }
 
     /**
-     * Validates admin access.
-     * 修改：移除硬编码邮箱限制，只要 role 是 ADMIN 且状态 ACTIVE 即可
+     * Validates Admin Portal access through the centralized dual seeded admin policy.
      */
     public boolean isStrictAdmin(User user) {
         return user != null
                 && user.getRole() == UserRole.ADMIN
-                && user.getStatus() == AccountStatus.ACTIVE;
+                && user.getStatus() == AccountStatus.ACTIVE
+                && APPROVED_ADMIN_EMAILS.contains(normalizeEmail(user.getEmail()));
     }
 
     /**

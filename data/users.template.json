@@ -2,14 +2,25 @@
   {
     "userId": 100001,
     "email": "admin@qmul.ac.uk",
-    "passwordHash": "PBKDF2$120000$<base64-salt>$<base64-hash>",
+    "passwordHash": "PBKDF2$120000$XbpaB3BP8C49xmjePKapaQ==$H6Pwx1l9PxDTxKzDBwM5m6fQdqr4cn7qvEPXIWZfM0Y=",
     "role": "ADMIN",
     "status": "ACTIVE",
-    "createdAt": "2026-04-17T00:00:00",
+    "createdAt": "2026-05-08T00:00:00",
     "lastLogin": null,
-    "mustChangePassword": true,
+    "mustChangePassword": false,
+    "failedLoginCount": 0,
+    "lockedUntil": null
+  },
+  {
+    "userId": 100002,
+    "email": "admin@bupt.edu.cn",
+    "passwordHash": "PBKDF2$120000$m+wzGDRp3buntMPhI/WkEA==$kn8xof6uEm7yVRUvv6+oXQ4C+PTccObtIW6UEzsXCQE=",
+    "role": "ADMIN",
+    "status": "ACTIVE",
+    "createdAt": "2026-05-08T00:00:00",
+    "lastLogin": null,
+    "mustChangePassword": false,
     "failedLoginCount": 0,
     "lockedUntil": null
   }
 ]
-

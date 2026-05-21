@@ -7,9 +7,10 @@
 *.ear
 
 # --- 构建工具文件夹 ---
-# 如果你使用 IntelliJ IDEA，忽略这些
 out/
 bin/
+target/
+Group85/
 
 # --- IDE (集成开发环境) 设置 ---
 .idea/
@@ -23,17 +24,19 @@ bin/
 .DS_Store
 Thumbs.db
 
-# --- 注意事项 ---
-# 不要忽略 .txt, .csv, .json 或 .xml 文件！
-# 因为根据要求，这些是你们存储数据的地方
-target/
-Group85/
+# --- 项目特定忽略规则（核心修正） ---
+# 1. 忽略所有运行时生成的数据文件
+data/*.json
+data/*.log
+data/cvs/
 exports/
 *.zip
 
-# --- Runtime security-sensitive data (keep local, do not commit) ---
-# data/users.json is tracked so the team can share default/demo accounts.
-data/permissions.json
-data/auth_audit.log
-data/admin_audit.log
-data/cvs/*.pdf
+# 2. 例外规则：只保留模板文件（这是唯一应该被追踪的data目录下的文件）
+!data/*.template.json
+
+# --- 安全敏感数据 ---
+# （已被上面的data/*.json覆盖，保留作为注释）
+# data/permissions.json
+# data/auth_audit.log
+# data/admin_audit.log
